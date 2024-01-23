@@ -7,6 +7,7 @@
 #include "YUFA.h"
 #include "YUFADlg.h"
 #include "afxdialogex.h"
+#include "afxwin.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -59,6 +60,7 @@ CYUFADlg::CYUFADlg(CWnd* pParent /*=nullptr*/)
 void CYUFADlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
+	DDX_Control(pDX, IDC_TAB_MAIN, m_Tab_Main);
 }
 
 BEGIN_MESSAGE_MAP(CYUFADlg, CDialogEx)
@@ -67,6 +69,7 @@ BEGIN_MESSAGE_MAP(CYUFADlg, CDialogEx)
 	ON_WM_QUERYDRAGICON()
 	ON_WM_CLOSE()
 	ON_BN_CLICKED(IDC_BTN_QUIT, &CYUFADlg::OnBnClickedBtnQuit)
+	ON_WM_TIMER()
 END_MESSAGE_MAP()
 
 
@@ -102,6 +105,52 @@ BOOL CYUFADlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// 設定小圖示
 
 	// TODO: 在此加入額外的初始設定
+    // Get Client Rect
+	CRect rect;
+	GetClientRect(&rect);
+	
+	//define indicators
+	UINT indicators[] = { ID_INDICATOR_TIME, ID_INDICATOR_FILE };
+
+	// Create the status bar
+	if (m_Status_Bar.Create(this))
+	{
+		m_Status_Bar.SetIndicators(indicators, 2);
+		m_Status_Bar.SetPaneInfo(0, ID_INDICATOR_TIME, SBPS_NORMAL, rect.Width() - 100);
+		m_Status_Bar.SetPaneInfo(1, ID_INDICATOR_FILE, SBPS_NORMAL, rect.Width() - 50);
+
+		//Add Status Bar Fime Name Data
+		m_Status_Bar.SetPaneText(0,_T("File Name :N/A"));
+
+		// Resize the status bar
+		m_Status_Bar.MoveWindow(rect.left, rect.bottom - 20, rect.Width(), 20);
+	}
+	
+	
+
+    // Set Timer
+	SetTimer(100, 1000, NULL);
+
+	//Set Dialog Maximize and Minimize icon
+	ModifyStyle(0, WS_MAXIMIZEBOX | WS_MINIMIZEBOX, 0);
+
+	//Set Dialog Title
+	SetWindowText(_T("YUFA 0.0.0"));
+
+	//Table control initial
+	m_Tab_Main.InsertItem(0, _T("Working"));
+	m_Tab_Main.InsertItem(1, _T("System Parameter"));
+
+	//Set Table Control Size
+	m_Tab_Main.GetClientRect(&rect);
+	rect.top += 20;
+	rect.bottom -= 20;
+	rect.left += 10;
+	rect.right -= 10;
+	m_Tab_Main.AdjustRect(FALSE, &rect);
+	
+	
+	
 
 	return TRUE;  // 傳回 TRUE，除非您對控制項設定焦點
 }
@@ -202,4 +251,16 @@ void CYUFADlg::OnCancel()
 		// Do Nothing
 	}
 	//CDialogEx::OnCancel();
+}
+
+
+void CYUFADlg::OnTimer(UINT_PTR nIDEvent)
+{
+	// TODO: 在此加入您的訊息處理常式程式碼和 (或) 呼叫預設值
+
+	CTime t1;
+	t1 = CTime::GetCurrentTime();
+	m_Status_Bar.SetPaneText(1, t1.Format("%H:%M:%S"));
+
+	CDialogEx::OnTimer(nIDEvent);
 }

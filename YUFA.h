@@ -27,6 +27,9 @@ public:
 // 程式碼實作
 
 	DECLARE_MESSAGE_MAP()
+
+//
+
 };
 
 extern CYUFAApp theApp;

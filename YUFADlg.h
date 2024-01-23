@@ -25,6 +25,12 @@ public:
 protected:
 	HICON m_hIcon;
 
+
+
+	//CStatic m_StatusBar;
+	//Add CTime m_Time, for display time
+	CTime m_Time;
+
 	// 產生的訊息對應函式
 	virtual BOOL OnInitDialog();
 	afx_msg void OnSysCommand(UINT nID, LPARAM lParam);
@@ -36,4 +42,9 @@ public:
 	virtual void OnOK();
 	afx_msg void OnBnClickedBtnQuit();
 	virtual void OnCancel();
+	afx_msg void OnTimer(UINT_PTR nIDEvent);
+
+	//Add CStatusBar m_Status_Bar
+	CStatusBar m_Status_Bar;
+	CTabCtrl m_Tab_Main;
 };
