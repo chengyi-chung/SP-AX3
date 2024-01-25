@@ -3,6 +3,12 @@
 //
 
 #pragma once
+#include "afxwin.h"
+#include "afxcmn.h"
+#include "SystemParaTab.h"
+#include "WorkTab.h"
+
+
 
 
 // CYUFADlg 對話方塊
@@ -30,6 +36,16 @@ protected:
 	//CStatic m_StatusBar;
 	//Add CTime m_Time, for display time
 	CTime m_Time;
+	
+	// Tab Control
+	CTabCtrl m_Tab_Main;
+	// Add CSystemParaTab m_SystemParaTab
+    SystemParaTab m_SystemParaTab;
+	// Add CWorkTab m_WorkTab
+	WorkTab m_WorkTab;
+	//Add CStatusBar m_Status_Bar
+	CStatusBar m_Status_Bar;
+
 
 	// 產生的訊息對應函式
 	virtual BOOL OnInitDialog();
@@ -44,7 +60,8 @@ public:
 	virtual void OnCancel();
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
 
-	//Add CStatusBar m_Status_Bar
-	CStatusBar m_Status_Bar;
-	CTabCtrl m_Tab_Main;
+
+	afx_msg void OnBnClickedBtnSysPara();
+	afx_msg void OnBnClickedBtnWorking();
+	afx_msg void OnSize(UINT nType, int cx, int cy);
 };

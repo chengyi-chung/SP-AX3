@@ -6,11 +6,15 @@
 #define IDD_ABOUTBOX                    100
 #define IDS_ABOUTBOX                    101
 #define IDD_YUFA_DIALOG                 102
+#define IDD_TAB_WOK                     105
+#define IDD_TAB_SYSTEM_PARA             106
 #define IDR_MAINFRAME                   128
 #define IDC_BTN_QUIT                    1000
 #define IDC_BTN_WORKING                 1003
 #define IDC_BTN_SYS_PARA                1004
 #define IDC_TAB_MAIN                    1005
+#define IDC_MFCBUTTON1                  1009
+#define IDC_WORK_GRAB                   1009
 #define ID_INDICATOR_TIME               59142
 #define ID_INDICATOR_FILE               59143
 
@@ -18,9 +22,9 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        131
+#define _APS_NEXT_RESOURCE_VALUE        133
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1006
+#define _APS_NEXT_CONTROL_VALUE         1010
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

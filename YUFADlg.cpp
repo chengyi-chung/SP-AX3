@@ -8,6 +8,8 @@
 #include "YUFADlg.h"
 #include "afxdialogex.h"
 #include "afxwin.h"
+#include "SystemParaTab.h"
+#include "WorkTab.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -70,6 +72,9 @@ BEGIN_MESSAGE_MAP(CYUFADlg, CDialogEx)
 	ON_WM_CLOSE()
 	ON_BN_CLICKED(IDC_BTN_QUIT, &CYUFADlg::OnBnClickedBtnQuit)
 	ON_WM_TIMER()
+	ON_BN_CLICKED(IDC_BTN_SYS_PARA, &CYUFADlg::OnBnClickedBtnSysPara)
+	ON_BN_CLICKED(IDC_BTN_WORKING, &CYUFADlg::OnBnClickedBtnWorking)
+	ON_WM_SIZE()
 END_MESSAGE_MAP()
 
 
@@ -142,15 +147,24 @@ BOOL CYUFADlg::OnInitDialog()
 	m_Tab_Main.InsertItem(1, _T("System Parameter"));
 
 	//Set Table Control Size
+	//m_Tab_Main.SetParent(this);
 	m_Tab_Main.GetClientRect(&rect);
-	rect.top += 20;
-	rect.bottom -= 20;
+	rect.top += 10;
+	rect.bottom -= 10;
 	rect.left += 10;
 	rect.right -= 10;
 	m_Tab_Main.AdjustRect(FALSE, &rect);
 	
-	
-	
+	//Add Tab Control Item Working
+	m_WorkTab.Create(IDD_TAB_WOK, &m_Tab_Main);
+	m_WorkTab.MoveWindow(&rect);
+	m_WorkTab.ShowWindow(SW_SHOW);
+
+	//Add Tab Control Item System Parameter
+	m_SystemParaTab.Create(IDD_TAB_SYSTEM_PARA, &m_Tab_Main);
+	m_SystemParaTab.MoveWindow(&rect);
+	m_SystemParaTab.ShowWindow(SW_HIDE);
+
 
 	return TRUE;  // 傳回 TRUE，除非您對控制項設定焦點
 }
@@ -263,4 +277,70 @@ void CYUFADlg::OnTimer(UINT_PTR nIDEvent)
 	m_Status_Bar.SetPaneText(1, t1.Format("%H:%M:%S"));
 
 	CDialogEx::OnTimer(nIDEvent);
+}
+
+void CYUFADlg::OnBnClickedBtnWorking()
+{
+	// TODO: 在此加入控制項告知處理常式程式碼
+	m_WorkTab.ShowWindow(SW_SHOW);
+	m_SystemParaTab.ShowWindow(SW_HIDE);
+	m_Tab_Main.SetCurSel(0);
+}
+
+void CYUFADlg::OnBnClickedBtnSysPara()
+{
+	// TODO: 在此加入控制項告知處理常式程式碼
+	m_WorkTab.ShowWindow(SW_HIDE);
+	m_SystemParaTab.ShowWindow(SW_SHOW);
+	//change to select tab
+	m_Tab_Main.SetCurSel(1);
+}
+
+	
+
+
+
+
+
+void CYUFADlg::OnSize(UINT nType, int cx, int cy)
+{
+
+
+
+	CDialogEx::OnSize(nType, cx, cy);
+
+	// TODO: 在此加入您的訊息處理常式程式碼
+	if (m_Status_Bar.m_hWnd)
+	{
+		CRect rect;
+		GetClientRect(&rect);
+		m_Status_Bar.MoveWindow(rect.left, rect.bottom - 20, rect.Width(), 20);
+	}
+	
+	/*
+		if (m_Tab_Main.m_hWnd)
+	{
+		CRect rect;
+		GetClientRect(&rect);
+		rect.top += 10;
+		rect.bottom -= 30;
+		rect.left += 10;
+		rect.right -= 10;
+		m_Tab_Main.MoveWindow(rect);
+		m_Tab_Main.GetClientRect(&rect);
+		rect.top += 10;
+		rect.bottom -= 10;
+		rect.left += 10;
+		rect.right -= 10;
+		m_Tab_Main.AdjustRect(FALSE, &rect);
+		m_WorkTab.MoveWindow(&rect);
+		m_SystemParaTab.MoveWindow(&rect);
+	}
+	*/
+
+
+
+
+	
+
 }
