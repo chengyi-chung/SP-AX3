@@ -46,6 +46,8 @@ protected:
 	//Add CStatusBar m_Status_Bar
 	CStatusBar m_Status_Bar;
 
+	
+
 
 	// 產生的訊息對應函式
 	virtual BOOL OnInitDialog();

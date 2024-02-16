@@ -26,7 +26,7 @@ void WorkTab::DoDataExchange(CDataExchange* pDX)
 	CDialogEx::DoDataExchange(pDX);
 }
 
-
+          
 BEGIN_MESSAGE_MAP(WorkTab, CDialogEx)
 	ON_BN_CLICKED(IDC_WORK_GRAB, &WorkTab::OnBnClickedWorkGrab)
 END_MESSAGE_MAP()
@@ -38,5 +38,8 @@ END_MESSAGE_MAP()
 void WorkTab::OnBnClickedWorkGrab()
 {
 	// TODO: 在此加入控制項告知處理常式程式碼
+
+
+
 
 }
