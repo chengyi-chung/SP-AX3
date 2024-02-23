@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "afxdialogex.h"
+#include <opencv2/opencv.hpp>
 
 
 // WorkTab 對話方塊
@@ -18,9 +19,18 @@ public:
 #endif
 
 protected:
+	CBrush m_brush;
+
+
+protected:
 	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV 支援
+	virtual BOOL OnInitDialog(); // 新增的初始化函數
 
 	DECLARE_MESSAGE_MAP()
 public:
 	afx_msg void OnBnClickedWorkGrab();
+
+public:
+	afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
+
 };
