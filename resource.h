@@ -1,6 +1,6 @@
-﻿//{{NO_DEPENDENCIES}}
-// Microsoft Visual C++ 產生的 Include 檔案。
-// 由 YUFA.rc 使用
+//{{NO_DEPENDENCIES}}
+// Microsoft Visual C++ generated include file.
+// Used by YUFA.rc
 //
 #define IDM_ABOUTBOX                    0x0010
 #define IDD_ABOUTBOX                    100
@@ -16,6 +16,7 @@
 #define IDC_MFCBUTTON1                  1009
 #define IDC_WORK_GRAB                   1009
 #define IDC_CAMERA_STATUS               1010
+#define IDC_PICCTL_DISPLAY              1011
 #define ID_INDICATOR_TIME               59142
 #define ID_INDICATOR_FILE               59143
 
@@ -25,7 +26,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        134
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1011
+#define _APS_NEXT_CONTROL_VALUE         1012
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

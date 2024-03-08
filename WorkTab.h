@@ -1,6 +1,8 @@
 ﻿#pragma once
 #include "afxdialogex.h"
 #include <opencv2/opencv.hpp>
+#include <pylon/PylonIncludes.h>
+
 
 
 // WorkTab 對話方塊
@@ -20,6 +22,17 @@ public:
 
 protected:
 	CBrush m_brush;
+
+	// Declare CInstantCamera object
+	Pylon::CInstantCamera camera;
+	// Add a multi-treaded grabber with Basler Pylon
+	static UINT GrabThread(LPVOID pParam);
+	cv::Mat m_Image;
+	//Display MyImage in the dialog IDC_PICCTL_DISPLAY
+	CStatic m_PicCtl_Display;
+	//Add a button IDC_WORK_GRAB
+	CButton m_Work_Grab;
+	//Add a button IDC_WORK_STOP
 
 
 protected:

@@ -51,7 +51,9 @@ BOOL WorkTab::OnInitDialog()
 
     try
     {
-        CInstantCamera camera(CTlFactory::GetInstance().CreateFirstDevice());
+        //CInstantCamera camera(CTlFactory::GetInstance().CreateFirstDevice());
+        camera.Attach(CTlFactory::GetInstance().CreateFirstDevice());
+
         cout << "Using device : " << camera.GetDeviceInfo().GetModelName() << endl;
         cout << "Serial Number : " << camera.GetDeviceInfo().GetSerialNumber() << endl;
         camera.MaxNumBuffer = 5;
@@ -117,8 +119,46 @@ HBRUSH WorkTab::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
 void WorkTab::OnBnClickedWorkGrab()
 {
 	// TODO: 在此加入控制項告知處理常式程式碼
+    // Create a thread to grab images
+    AfxBeginThread(GrabThread, this);
+    //GrabThread(this);
 
-	
+}
 
+// Add a multi-treaded grabber with Basler Pylon
+UINT WorkTab::GrabThread(LPVOID pParam)
+{
+	// Get the pointer to the dialog
+	WorkTab* pDlg = (WorkTab*)pParam;
 
+    while (pDlg->camera.IsGrabbing())
+    {
+        CGrabResultPtr ptrGrabResult;
+
+        pDlg->camera.RetrieveResult(5000, ptrGrabResult, TimeoutHandling_ThrowException);
+
+        if (ptrGrabResult->GrabSucceeded())
+        {
+            const uint8_t* pImageBuffer = (uint8_t*)ptrGrabResult->GetBuffer();
+            pDlg->m_Image = cv::Mat(ptrGrabResult->GetHeight(), ptrGrabResult->GetWidth(), CV_8UC1, (void*)pImageBuffer);
+            //pDlg->MyImage(ptrGrabResult->GetHeight(), ptrGrabResult->GetWidth(), CV_8UC1, (void*)pImageBuffer);
+            // Display the OpenCV image.
+            //cv::imshow("Image", img);
+
+            // Resize the image by a factor of 2
+            cv::Mat resizedImg;
+            //Show the image in the window
+
+            //cv::resize(pDlg->MyImage, resizedImg, cv::Size(), 0.2, 0.2);
+            // Display the resized image
+            //cv::imshow("Resized Image", resizedImg);
+
+            //cv::waitKey(0);
+        }
+        else
+        {
+            cout << "Error: " << std::hex << ptrGrabResult->GetErrorCode() << std::dec << " " << ptrGrabResult->GetErrorDescription() << endl;
+        }
+    }
+    return 0;
 }
