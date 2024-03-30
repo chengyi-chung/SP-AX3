@@ -6,6 +6,7 @@
 
 
 // WorkTab 對話方塊
+using namespace Pylon;
 
 class WorkTab : public CDialogEx
 {
@@ -25,6 +26,10 @@ protected:
 
 	// Declare CInstantCamera object
 	Pylon::CInstantCamera camera;
+
+	
+
+	CGrabResultPtr ptrGrabResult;
 	// Add a multi-treaded grabber with Basler Pylon
 	static UINT GrabThread(LPVOID pParam);
 	cv::Mat m_Image;
@@ -33,6 +38,7 @@ protected:
 	//Add a button IDC_WORK_GRAB
 	CButton m_Work_Grab;
 	//Add a button IDC_WORK_STOP
+	void DrawPicToHDC(cv::Mat cvImg, UINT ID, bool bOnPaint);
 
 
 protected:

@@ -296,11 +296,6 @@ void CYUFADlg::OnBnClickedBtnSysPara()
 	m_Tab_Main.SetCurSel(1);
 }
 
-	
-
-
-
-
 
 void CYUFADlg::OnSize(UINT nType, int cx, int cy)
 {

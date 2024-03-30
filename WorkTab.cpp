@@ -28,6 +28,7 @@ WorkTab::WorkTab(CWnd* pParent /*=nullptr*/)
 
 WorkTab::~WorkTab()
 {
+    PylonTerminate();
 }
 
 void WorkTab::DoDataExchange(CDataExchange* pDX)
@@ -86,7 +87,7 @@ BOOL WorkTab::OnInitDialog()
         return 1;
     }
 
-    PylonTerminate();
+    //PylonTerminate();
     return 0;
 
 }
@@ -121,7 +122,7 @@ void WorkTab::OnBnClickedWorkGrab()
 	// TODO: 在此加入控制項告知處理常式程式碼
     // Create a thread to grab images
     AfxBeginThread(GrabThread, this);
-    //GrabThread(this);
+    GrabThread(this);
 
 }
 
@@ -146,8 +147,13 @@ UINT WorkTab::GrabThread(LPVOID pParam)
             //cv::imshow("Image", img);
 
             // Resize the image by a factor of 2
-            cv::Mat resizedImg;
+            //cv::Mat resizedImg;
             //Show the image in the window
+            //cv::imshow("Image", pDlg->m_Image);
+
+            // Call DrawPicToHDC to display the image in the dialog
+            pDlg->DrawPicToHDC(pDlg->m_Image, IDC_PICCTL_DISPLAY, false);
+            
 
             //cv::resize(pDlg->MyImage, resizedImg, cv::Size(), 0.2, 0.2);
             // Display the resized image
@@ -161,4 +167,23 @@ UINT WorkTab::GrabThread(LPVOID pParam)
         }
     }
     return 0;
+}
+
+//Add a button IDC_WORK_STOP
+void WorkTab::DrawPicToHDC(cv::Mat cvImg, UINT ID, bool bOnPaint)
+{
+	// Get the device context of the picture control
+	CDC* pDC = GetDlgItem(ID)->GetDC();
+	// Create a compatible memory device context
+	CDC memDC;
+	memDC.CreateCompatibleDC(pDC);
+	// Create a bitmap and select it into the memory device context
+	CBitmap bitmap;
+	bitmap.CreateBitmap(cvImg.cols, cvImg.rows, 1, 24, cvImg.data);
+	CBitmap* pOldBitmap = memDC.SelectObject(&bitmap);
+	// Copy the bitmap to the picture control
+	pDC->BitBlt(0, 0, cvImg.cols, cvImg.rows, &memDC, 0, 0, SRCCOPY);
+	// Clean up
+	memDC.SelectObject(pOldBitmap);
+	GetDlgItem(ID)->ReleaseDC(pDC);
 }
