@@ -1,7 +1,10 @@
 ﻿#pragma once
 #include "afxdialogex.h"
+#include <atlimage.h>
 #include <opencv2/opencv.hpp>
 #include <pylon/PylonIncludes.h>
+#include "..\UAX\UAX.h"
+
 
 
 
@@ -24,21 +27,50 @@ public:
 protected:
 	CBrush m_brush;
 
-	// Declare CInstantCamera object
-	Pylon::CInstantCamera camera;
-
 	
+	//Pylon::CInstantCamera camera;
 
-	CGrabResultPtr ptrGrabResult;
+	//static CGrabResultPtr ptrGrabResult;
+
+
+	// Declare CInstantCamera object
+	//UINT AFX_CDECL GrabThread(LPVOID pParam);
+
+	//CGrabResultPtr ptrGrabResult;
 	// Add a multi-treaded grabber with Basler Pylon
 	static UINT GrabThread(LPVOID pParam);
-	cv::Mat m_Image;
+
+	// m_mat 儲存 cv::Mat
+	cv::Mat m_mat;
+	// m_image 儲存 CImage
+	CImage m_image;
+
+	CDC* pDC;
+	CWnd* pWnd;
+
+
+	void ShowImageOnPictureControl(); // 在Picture Control上显示图像的函数。
+
+	void ShowImageOnPictureControlWithCImage();
+
+	//flag of Brab Thread
+	bool m_bGrabThread;
+
 	//Display MyImage in the dialog IDC_PICCTL_DISPLAY
 	CStatic m_PicCtl_Display;
 	//Add a button IDC_WORK_GRAB
 	CButton m_Work_Grab;
 	//Add a button IDC_WORK_STOP
 	void DrawPicToHDC(cv::Mat cvImg, UINT ID, bool bOnPaint);
+
+	HICON m_hIcon; // 這裡宣告 m_hIcon
+
+
+ //private function
+protected:
+	//Create a function to convert cv:mat to CImage
+	void MatConvertCimg(cv::Mat mat, CImage *CImg, int Width, int Height);
+
 
 
 protected:
@@ -52,4 +84,8 @@ public:
 public:
 	afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
 
+	afx_msg void OnPaint();
+	afx_msg void OnBnClickedWorkStopGrab();
+	virtual void OnOK();
+	virtual void OnCancel();
 };

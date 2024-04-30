@@ -1,6 +1,5 @@
 ﻿// WorkTab.cpp: 實作檔案
 //
-
 #include "pch.h"
 #include "YUFA.h"
 #include "afxdialogex.h"
@@ -12,9 +11,26 @@
 
 using namespace Pylon;
 
-static const uint32_t c_countOfImagesToGrab = 3;
+//static const uint32_t c_countOfImagesToGrab = 3;
 
 using namespace std;
+
+// Include files to use the pylon API.
+#include <pylon/PylonIncludes.h>
+#ifdef PYLON_WIN_BUILD
+#    include <pylon/PylonGUI.h>
+#endif
+
+
+// Namespace for using pylon objects.
+using namespace Pylon;
+
+// Namespace for using cout.
+using namespace std;
+
+// Number of images to be grabbed.
+static const uint32_t c_countOfImagesToGrab = 3;
+
 
 // WorkTab 對話方塊
 
@@ -40,6 +56,8 @@ void WorkTab::DoDataExchange(CDataExchange* pDX)
 BEGIN_MESSAGE_MAP(WorkTab, CDialogEx)
 	ON_BN_CLICKED(IDC_WORK_GRAB, &WorkTab::OnBnClickedWorkGrab)
     ON_WM_CTLCOLOR()
+    ON_WM_PAINT()
+    ON_BN_CLICKED(IDC_WORK_STOP_GRAB, &WorkTab::OnBnClickedWorkStopGrab)
 END_MESSAGE_MAP()
 
 
@@ -48,46 +66,29 @@ END_MESSAGE_MAP()
 BOOL WorkTab::OnInitDialog()
 {
 	CDialogEx::OnInitDialog();
+    m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
+    SetIcon(m_hIcon, TRUE);			// 設定大圖示
+    SetIcon(m_hIcon, FALSE);		// 設定小圖示
+
+    //Picture Control IDC_PICCTL_DISPLAY
+    pWnd = GetDlgItem(IDC_PICCTL_DISPLAY); // 假设你的Picture Control控件的ID是IDC_PICTURE_CONTROL。
+    pDC = pWnd->GetDC();
+
+    //初始化 m_bGrabThread
+    m_bGrabThread = false;
+
+    //Get Picture Control IDC_PICCTL_DISPLAY 大小
+    CRect rect;
+    GetDlgItem(IDC_PICCTL_DISPLAY)->GetClientRect(&rect);
+    int Width = rect.Width();
+    int Height = rect.Height();
+   
+    m_bGrabThread = false;
+
+    float ret = Add(1.1f, 2.2f);
+
     PylonInitialize();
 
-    try
-    {
-        //CInstantCamera camera(CTlFactory::GetInstance().CreateFirstDevice());
-        camera.Attach(CTlFactory::GetInstance().CreateFirstDevice());
-
-        cout << "Using device : " << camera.GetDeviceInfo().GetModelName() << endl;
-        cout << "Serial Number : " << camera.GetDeviceInfo().GetSerialNumber() << endl;
-        camera.MaxNumBuffer = 5;
-        camera.StartGrabbing(c_countOfImagesToGrab);
-
-        std::string serialNumberStr = (string)(camera.GetDeviceInfo().GetSerialNumber());
-
-        // Extract the low 32 bits of the serial number as an unsigned integer
-        uint32_t serialNumberLow = 0;
-
-        //std::stoul is a standard library function in C++ that converts a string representation of an unsigned integer into its numerical value.
-        serialNumberLow = std::stoul(serialNumberStr.substr(0, 8), nullptr, 16);
-        cout << "Serial Number Low : " << serialNumberLow << endl;
-
-        /*
-         Convert the String_t to a std::string
-         std::string serialNumberStr = serialNumber.ToString();
-
-         // Extract the low 32 bits of the serial number as an unsigned integer
-         uint32_t serialNumberLow = std::stoul(serialNumberStr.substr(16, 8), nullptr, 16);
-        */
-
-
-        
-    }
-    catch (const GenericException& e)
-    {
-        cerr << "An exception occurred." << endl << e.GetDescription() << endl;
-        PylonTerminate();
-        return 1;
-    }
-
-    //PylonTerminate();
     return 0;
 
 }
@@ -120,53 +121,121 @@ HBRUSH WorkTab::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
 void WorkTab::OnBnClickedWorkGrab()
 {
 	// TODO: 在此加入控制項告知處理常式程式碼
-    // Create a thread to grab images
+    // If the grab thread is not running, start it
+  
+    if (!m_bGrabThread)
+	{
+		m_bGrabThread = true;
+	}
+	else
+	{
+		return;
+	}
+    //Call the multi-threaded grabber
     AfxBeginThread(GrabThread, this);
-    GrabThread(this);
 
+    //Display  m_mat with cv::imshow
+
+    //cv::imshow("OpenCV Image", m_mat);
+   
 }
 
 // Add a multi-treaded grabber with Basler Pylon
 UINT WorkTab::GrabThread(LPVOID pParam)
 {
-	// Get the pointer to the dialog
-	WorkTab* pDlg = (WorkTab*)pParam;
+    //CMyDialog* pDialog = static_cast<CMyDialog*>(pParam);
+    WorkTab* pWorkTab = static_cast<WorkTab*>(pParam);
 
-    while (pDlg->camera.IsGrabbing())
+    // The exit code of the sample application
+    int exitCode = 0;
+
+    //PylonInitialize();
+
+    try
     {
+        // Create an instant camera object with the camera device found first.
+        CInstantCamera camera(CTlFactory::GetInstance().CreateFirstDevice());
+
+        // Print the model name of the camera.
+        cout << "Using device " << camera.GetDeviceInfo().GetModelName() << endl;
+
+        // The parameter MaxNumBuffer can be used to control the count of buffers
+        // allocated for grabbing. The default value of this parameter is 10.
+        camera.MaxNumBuffer = 1;
+
+        // Start the grabbing of c_countOfImagesToGrab images.
+        // The camera device is parameterized with a default configuration which
+        // sets up free-running continuous acquisition.
+        // 
+        //camera.StartGrabbing(c_countOfImagesToGrab);
+
+        //camera grab continue not stop
+        camera.StartGrabbing(GrabStrategy_LatestImageOnly);
+
+        // This smart pointer will receive the grab result data.
         CGrabResultPtr ptrGrabResult;
 
-        pDlg->camera.RetrieveResult(5000, ptrGrabResult, TimeoutHandling_ThrowException);
-
-        if (ptrGrabResult->GrabSucceeded())
+        // Camera.StopGrabbing() is called automatically by the RetrieveResult() method
+        // when c_countOfImagesToGrab images have been retrieved.
+        while (camera.IsGrabbing())
         {
-            const uint8_t* pImageBuffer = (uint8_t*)ptrGrabResult->GetBuffer();
-            pDlg->m_Image = cv::Mat(ptrGrabResult->GetHeight(), ptrGrabResult->GetWidth(), CV_8UC1, (void*)pImageBuffer);
-            //pDlg->MyImage(ptrGrabResult->GetHeight(), ptrGrabResult->GetWidth(), CV_8UC1, (void*)pImageBuffer);
-            // Display the OpenCV image.
-            //cv::imshow("Image", img);
+            // Wait for an image and then retrieve it. A timeout of 5000 ms is used.
+            camera.RetrieveResult(1000, ptrGrabResult, TimeoutHandling_ThrowException);
 
-            // Resize the image by a factor of 2
-            //cv::Mat resizedImg;
-            //Show the image in the window
-            //cv::imshow("Image", pDlg->m_Image);
+            // Image grabbed successfully?
+            if (ptrGrabResult->GrabSucceeded())
+            {
+                // if the grab thread is not running, exit the thread
+                if (!pWorkTab->m_bGrabThread)
+				{
+					break;
+				}
+                // Access the image data.
+                //cout << "SizeX: " << ptrGrabResult->GetWidth() << endl;
+                //cout << "SizeY: " << ptrGrabResult->GetHeight() << endl;
+                const uint8_t* pImageBuffer = (uint8_t*)ptrGrabResult->GetBuffer();
+                //cout << "Gray value of first pixel: " << (uint32_t)pImageBuffer[0] << endl << endl;
 
-            // Call DrawPicToHDC to display the image in the dialog
-            pDlg->DrawPicToHDC(pDlg->m_Image, IDC_PICCTL_DISPLAY, false);
-            
+                // Create an OpenCV image from the grabbed image data.
+                cv::Mat openCvImage(ptrGrabResult->GetHeight(), ptrGrabResult->GetWidth(), CV_8UC1, (void*)pImageBuffer);
+                //Clone the OpenCV image to m_mat
+                pWorkTab->m_mat = openCvImage.clone();
+                // m_mat = openCvImage.clone();
 
-            //cv::resize(pDlg->MyImage, resizedImg, cv::Size(), 0.2, 0.2);
-            // Display the resized image
-            //cv::imshow("Resized Image", resizedImg);
+                /*
+ #ifdef PYLON_WIN_BUILD 
+                // Display the grabbed image.
+               // Pylon::DisplayImage(1, ptrGrabResult);
+#endif               
+                */
 
-            //cv::waitKey(0);
-        }
-        else
-        {
-            cout << "Error: " << std::hex << ptrGrabResult->GetErrorCode() << std::dec << " " << ptrGrabResult->GetErrorDescription() << endl;
+                // Display the grabbed image with cv::imshow
+                pWorkTab->Invalidate();
+                //Sleep(50);
+            }
+            else
+            {
+                //cout << "Error: " << std::hex << ptrGrabResult->GetErrorCode() << std::dec << " " << ptrGrabResult->GetErrorDescription() << endl;
+            }
         }
     }
-    return 0;
+    catch (const GenericException& e)
+    {
+        // Error handling.
+        cerr << "An exception occurred." << endl
+            << e.GetDescription() << endl;
+        exitCode = 1;
+    }
+
+    // Comment the following two lines to disable waiting on exit.
+    cerr << endl << "Press enter to exit." << endl;
+
+   // while (cin.get() != '\n');
+
+    // Releases all pylon resources.
+    //PylonTerminate();
+
+    return exitCode;
 }
 
 //Add a button IDC_WORK_STOP
@@ -186,4 +255,193 @@ void WorkTab::DrawPicToHDC(cv::Mat cvImg, UINT ID, bool bOnPaint)
 	// Clean up
 	memDC.SelectObject(pOldBitmap);
 	GetDlgItem(ID)->ReleaseDC(pDC);
+}
+
+void WorkTab::OnPaint()
+{
+    if (IsIconic())
+    {
+        CPaintDC dc(this); // 繪製的裝置內容
+
+        SendMessage(WM_ICONERASEBKGND, reinterpret_cast<WPARAM>(dc.GetSafeHdc()), 0);
+
+        // 將圖示置中於用戶端矩形
+        int cxIcon = GetSystemMetrics(SM_CXICON);
+        int cyIcon = GetSystemMetrics(SM_CYICON);
+        CRect rect;
+        GetClientRect(&rect);
+        int x = (rect.Width() - cxIcon + 1) / 2;
+        int y = (rect.Height() - cyIcon + 1) / 2;
+
+        // 描繪圖示
+        dc.DrawIcon(x, y, m_hIcon);
+
+
+    }
+    else
+    {
+        CDialogEx::OnPaint();
+        //Display m_mat in the dialog IDC_PICCTL_DISPLAY
+          
+        //DrawPicToHDC(m_mat, IDC_PICCTL_DISPLAY, true);
+
+        //Display m_mat with cv::imshow 
+
+        ShowImageOnPictureControl();
+
+        
+        
+    }
+}
+
+//Create a function to convert gray scale cv:mat to CImage
+// mat::cv::Mat is the input image, gray scale
+// CImg::CImage is the output image
+//ImageWidth: Picture Control width
+//ImageHeight: Picture Control height
+void WorkTab::MatConvertCimg(cv::Mat mat, CImage* CImg, int Width, int Height)
+{
+    // cv::Mat mat Scale resize to Width and Height
+    cv::resize(mat, mat, cv::Size(Width, Height));
+
+    // Create the CImage object using the cv::Mat's columns and rows and a bit depth of 8
+    CImg->Create(mat.cols, mat.rows, 8);
+    // Get the pixel data of the CImage object
+    BYTE* pucImage = (BYTE*)CImg->GetBits();
+    // Get the pitch of the CImage object
+    int iPitch = CImg->GetPitch();
+
+    // Copy the data from the cv::Mat object to the CImage object
+    for (int i = 0; i < mat.rows; i++)
+    {
+        memcpy(pucImage + i * iPitch, mat.ptr<BYTE>(i), mat.cols);
+    }
+}
+
+// 实际上在Picture Control上显示图像的函数实现。
+void WorkTab::ShowImageOnPictureControl()
+{
+    if (m_mat.empty()) return;
+
+    CRect rect;
+    //CWnd* pWnd = GetDlgItem(IDC_PICCTL_DISPLAY); // 假设你的Picture Control控件的ID是IDC_PICTURE_CONTROL。
+    pWnd->GetClientRect(&rect);
+    cv::Mat resizedImage;
+    cv::resize(m_mat, resizedImage, cv::Size(rect.Width(), rect.Height())); // 对图像进行缩放。
+
+    cv::Mat imageToShow;
+    cv::cvtColor(resizedImage, imageToShow, cv::COLOR_BGR2BGRA); // 转换颜色空间以适应MFC应用程序。
+
+    BITMAPINFO bitmapInfo;
+    memset(&bitmapInfo, 0, sizeof(bitmapInfo));
+    bitmapInfo.bmiHeader.biBitCount = 32;
+    bitmapInfo.bmiHeader.biWidth = imageToShow.cols;
+    bitmapInfo.bmiHeader.biHeight = -imageToShow.rows; // 注意这里的负号，它将图像翻转。
+    bitmapInfo.bmiHeader.biPlanes = 1;
+    bitmapInfo.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    bitmapInfo.bmiHeader.biCompression = BI_RGB;
+
+    //CDC* pDC = pWnd->GetDC();
+
+    ::StretchDIBits(
+        pDC->GetSafeHdc(),
+        0, 0, rect.Width(), rect.Height(),
+        0, 0, imageToShow.cols, imageToShow.rows,
+        imageToShow.data,
+        &bitmapInfo,
+        DIB_RGB_COLORS,
+        SRCCOPY
+    );
+
+    //ReleaseDC(pDC);
+}
+
+void WorkTab::ShowImageOnPictureControlWithCImage()
+{
+    // 創建一個 CImage
+    CImage image;
+
+    if (!m_mat.empty())
+    {
+        //cv::imshow("OpenCV Image", m_mat);
+        cv::Mat m_mat_clone;
+
+
+        //Get IDC_PICCTL_DISPLAY : Picture Control width and height
+        CRect rect;
+        GetDlgItem(IDC_PICCTL_DISPLAY)->GetClientRect(&rect);
+        int Width = rect.Width();
+        int Height = rect.Height();
+
+        int originalWidth = m_mat.cols;
+        int originalHeight = m_mat.rows;
+
+        //計算適合的比例
+        double scale = min((double)Width / originalWidth, (double)Height / originalHeight);
+        Width = originalWidth * scale;
+        Height = originalHeight * scale;
+
+        //改變 m_mat 大小 , Width and Height, scale resiz
+       //cv::resize(m_mat, m_mat_clone, cv::Size(Width, Height), cv::INTER_AREA);
+        m_mat_clone = m_mat.clone();
+        cv::resize(m_mat_clone, m_mat_clone, cv::Size(Width, Height));
+
+        cv::imshow("OpenCV Image", m_mat);
+        return;
+
+        //m_mat convert to CImage
+        MatConvertCimg(m_mat, &image, Width, Height);
+
+        //MatConvertCimg(m_mat, &image,);
+
+        // 獲取 Picture Control 的 DC
+        CDC* pDC = GetDlgItem(IDC_PICCTL_DISPLAY)->GetDC();
+        // 創建一個兼容的內存 DC
+        CDC memDC;
+        memDC.CreateCompatibleDC(pDC);
+        // 創建一個位圖並選擇到內存 DC
+        CBitmap bitmap;
+        bitmap.CreateCompatibleBitmap(pDC, image.GetWidth(), image.GetHeight());
+        CBitmap* pOldBitmap = memDC.SelectObject(&bitmap);
+        // 複製位圖到 Picture Control
+        image.Draw(memDC.GetSafeHdc(), CRect(0, 0, image.GetWidth(), image.GetHeight()));
+        pDC->BitBlt(0, 0, image.GetWidth(), image.GetHeight(), &memDC, 0, 0, SRCCOPY);
+
+        // 清理
+        memDC.SelectObject(pOldBitmap);
+        GetDlgItem(IDC_PICCTL_DISPLAY)->ReleaseDC(pDC);
+
+        //Sleep(50);
+
+    }
+}
+
+
+void WorkTab::OnBnClickedWorkStopGrab()
+{
+    // TODO: 在此加入控制項告知處理常式程式碼
+
+    // If the grab thread is running, stop it
+    if (m_bGrabThread)
+	{
+		m_bGrabThread = false;
+	}
+}
+
+
+
+
+void WorkTab::OnOK()
+{
+    // TODO: 在此加入特定的程式碼和 (或) 呼叫基底類別
+
+    CDialogEx::OnOK();
+}
+
+
+void WorkTab::OnCancel()
+{
+    // TODO: 在此加入特定的程式碼和 (或) 呼叫基底類別
+
+    CDialogEx::OnCancel();
 }

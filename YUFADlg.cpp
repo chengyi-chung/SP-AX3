@@ -34,6 +34,7 @@ public:
 // 程式碼實作
 protected:
 	DECLARE_MESSAGE_MAP()
+	virtual void OnCancel();
 };
 
 CAboutDlg::CAboutDlg() : CDialogEx(IDD_ABOUTBOX)
@@ -205,6 +206,8 @@ void CYUFADlg::OnPaint()
 
 		// 描繪圖示
 		dc.DrawIcon(x, y, m_hIcon);
+
+
 	}
 	else
 	{
@@ -234,7 +237,7 @@ void CYUFADlg::OnOK()
 {
 	// TODO: 在此加入特定的程式碼和 (或) 呼叫基底類別
 
-	//CDialogEx::OnOK();
+	CDialogEx::OnOK();
 }
 
 
@@ -300,8 +303,6 @@ void CYUFADlg::OnBnClickedBtnSysPara()
 void CYUFADlg::OnSize(UINT nType, int cx, int cy)
 {
 
-
-
 	CDialogEx::OnSize(nType, cx, cy);
 
 	// TODO: 在此加入您的訊息處理常式程式碼
@@ -312,30 +313,12 @@ void CYUFADlg::OnSize(UINT nType, int cx, int cy)
 		m_Status_Bar.MoveWindow(rect.left, rect.bottom - 20, rect.Width(), 20);
 	}
 	
-	/*
-		if (m_Tab_Main.m_hWnd)
-	{
-		CRect rect;
-		GetClientRect(&rect);
-		rect.top += 10;
-		rect.bottom -= 30;
-		rect.left += 10;
-		rect.right -= 10;
-		m_Tab_Main.MoveWindow(rect);
-		m_Tab_Main.GetClientRect(&rect);
-		rect.top += 10;
-		rect.bottom -= 10;
-		rect.left += 10;
-		rect.right -= 10;
-		m_Tab_Main.AdjustRect(FALSE, &rect);
-		m_WorkTab.MoveWindow(&rect);
-		m_SystemParaTab.MoveWindow(&rect);
-	}
-	*/
+}
 
 
+void CAboutDlg::OnCancel()
+{
+	// TODO: 在此加入特定的程式碼和 (或) 呼叫基底類別
 
-
-	
-
+	CDialogEx::OnCancel();
 }
