@@ -76,6 +76,7 @@ BEGIN_MESSAGE_MAP(CYUFADlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BTN_SYS_PARA, &CYUFADlg::OnBnClickedBtnSysPara)
 	ON_BN_CLICKED(IDC_BTN_WORKING, &CYUFADlg::OnBnClickedBtnWorking)
 	ON_WM_SIZE()
+	ON_WM_MOUSEMOVE()
 END_MESSAGE_MAP()
 
 
@@ -246,6 +247,15 @@ void CYUFADlg::OnBnClickedBtnQuit()
 	// TODO: 在此加入控制項告知處理常式程式碼
 
 	//Quit Application
+
+	//Stop Grab Thread : WorkTab::m_bGrabThread = false;
+
+	
+	// 將 m_WorkTab中的 m_bGrabThread 設為 false，停止Grab Thread
+	m_WorkTab.m_bGrabThread = false;
+
+	
+
 	OnCancel();
 }
 
@@ -322,3 +332,18 @@ void CAboutDlg::OnCancel()
 
 	CDialogEx::OnCancel();
 }
+
+
+void CYUFADlg::OnMouseMove(UINT nFlags, CPoint point)
+{
+	// TODO: 在此加入您的訊息處理常式程式碼和 (或) 呼叫預設值
+
+
+
+
+
+
+
+	CDialogEx::OnMouseMove(nFlags, point);
+}
+

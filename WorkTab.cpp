@@ -1,5 +1,4 @@
 ﻿// WorkTab.cpp: 實作檔案
-//
 #include "pch.h"
 #include "YUFA.h"
 #include "afxdialogex.h"
@@ -58,6 +57,7 @@ BEGIN_MESSAGE_MAP(WorkTab, CDialogEx)
     ON_WM_CTLCOLOR()
     ON_WM_PAINT()
     ON_BN_CLICKED(IDC_WORK_STOP_GRAB, &WorkTab::OnBnClickedWorkStopGrab)
+    ON_WM_MOUSEMOVE()
 END_MESSAGE_MAP()
 
 
@@ -193,14 +193,23 @@ UINT WorkTab::GrabThread(LPVOID pParam)
                 // Access the image data.
                 //cout << "SizeX: " << ptrGrabResult->GetWidth() << endl;
                 //cout << "SizeY: " << ptrGrabResult->GetHeight() << endl;
-                const uint8_t* pImageBuffer = (uint8_t*)ptrGrabResult->GetBuffer();
+                //const uint8_t* pImageBuffer = (uint8_t*)ptrGrabResult->GetBuffer();
+
+				//(uint8_t*)ptrGrabResult->GetBuffer() 資料型態是 uint8_t* 傳到 pImageBuffer
+				pWorkTab->pImageBuffer = (uint8_t*)ptrGrabResult->GetBuffer();
+				// Get pWorkTab->pImageBuffer Height and Width
+				pWorkTab->oriImageWidth = ptrGrabResult->GetWidth();
+				pWorkTab->oriImageHeight = ptrGrabResult->GetHeight();
+                
                 //cout << "Gray value of first pixel: " << (uint32_t)pImageBuffer[0] << endl << endl;
 
                 // Create an OpenCV image from the grabbed image data.
-                cv::Mat openCvImage(ptrGrabResult->GetHeight(), ptrGrabResult->GetWidth(), CV_8UC1, (void*)pImageBuffer);
+                //cv::Mat openCvImage(ptrGrabResult->GetHeight(), ptrGrabResult->GetWidth(), CV_8UC1, (void*)pImageBuffer);
                 //Clone the OpenCV image to m_mat
-                pWorkTab->m_mat = openCvImage.clone();
-                // m_mat = openCvImage.clone();
+                //pWorkTab->m_mat = openCvImage.clone();
+                
+                // 使用 ShowImageOnPictureControl使用下式
+				pWorkTab->m_mat = cv::Mat(ptrGrabResult->GetHeight(), ptrGrabResult->GetWidth(), CV_8UC1, (void*)pWorkTab->pImageBuffer).clone();
 
                 /*
  #ifdef PYLON_WIN_BUILD 
@@ -209,8 +218,11 @@ UINT WorkTab::GrabThread(LPVOID pParam)
 #endif               
                 */
 
-                // Display the grabbed image with cv::imshow
-                pWorkTab->Invalidate();
+				// Display the grabbed image with OnPaint function in Picture Control
+				pWorkTab->InvalidateRect(NULL, FALSE);
+				//pWorkTab->UpdateWindow();
+
+
                 //Sleep(50);
             }
             else
@@ -234,7 +246,11 @@ UINT WorkTab::GrabThread(LPVOID pParam)
 
     // Releases all pylon resources.
     //PylonTerminate();
+	// pImageBuffer clone to m_mat, use pImageBuffer with Height and Width
 
+	// 使用 ShowImageOnPictureCtl() 使用下式
+	//pWorkTab->m_mat = cv::Mat(pWorkTab->oriImageHeight, pWorkTab->oriImageWidth, CV_8UC1, (void*)pWorkTab->pImageBuffer).clone();
+	
     return exitCode;
 }
 
@@ -289,8 +305,24 @@ void WorkTab::OnPaint()
 
         ShowImageOnPictureControl();
 
-        
-        
+        // 首先将数字转换为std::wstring
+        std::wstring x_pos = std::to_wstring(m_MousePos.x);
+        std::wstring y_pos = std::to_wstring(m_MousePos.y);
+
+        // 构建完整的字符串
+        std::wstring wstr = L"Mouse Cursor Position: (" + x_pos + L", " + y_pos + L")";
+        // 将 std::wstring 转换为 CString
+        m_strMousePos = CString(wstr.c_str());
+
+		//Draw text on the dialog IDC_PICCTL_DISPLAY
+		CClientDC dc(this);
+		CRect rect;
+		GetDlgItem(IDC_PICCTL_DISPLAY)->GetClientRect(&rect);
+		dc.SetTextColor(RGB(255, 0, 0));
+		dc.SetBkMode(TRANSPARENT);
+		dc.TextOutW(m_MousePos.x, m_MousePos.y, m_strMousePos);
+	
+		//ShowImageOnPictureCtl();    
     }
 }
 
@@ -356,6 +388,7 @@ void WorkTab::ShowImageOnPictureControl()
     //ReleaseDC(pDC);
 }
 
+
 void WorkTab::ShowImageOnPictureControlWithCImage()
 {
     // 創建一個 CImage
@@ -416,6 +449,115 @@ void WorkTab::ShowImageOnPictureControlWithCImage()
     }
 }
 
+//Resize the image
+//pImageBuffer: Original Image data pointer
+//originalWidth: Original Image width
+//originalHeight: Original Image height
+//pResizedBuffer: Resized Image data pointer
+//targetWidth: Resized Image width
+//targetHeight: Resized Image height
+void WorkTab::ResizeGrayImage(uint8_t* pImageBuffer, int originalWidth, int originalHeight, uint8_t*& pResizedBuffer, int targetWidth, int targetHeight)
+{
+    // 為調整大小後的影像分配記憶體
+    pResizedBuffer = new uint8_t[targetWidth * targetHeight]; // 灰階格式，假設每像素 1 字節
+
+    float x_ratio = float(originalWidth) / float(targetWidth);
+    float y_ratio = float(originalHeight) / float(targetHeight);
+
+    for (int i = 0; i < targetHeight; i++) {
+        for (int j = 0; j < targetWidth; j++) {
+            int px = int(j * x_ratio);
+            int py = int(i * y_ratio);
+            pResizedBuffer[i * targetWidth + j] = pImageBuffer[py * originalWidth + px];
+        }
+    }
+}
+
+
+
+//Display the image in the rect of Picture Control
+//pImage: Resized Image data pointer
+//width: Resized Image width
+//height: Resized Image height
+//pictureControl: MFC Picture Control
+void WorkTab::DisplayGrayImageInControl(uint8_t* pImage, int width, int height, CStatic& pictureControl)
+{
+    // Create a bitmap with the grayscale image data
+    CBitmap bitmap;
+    if (!bitmap.CreateBitmap(width, height, 1, 8, pImage)) {
+        AfxMessageBox(_T("Failed to create bitmap."));
+        return;
+    }
+
+    // Using CClientDC for safer handling of the DC for pictureControl
+    CClientDC controlDC(&pictureControl);
+    if (!controlDC) {
+        AfxMessageBox(_T("Failed to get device context for picture control."));
+        return;
+    }
+
+    // Create a memory DC compatible with the control's DC and select the bitmap into it
+    CDC memDC;
+    if (!memDC.CreateCompatibleDC(&controlDC)) {
+        AfxMessageBox(_T("Failed to create memory device context."));
+        return;
+    }
+    CBitmap* pOldBitmap = memDC.SelectObject(&bitmap);
+
+    // Calculate the size and position for the image within the control, maintaining aspect ratio
+    CRect rect;
+    pictureControl.GetClientRect(&rect);
+    int controlWidth = rect.Width();
+    int controlHeight = rect.Height();
+    double imageAspectRatio = static_cast<double>(width) / height;
+    double controlAspectRatio = static_cast<double>(controlWidth) / controlHeight;
+
+    int imageDisplayWidth, imageDisplayHeight, x, y;
+
+    // Fit the image into the control based on the aspect ratio
+    if (imageAspectRatio > controlAspectRatio) {
+        imageDisplayWidth = controlWidth;
+        imageDisplayHeight = static_cast<int>(controlWidth / imageAspectRatio);
+        x = 0;
+        y = (controlHeight - imageDisplayHeight) / 2; // Center vertically
+    }
+    else {
+        imageDisplayHeight = controlHeight;
+        imageDisplayWidth = static_cast<int>(controlHeight * imageAspectRatio);
+        x = (controlWidth - imageDisplayWidth) / 2; // Center horizontally
+        y = 0;
+    }
+
+    // Draw the resized image in the control
+    controlDC.StretchBlt(x, y, imageDisplayWidth, imageDisplayHeight, &memDC, 0, 0, width, height, SRCCOPY);
+
+    // Clean up
+    memDC.SelectObject(pOldBitmap);  // Restore the original bitmap
+
+}
+
+// pImageBuffer, Zoom All  在Picture Control上直接显示图像的函数。
+void WorkTab::ShowImageOnPictureCtl()
+{
+	// if pImageBuffer is empty, return
+	if (pImageBuffer == NULL) return;
+	
+	int targetWidth = 640;
+	int targetHeight = 480;
+
+	// Get the Picture Control IDC_PICCTL_DISPLAY wide : targetWidth, height : targetHeight
+	CRect rect;
+	GetDlgItem(IDC_PICCTL_DISPLAY)->GetClientRect(&rect);
+	targetWidth = rect.Width();
+	targetHeight = rect.Height();
+
+    ResizeGrayImage(pImageBuffer, oriImageWidth, oriImageHeight, pResizedImage, targetWidth, targetHeight);
+
+    // Display the image in the Picture Control
+    DisplayGrayImageInControl(pResizedImage, targetWidth, targetHeight, m_PicCtl_Display);  
+
+}
+
 
 void WorkTab::OnBnClickedWorkStopGrab()
 {
@@ -444,4 +586,20 @@ void WorkTab::OnCancel()
     // TODO: 在此加入特定的程式碼和 (或) 呼叫基底類別
 
     CDialogEx::OnCancel();
+}
+
+
+void WorkTab::OnMouseMove(UINT nFlags, CPoint point)
+{
+    // TODO: 在此加入您的訊息處理常式程式碼和 (或) 呼叫預設值
+
+   //Set Mouse Cursor Position
+	//CString str;
+	//str.Format(_T("Mouse Cursor Position: (%d, %d)"), point.x, point.y);
+	m_MousePos = point;
+
+	//Invalidate();
+
+   
+    CDialogEx::OnMouseMove(nFlags, point);
 }

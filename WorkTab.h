@@ -3,7 +3,7 @@
 #include <atlimage.h>
 #include <opencv2/opencv.hpp>
 #include <pylon/PylonIncludes.h>
-#include "..\UAX\UAX.h"
+#include "../UAX/UAX.h"
 
 
 
@@ -23,6 +23,16 @@ public:
 #ifdef AFX_DESIGN_TIME
 	enum { IDD = IDD_OLE_PROPPAGE_LARGE };
 #endif
+
+public:
+	//flag of Brab Thread
+	bool m_bGrabThread;
+
+	//mouse position on Picture Control
+	CPoint m_MousePos;
+
+	//String of mouse position
+	CString m_strMousePos;
 
 protected:
 	CBrush m_brush;
@@ -48,13 +58,26 @@ protected:
 	CDC* pDC;
 	CWnd* pWnd;
 
+	// 影像数据指標
+	uint8_t* pImageBuffer = nullptr;
+	// 调整大小后的影像数据指標
+	uint8_t* pResizedImage = nullptr;
+
+	int oriImageWidth;
+	int oriImageHeight;
+
+	void ShowImageOnPictureCtl(); // 在Picture Control上直接显示图像的函数。
 
 	void ShowImageOnPictureControl(); // 在Picture Control上显示图像的函数。
 
 	void ShowImageOnPictureControlWithCImage();
 
+	void ResizeGrayImage(uint8_t* pImageBuffer, int originalWidth, int originalHeight, uint8_t*& pResizedBuffer, int targetWidth, int targetHeight);
+
+	void DisplayGrayImageInControl(uint8_t* pImage, int width, int height, CStatic& pictureControl);
+
 	//flag of Brab Thread
-	bool m_bGrabThread;
+	//bool m_bGrabThread;
 
 	//Display MyImage in the dialog IDC_PICCTL_DISPLAY
 	CStatic m_PicCtl_Display;
@@ -88,4 +111,5 @@ public:
 	afx_msg void OnBnClickedWorkStopGrab();
 	virtual void OnOK();
 	virtual void OnCancel();
+	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
 };
