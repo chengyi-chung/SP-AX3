@@ -58,6 +58,7 @@ BEGIN_MESSAGE_MAP(WorkTab, CDialogEx)
     ON_WM_PAINT()
     ON_BN_CLICKED(IDC_WORK_STOP_GRAB, &WorkTab::OnBnClickedWorkStopGrab)
     ON_WM_MOUSEMOVE()
+    ON_WM_SETCURSOR()
 END_MESSAGE_MAP()
 
 
@@ -76,6 +77,12 @@ BOOL WorkTab::OnInitDialog()
 
     //初始化 m_bGrabThread
     m_bGrabThread = false;
+
+	//Change mouse cursor to cross
+	HCURSOR hCursor = AfxGetApp()->LoadStandardCursor(IDC_CROSS);
+	SetCursor(hCursor);
+
+
 
     //Get Picture Control IDC_PICCTL_DISPLAY 大小
     CRect rect;
@@ -305,6 +312,11 @@ void WorkTab::OnPaint()
 
         ShowImageOnPictureControl();
 
+
+		//以下只在 debug 模式下執行
+#ifdef _DEBUG
+
+
         // 首先将数字转换为std::wstring
         std::wstring x_pos = std::to_wstring(m_MousePos.x);
         std::wstring y_pos = std::to_wstring(m_MousePos.y);
@@ -321,6 +333,7 @@ void WorkTab::OnPaint()
 		dc.SetTextColor(RGB(255, 0, 0));
 		dc.SetBkMode(TRANSPARENT);
 		dc.TextOutW(m_MousePos.x, m_MousePos.y, m_strMousePos);
+#endif
 	
 		//ShowImageOnPictureCtl();    
     }
@@ -602,4 +615,10 @@ void WorkTab::OnMouseMove(UINT nFlags, CPoint point)
 
    
     CDialogEx::OnMouseMove(nFlags, point);
+}
+
+BOOL WorkTab::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message)
+{
+	::SetCursor(AfxGetApp()->LoadStandardCursor(IDC_CROSS));
+	return TRUE;
 }

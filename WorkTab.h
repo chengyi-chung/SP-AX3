@@ -112,4 +112,5 @@ public:
 	virtual void OnOK();
 	virtual void OnCancel();
 	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
+	afx_msg BOOL OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message);
 };
