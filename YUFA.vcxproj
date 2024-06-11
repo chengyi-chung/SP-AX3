@@ -93,12 +93,12 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_WINDOWS;_DEBUG;..\UAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(OPENCV_path)\include;$(PYLON_DEV_DIR)\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(OPENCV_path)\include;$(PYLON_DEV_DIR)\include;$(SolutionDir)sqlite3\head</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
-      <AdditionalLibraryDirectories>$(OPENCV_path)\x64\vc16\lib;$(PYLON_DEV_DIR)lib\$(Platform);$(PYLON_LINK64);$(OutDir)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>opencv_world470d.lib;UAX.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(OPENCV_path)\x64\vc16\lib;$(PYLON_DEV_DIR)lib\$(Platform);$(PYLON_LINK64);$(OutDir);$(SolutionDir)lib\x64</AdditionalLibraryDirectories>
+      <AdditionalDependencies>opencv_world470d.lib;UAX.lib;sqlite3.lib</AdditionalDependencies>
     </Link>
     <Midl>
       <MkTypLibCompatible>false</MkTypLibCompatible>
@@ -195,6 +195,7 @@
     <ClInclude Include="Resource.h" />
     <ClInclude Include="SystemParaTab.h" />
     <ClInclude Include="targetver.h" />
+    <ClInclude Include="UModBus.h" />
     <ClInclude Include="WorkTab.h" />
     <ClInclude Include="YUFA.h" />
     <ClInclude Include="YUFADlg.h" />
@@ -207,6 +208,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="SystemParaTab.cpp" />
+    <ClCompile Include="UModBus.cpp" />
     <ClCompile Include="WorkTab.cpp" />
     <ClCompile Include="YUFA.cpp" />
     <ClCompile Include="YUFADlg.cpp" />

@@ -59,6 +59,9 @@ BEGIN_MESSAGE_MAP(WorkTab, CDialogEx)
     ON_BN_CLICKED(IDC_WORK_STOP_GRAB, &WorkTab::OnBnClickedWorkStopGrab)
     ON_WM_MOUSEMOVE()
     ON_WM_SETCURSOR()
+    ON_BN_CLICKED(IDC_WORK_TEMP_IMG, &WorkTab::OnBnClickedWorkTempImg)
+    ON_BN_CLICKED(IDC_WORK_MATCH_TEMP, &WorkTab::OnBnClickedWorkMatchTemp)
+    ON_BN_CLICKED(IDC_IDC_WORK_TOOL_PATH, &WorkTab::OnBnClickedIdcWorkToolPath)
 END_MESSAGE_MAP()
 
 
@@ -621,4 +624,71 @@ BOOL WorkTab::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message)
 {
 	::SetCursor(AfxGetApp()->LoadStandardCursor(IDC_CROSS));
 	return TRUE;
+}
+
+
+void WorkTab::OnBnClickedWorkTempImg()
+{
+    // TODO: 在此加入控制項告知處理常式程式碼
+    // Create a template image
+    cv::Mat templ;
+    cv::Rect rect;
+    
+    CreateTemplate(m_mat, templ, rect);
+    //Check if the m_mat or templ image is empty
+    if (m_mat.empty() || templ.empty())
+	{
+		return;
+	}
+
+    // Display the template image until the user presses ESC
+    cv::imshow("Template Image", templ);
+    while (true)
+    {
+        int key = cv::waitKey(0);
+        if (key == 27) // ESC
+        {
+            break;
+        }
+    }
+
+    // Destroy the window
+    cv::destroyWindow("Template Image");
+   
+    //Assign the template image to m_matTemp
+    m_matTemp = templ.clone();
+
+}
+
+
+void WorkTab::OnBnClickedWorkMatchTemp()
+{
+    // TODO: 在此加入控制項告知處理常式程式碼
+
+    // Match template   
+    // Call the MatchTemplate function frme UAX.dll
+    // Get the position of the template in the image    
+    ImageLocation Location;
+    cv::Mat dst;
+    int match_method = cv::TM_CCOEFF_NORMED;
+    int result = MatchTemplate(m_mat, m_matTemp, dst, match_method, Location);  
+
+    //Draw the rectangle of the template in the image
+    cv::rectangle(dst, Location.Rect, cv::Scalar(0, 255, 0), 2);
+    cv::imshow("Result Image", dst);
+}
+
+
+void WorkTab::OnBnClickedIdcWorkToolPath()
+{
+    // TODO: 在此加入控制項告知處理常式程式碼
+
+    // Find Tool Path
+    // ImgSrc: the input image
+    // Offset: the offset of the tool path
+    // ToolPath: the output tool path
+    ToolPath toolpath;
+    //ContourToToolPath(m_mat, toolpath);
+
+
 }

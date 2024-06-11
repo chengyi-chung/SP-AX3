@@ -1,5 +1,4 @@
-﻿
-// YUFADlg.cpp: 實作檔案
+﻿// YUFADlg.cpp: 實作檔案
 //
 
 #include "pch.h"
@@ -77,6 +76,7 @@ BEGIN_MESSAGE_MAP(CYUFADlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BTN_WORKING, &CYUFADlg::OnBnClickedBtnWorking)
 	ON_WM_SIZE()
 	ON_WM_MOUSEMOVE()
+	ON_BN_CLICKED(IDC_BTN_MODBUS, &CYUFADlg::OnBnClickedBtnModbus)
 END_MESSAGE_MAP()
 
 
@@ -147,6 +147,7 @@ BOOL CYUFADlg::OnInitDialog()
 	//Table control initial
 	m_Tab_Main.InsertItem(0, _T("Working"));
 	m_Tab_Main.InsertItem(1, _T("System Parameter"));
+	m_Tab_Main.InsertItem(2, _T("Modbus TCP"));
 
 	//Set Table Control Size
 	//m_Tab_Main.SetParent(this);
@@ -166,6 +167,11 @@ BOOL CYUFADlg::OnInitDialog()
 	m_SystemParaTab.Create(IDD_TAB_SYSTEM_PARA, &m_Tab_Main);
 	m_SystemParaTab.MoveWindow(&rect);
 	m_SystemParaTab.ShowWindow(SW_HIDE);
+
+	//Add Tab Control Item Modbus TCP
+	m_ModBusTab.Create(IDD_TAB_MODBUS, &m_Tab_Main);
+	m_ModBusTab.MoveWindow(&rect);
+	m_ModBusTab.ShowWindow(SW_HIDE);
 
 
 	return TRUE;  // 傳回 TRUE，除非您對控制項設定焦點
@@ -297,6 +303,7 @@ void CYUFADlg::OnBnClickedBtnWorking()
 	// TODO: 在此加入控制項告知處理常式程式碼
 	m_WorkTab.ShowWindow(SW_SHOW);
 	m_SystemParaTab.ShowWindow(SW_HIDE);
+	m_ModBusTab.ShowWindow(SW_HIDE);
 	m_Tab_Main.SetCurSel(0);
 }
 
@@ -305,8 +312,19 @@ void CYUFADlg::OnBnClickedBtnSysPara()
 	// TODO: 在此加入控制項告知處理常式程式碼
 	m_WorkTab.ShowWindow(SW_HIDE);
 	m_SystemParaTab.ShowWindow(SW_SHOW);
+	m_ModBusTab.ShowWindow(SW_HIDE);
 	//change to select tab
 	m_Tab_Main.SetCurSel(1);
+}
+
+void CYUFADlg::OnBnClickedBtnModbus()
+{
+	// TODO: 在此加入控制項告知處理常式程式碼
+	m_WorkTab.ShowWindow(SW_HIDE);
+	m_SystemParaTab.ShowWindow(SW_HIDE);	
+	m_ModBusTab.ShowWindow(SW_SHOW);
+	//change to select tab
+	m_Tab_Main.SetCurSel(2);
 }
 
 
@@ -339,11 +357,8 @@ void CYUFADlg::OnMouseMove(UINT nFlags, CPoint point)
 	// TODO: 在此加入您的訊息處理常式程式碼和 (或) 呼叫預設值
 
 
-
-
-
-
-
 	CDialogEx::OnMouseMove(nFlags, point);
 }
+
+
 

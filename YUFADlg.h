@@ -7,7 +7,7 @@
 #include "afxcmn.h"
 #include "SystemParaTab.h"
 #include "WorkTab.h"
-
+#include "UModBus.h"
 
 
 
@@ -43,6 +43,9 @@ protected:
     SystemParaTab m_SystemParaTab;
 	// Add CWorkTab m_WorkTab
 	WorkTab m_WorkTab;
+	//Add  UModBus  m_ModBusTab
+	UModBus m_ModBusTab;
+
 	//Add CStatusBar m_Status_Bar
 	CStatusBar m_Status_Bar;
 
@@ -67,4 +70,5 @@ public:
 	afx_msg void OnBnClickedBtnWorking();
 	afx_msg void OnSize(UINT nType, int cx, int cy);
 	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
+	afx_msg void OnBnClickedBtnModbus();
 };

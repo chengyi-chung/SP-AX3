@@ -1,717 +1,295 @@
-/* modbus.h
+/*
+ * Copyright © 2001-2013 Stéphane Raimbault <stephane.raimbault@gmail.com>
  *
- * Copyright (C) 20017-2021 Fanzhe Lyu <lvfanzhe@hotmail.com>, all rights reserved.
- *
- * modbuspp is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-License-Identifier: LGPL-2.1+
  */
 
-#ifndef MODBUSPP_MODBUS_H
-#define MODBUSPP_MODBUS_H
+#ifndef MODBUS_H
+#define MODBUS_H
 
-#include <cstring>
+/* Add this for macros that defined unix flavor */
+#if (defined(__unix__) || defined(unix)) && !defined(USG)
+#include <sys/param.h>
+#endif
+
+#ifndef _MSC_VER
 #include <stdint.h>
-#include <string>
-
-#ifdef ENABLE_MODBUSPP_LOGGING
-#include <cstdio>
-#define LOG(fmt, ...) printf("[ modbuspp ]" fmt, ##__VA_ARGS__)
 #else
-#define LOG(...) (void)0
+#include "stdint.h"
 #endif
 
-#ifdef _WIN32
-// WINDOWS socket
-#define _WINSOCK_DEPRECATED_NO_WARNINGS
+#include "modbus-version.h"
 
-#include <winsock2.h>
-#pragma comment(lib, "Ws2_32.lib")
-using X_SOCKET = SOCKET;
-using ssize_t = int;
-
-#define X_ISVALIDSOCKET(s) ((s) != INVALID_SOCKET)
-#define X_CLOSE_SOCKET(s) closesocket(s)
-#define X_ISCONNECTSUCCEED(s) ((s) != SOCKET_ERROR)
-
+#if defined(_MSC_VER)
+# if defined(DLLBUILD)
+/* define DLLBUILD when building the DLL */
+#  define MODBUS_API __declspec(dllexport)
+# elif defined(LIBBUILD)
+#  define MODBUS_API
+# else
+#  define MODBUS_API __declspec(dllimport)
+# endif
 #else
-// Berkeley socket
-#include <unistd.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-using X_SOCKET = int;
-
-#define X_ISVALIDSOCKET(s) ((s) >= 0)
-#define X_CLOSE_SOCKET(s) close(s)
-#define X_ISCONNECTSUCCEED(s) ((s) >= 0)
+# define MODBUS_API
 #endif
 
-using SOCKADDR = struct sockaddr;
-using SOCKADDR_IN = struct sockaddr_in;
+#ifdef  __cplusplus
+# define MODBUS_BEGIN_DECLS  extern "C" {
+# define MODBUS_END_DECLS    }
+#else
+# define MODBUS_BEGIN_DECLS
+# define MODBUS_END_DECLS
+#endif
 
-#define MAX_MSG_LENGTH 260
+MODBUS_BEGIN_DECLS
 
-///Function Code
-#define READ_COILS 0x01
-#define READ_INPUT_BITS 0x02
-#define READ_REGS 0x03
-#define READ_INPUT_REGS 0x04
-#define WRITE_COIL 0x05
-#define WRITE_REG 0x06
-#define WRITE_COILS 0x0F
-#define WRITE_REGS 0x10
+#ifndef FALSE
+#define FALSE 0
+#endif
 
-///Exception Codes
+#ifndef TRUE
+#define TRUE 1
+#endif
 
-#define EX_ILLEGAL_FUNCTION 0x01 // Function Code not Supported
-#define EX_ILLEGAL_ADDRESS 0x02  // Output Address not exists
-#define EX_ILLEGAL_VALUE 0x03    // Output Value not in Range
-#define EX_SERVER_FAILURE 0x04   // Slave Deive Fails to process request
-#define EX_ACKNOWLEDGE 0x05      // Service Need Long Time to Execute
-#define EX_SERVER_BUSY 0x06      // Server Was Unable to Accept MB Request PDU
-#define EX_NEGATIVE_ACK 0x07
-#define EX_MEM_PARITY_PROB 0x08
-#define EX_GATEWAY_PROBLEMP 0x0A // Gateway Path not Available
-#define EX_GATEWAY_PROBLEMF 0x0B // Target Device Failed to Response
-#define EX_BAD_DATA 0XFF         // Bad Data lenght or Address
+#ifndef OFF
+#define OFF 0
+#endif
 
-#define BAD_CON -1
+#ifndef ON
+#define ON 1
+#endif
 
-/// Modbus Operator Class
-/**
- * Modbus Operator Class
- * Providing networking support and mobus operation support.
+/* Modbus function codes */
+#define MODBUS_FC_READ_COILS                0x01
+#define MODBUS_FC_READ_DISCRETE_INPUTS      0x02
+#define MODBUS_FC_READ_HOLDING_REGISTERS    0x03
+#define MODBUS_FC_READ_INPUT_REGISTERS      0x04
+#define MODBUS_FC_WRITE_SINGLE_COIL         0x05
+#define MODBUS_FC_WRITE_SINGLE_REGISTER     0x06
+#define MODBUS_FC_READ_EXCEPTION_STATUS     0x07
+#define MODBUS_FC_WRITE_MULTIPLE_COILS      0x0F
+#define MODBUS_FC_WRITE_MULTIPLE_REGISTERS  0x10
+#define MODBUS_FC_REPORT_SLAVE_ID           0x11
+#define MODBUS_FC_MASK_WRITE_REGISTER       0x16
+#define MODBUS_FC_WRITE_AND_READ_REGISTERS  0x17
+
+#define MODBUS_BROADCAST_ADDRESS    0
+
+/* Modbus_Application_Protocol_V1_1b.pdf (chapter 6 section 1 page 12)
+ * Quantity of Coils to read (2 bytes): 1 to 2000 (0x7D0)
+ * (chapter 6 section 11 page 29)
+ * Quantity of Coils to write (2 bytes): 1 to 1968 (0x7B0)
  */
-class modbus
-{
+#define MODBUS_MAX_READ_BITS              2000
+#define MODBUS_MAX_WRITE_BITS             1968
 
-public:
-    bool err{};
-    int err_no{};
-    std::string error_msg;
+/* Modbus_Application_Protocol_V1_1b.pdf (chapter 6 section 3 page 15)
+ * Quantity of Registers to read (2 bytes): 1 to 125 (0x7D)
+ * (chapter 6 section 12 page 31)
+ * Quantity of Registers to write (2 bytes) 1 to 123 (0x7B)
+ * (chapter 6 section 17 page 38)
+ * Quantity of Registers to write in R/W registers (2 bytes) 1 to 121 (0x79)
+ */
+#define MODBUS_MAX_READ_REGISTERS          125
+#define MODBUS_MAX_WRITE_REGISTERS         123
+#define MODBUS_MAX_WR_WRITE_REGISTERS      121
+#define MODBUS_MAX_WR_READ_REGISTERS       125
 
-    modbus(std::string host, uint16_t port);
-    ~modbus();
+/* The size of the MODBUS PDU is limited by the size constraint inherited from
+ * the first MODBUS implementation on Serial Line network (max. RS485 ADU = 256
+ * bytes). Therefore, MODBUS PDU for serial line communication = 256 - Server
+ * address (1 byte) - CRC (2 bytes) = 253 bytes.
+ */
+#define MODBUS_MAX_PDU_LENGTH              253
 
-    bool modbus_connect();
-    void modbus_close() const;
+/* Consequently:
+ * - RTU MODBUS ADU = 253 bytes + Server address (1 byte) + CRC (2 bytes) = 256
+ *   bytes.
+ * - TCP MODBUS ADU = 253 bytes + MBAP (7 bytes) = 260 bytes.
+ * so the maximum of both backend in 260 bytes. This size can used to allocate
+ * an array of bytes to store responses and it will be compatible with the two
+ * backends.
+ */
+#define MODBUS_MAX_ADU_LENGTH              260
 
-    bool is_connected() const { return _connected; }
+/* Random number to avoid errno conflicts */
+#define MODBUS_ENOBASE 112345678
 
-    void modbus_set_slave_id(int id);
-
-    int modbus_read_coils(uint16_t address, uint16_t amount, bool *buffer);
-    int modbus_read_input_bits(uint16_t address, uint16_t amount, bool *buffer);
-    int modbus_read_holding_registers(uint16_t address, uint16_t amount, uint16_t *buffer);
-    int modbus_read_input_registers(uint16_t address, uint16_t amount, uint16_t *buffer);
-
-    int modbus_write_coil(uint16_t address, const bool &to_write);
-    int modbus_write_register(uint16_t address, const uint16_t &value);
-    int modbus_write_coils(uint16_t address, uint16_t amount, const bool *value);
-    int modbus_write_registers(uint16_t address, uint16_t amount, const uint16_t *value);
-
-private:
-    bool _connected{};
-    uint16_t PORT{};
-    uint32_t _msg_id{};
-    int _slaveid{};
-    std::string HOST;
-
-    X_SOCKET _socket{};
-    SOCKADDR_IN _server{};
-
-#ifdef _WIN32
-    WSADATA wsadata;
-#endif
-
-    void modbus_build_request(uint8_t *to_send, uint16_t address, int func) const;
-
-    int modbus_read(uint16_t address, uint16_t amount, int func);
-    int modbus_write(uint16_t address, uint16_t amount, int func, const uint16_t *value);
-
-    ssize_t modbus_send(uint8_t *to_send, size_t length);
-    ssize_t modbus_receive(uint8_t *buffer) const;
-
-    void modbuserror_handle(const uint8_t *msg, int func);
-
-    void set_bad_con();
-    void set_bad_input();
+/* Protocol exceptions */
+enum {
+    MODBUS_EXCEPTION_ILLEGAL_FUNCTION = 0x01,
+    MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS,
+    MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE,
+    MODBUS_EXCEPTION_SLAVE_OR_SERVER_FAILURE,
+    MODBUS_EXCEPTION_ACKNOWLEDGE,
+    MODBUS_EXCEPTION_SLAVE_OR_SERVER_BUSY,
+    MODBUS_EXCEPTION_NEGATIVE_ACKNOWLEDGE,
+    MODBUS_EXCEPTION_MEMORY_PARITY,
+    MODBUS_EXCEPTION_NOT_DEFINED,
+    MODBUS_EXCEPTION_GATEWAY_PATH,
+    MODBUS_EXCEPTION_GATEWAY_TARGET,
+    MODBUS_EXCEPTION_MAX
 };
 
-/**
- * Main Constructor of Modbus Connector Object
- * @param host IP Address of Host
- * @param port Port for the TCP Connection
- * @return     A Modbus Connector Object
- */
-inline modbus::modbus(std::string host, uint16_t port = 502)
+#define EMBXILFUN  (MODBUS_ENOBASE + MODBUS_EXCEPTION_ILLEGAL_FUNCTION)
+#define EMBXILADD  (MODBUS_ENOBASE + MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS)
+#define EMBXILVAL  (MODBUS_ENOBASE + MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE)
+#define EMBXSFAIL  (MODBUS_ENOBASE + MODBUS_EXCEPTION_SLAVE_OR_SERVER_FAILURE)
+#define EMBXACK    (MODBUS_ENOBASE + MODBUS_EXCEPTION_ACKNOWLEDGE)
+#define EMBXSBUSY  (MODBUS_ENOBASE + MODBUS_EXCEPTION_SLAVE_OR_SERVER_BUSY)
+#define EMBXNACK   (MODBUS_ENOBASE + MODBUS_EXCEPTION_NEGATIVE_ACKNOWLEDGE)
+#define EMBXMEMPAR (MODBUS_ENOBASE + MODBUS_EXCEPTION_MEMORY_PARITY)
+#define EMBXGPATH  (MODBUS_ENOBASE + MODBUS_EXCEPTION_GATEWAY_PATH)
+#define EMBXGTAR   (MODBUS_ENOBASE + MODBUS_EXCEPTION_GATEWAY_TARGET)
+
+/* Native libmodbus error codes */
+#define EMBBADCRC  (EMBXGTAR + 1)
+#define EMBBADDATA (EMBXGTAR + 2)
+#define EMBBADEXC  (EMBXGTAR + 3)
+#define EMBUNKEXC  (EMBXGTAR + 4)
+#define EMBMDATA   (EMBXGTAR + 5)
+#define EMBBADSLAVE (EMBXGTAR + 6)
+
+extern const unsigned int libmodbus_version_major;
+extern const unsigned int libmodbus_version_minor;
+extern const unsigned int libmodbus_version_micro;
+
+typedef struct _modbus modbus_t;
+
+typedef struct _modbus_mapping_t {
+    int nb_bits;
+    int start_bits;
+    int nb_input_bits;
+    int start_input_bits;
+    int nb_input_registers;
+    int start_input_registers;
+    int nb_registers;
+    int start_registers;
+    uint8_t *tab_bits;
+    uint8_t *tab_input_bits;
+    uint16_t *tab_input_registers;
+    uint16_t *tab_registers;
+} modbus_mapping_t;
+
+typedef enum
 {
-    HOST = host;
-    PORT = port;
-    _slaveid = 1;
-    _msg_id = 1;
-    _connected = false;
-    err = false;
-    err_no = 0;
-    error_msg = "";
-}
+    MODBUS_ERROR_RECOVERY_NONE          = 0,
+    MODBUS_ERROR_RECOVERY_LINK          = (1<<1),
+    MODBUS_ERROR_RECOVERY_PROTOCOL      = (1<<2)
+} modbus_error_recovery_mode;
 
-/**
- * Destructor of Modbus Connector Object
- */
-inline modbus::~modbus(void) = default;
+MODBUS_API int modbus_set_slave(modbus_t* ctx, int slave);
+MODBUS_API int modbus_get_slave(modbus_t* ctx);
+MODBUS_API int modbus_set_error_recovery(modbus_t *ctx, modbus_error_recovery_mode error_recovery);
+MODBUS_API int modbus_set_socket(modbus_t *ctx, int s);
+MODBUS_API int modbus_get_socket(modbus_t *ctx);
 
-/**
- * Modbus Slave ID Setter
- * @param id  ID of the Modbus Server Slave
- */
-inline void modbus::modbus_set_slave_id(int id)
-{
-    _slaveid = id;
-}
+MODBUS_API int modbus_get_response_timeout(modbus_t *ctx, uint32_t *to_sec, uint32_t *to_usec);
+MODBUS_API int modbus_set_response_timeout(modbus_t *ctx, uint32_t to_sec, uint32_t to_usec);
 
-/**
- * Build up a Modbus/TCP Connection
- * @return   If A Connection Is Successfully Built
- */
-inline bool modbus::modbus_connect()
-{
-    if (HOST.empty() || PORT == 0)
-    {
-        LOG("Missing Host and Port");
-        return false;
-    }
-    else
-    {
-        LOG("Found Proper Host %s and Port %d", HOST.c_str(), PORT);
-    }
+MODBUS_API int modbus_get_byte_timeout(modbus_t *ctx, uint32_t *to_sec, uint32_t *to_usec);
+MODBUS_API int modbus_set_byte_timeout(modbus_t *ctx, uint32_t to_sec, uint32_t to_usec);
 
-#ifdef _WIN32
-    if (WSAStartup(0x0202, &wsadata))
-    {
-        return false;
-    }
-#endif
+MODBUS_API int modbus_get_indication_timeout(modbus_t *ctx, uint32_t *to_sec, uint32_t *to_usec);
+MODBUS_API int modbus_set_indication_timeout(modbus_t *ctx, uint32_t to_sec, uint32_t to_usec);
 
-    _socket = socket(AF_INET, SOCK_STREAM, 0);
-    if (!X_ISVALIDSOCKET(_socket))
-    {
-        LOG("Error Opening Socket");
-#ifdef _WIN32
-        WSACleanup();
-#endif
-        return false;
-    }
-    else
-    {
-        LOG("Socket Opened Successfully");
-    }
+MODBUS_API int modbus_get_header_length(modbus_t *ctx);
 
-#ifdef WIN32
-    const DWORD timeout = 20;
-#else
-    struct timeval timeout
-    {
-    };
-    timeout.tv_sec = 20; // after 20 seconds connect() will timeout
-    timeout.tv_usec = 0;
-#endif
+MODBUS_API int modbus_connect(modbus_t *ctx);
+MODBUS_API void modbus_close(modbus_t *ctx);
 
-    setsockopt(_socket, SOL_SOCKET, SO_SNDTIMEO, (const char *)&timeout, sizeof(timeout));
-    setsockopt(_socket, SOL_SOCKET, SO_RCVTIMEO, (const char *)&timeout, sizeof(timeout));
-    _server.sin_family = AF_INET;
-    _server.sin_addr.s_addr = inet_addr(HOST.c_str());
-    _server.sin_port = htons(PORT);
+MODBUS_API void modbus_free(modbus_t *ctx);
 
-    if (!X_ISCONNECTSUCCEED(connect(_socket, (SOCKADDR *)&_server, sizeof(_server))))
-    {
-        LOG("Connection Error");
-#ifdef _WIN32
-        WSACleanup();
-#endif
-        return false;
-    }
+MODBUS_API int modbus_flush(modbus_t *ctx);
+MODBUS_API int modbus_set_debug(modbus_t *ctx, int flag);
 
-    LOG("Connected");
-    _connected = true;
-    return true;
-}
+MODBUS_API const char *modbus_strerror(int errnum);
 
-/**
- * Close the Modbus/TCP Connection
- */
-inline void modbus::modbus_close() const
-{
-    X_CLOSE_SOCKET(_socket);
-#ifdef _WIN32
-    WSACleanup();
-#endif
-    LOG("Socket Closed");
-}
+MODBUS_API int modbus_read_bits(modbus_t *ctx, int addr, int nb, uint8_t *dest);
+MODBUS_API int modbus_read_input_bits(modbus_t *ctx, int addr, int nb, uint8_t *dest);
+MODBUS_API int modbus_read_registers(modbus_t *ctx, int addr, int nb, uint16_t *dest);
+MODBUS_API int modbus_read_input_registers(modbus_t *ctx, int addr, int nb, uint16_t *dest);
+MODBUS_API int modbus_write_bit(modbus_t *ctx, int coil_addr, int status);
+MODBUS_API int modbus_write_register(modbus_t *ctx, int reg_addr, const uint16_t value);
+MODBUS_API int modbus_write_bits(modbus_t *ctx, int addr, int nb, const uint8_t *data);
+MODBUS_API int modbus_write_registers(modbus_t *ctx, int addr, int nb, const uint16_t *data);
+MODBUS_API int modbus_mask_write_register(modbus_t *ctx, int addr, uint16_t and_mask, uint16_t or_mask);
+MODBUS_API int modbus_write_and_read_registers(modbus_t *ctx, int write_addr, int write_nb,
+                                               const uint16_t *src, int read_addr, int read_nb,
+                                               uint16_t *dest);
+MODBUS_API int modbus_report_slave_id(modbus_t *ctx, int max_dest, uint8_t *dest);
+
+MODBUS_API modbus_mapping_t* modbus_mapping_new_start_address(
+    unsigned int start_bits, unsigned int nb_bits,
+    unsigned int start_input_bits, unsigned int nb_input_bits,
+    unsigned int start_registers, unsigned int nb_registers,
+    unsigned int start_input_registers, unsigned int nb_input_registers);
+
+MODBUS_API modbus_mapping_t* modbus_mapping_new(int nb_bits, int nb_input_bits,
+                                                int nb_registers, int nb_input_registers);
+MODBUS_API void modbus_mapping_free(modbus_mapping_t *mb_mapping);
+
+MODBUS_API int modbus_send_raw_request(modbus_t *ctx, const uint8_t *raw_req, int raw_req_length);
+
+MODBUS_API int modbus_receive(modbus_t *ctx, uint8_t *req);
+
+MODBUS_API int modbus_receive_confirmation(modbus_t *ctx, uint8_t *rsp);
+
+MODBUS_API int modbus_reply(modbus_t *ctx, const uint8_t *req,
+                            int req_length, modbus_mapping_t *mb_mapping);
+MODBUS_API int modbus_reply_exception(modbus_t *ctx, const uint8_t *req,
+                                      unsigned int exception_code);
 
 /**
- * Modbus Request Builder
- * @param to_send   Message Buffer to Be Sent
- * @param address   Reference Address
- * @param func      Modbus Functional Code
- */
-inline void modbus::modbus_build_request(uint8_t *to_send, uint16_t address, int func) const
-{
-    to_send[0] = (uint8_t)(_msg_id >> 8u);
-    to_send[1] = (uint8_t)(_msg_id & 0x00FFu);
-    to_send[2] = 0;
-    to_send[3] = 0;
-    to_send[4] = 0;
-    to_send[6] = (uint8_t)_slaveid;
-    to_send[7] = (uint8_t)func;
-    to_send[8] = (uint8_t)(address >> 8u);
-    to_send[9] = (uint8_t)(address & 0x00FFu);
-}
+ * UTILS FUNCTIONS
+ **/
 
-/**
- * Write Request Builder and Sender
- * @param address   Reference Address
- * @param amount    Amount of data to be Written
- * @param func      Modbus Functional Code
- * @param value     Data to Be Written
- */
-inline int modbus::modbus_write(uint16_t address, uint16_t amount, int func, const uint16_t *value)
-{
-    int status = 0;
-    uint8_t *to_send;
-    if (func == WRITE_COIL || func == WRITE_REG)
-    {
-        to_send = new uint8_t[12];
-        modbus_build_request(to_send, address, func);
-        to_send[5] = 6;
-        to_send[10] = (uint8_t)(value[0] >> 8u);
-        to_send[11] = (uint8_t)(value[0] & 0x00FFu);
-        status = modbus_send(to_send, 12);
-    }
-    else if (func == WRITE_REGS)
-    {
-        to_send = new uint8_t[13 + 2 * amount];
-        modbus_build_request(to_send, address, func);
-        to_send[5] = (uint8_t)(7 + 2 * amount);
-        to_send[10] = (uint8_t)(amount >> 8u);
-        to_send[11] = (uint8_t)(amount & 0x00FFu);
-        to_send[12] = (uint8_t)(2 * amount);
-        for (int i = 0; i < amount; i++)
-        {
-            to_send[13 + 2 * i] = (uint8_t)(value[i] >> 8u);
-            to_send[14 + 2 * i] = (uint8_t)(value[i] & 0x00FFu);
-        }
-        status = modbus_send(to_send, 13 + 2 * amount);
-    }
-    else if (func == WRITE_COILS)
-    {
-        to_send = new uint8_t[14 + (amount - 1) / 8];
-        modbus_build_request(to_send, address, func);
-        to_send[5] = (uint8_t)(7 + (amount + 7) / 8);
-        to_send[10] = (uint8_t)(amount >> 8u);
-        to_send[11] = (uint8_t)(amount & 0x00FFu);
-        to_send[12] = (uint8_t)((amount + 7) / 8);
-        for (int i = 0; i < (amount + 7) / 8; i++)
-            to_send[13 + i] = 0; // init needed before summing!
-        for (int i = 0; i < amount; i++)
-        {
-            to_send[13 + i / 8] += (uint8_t)(value[i] << (i % 8u));
-        }
-        status = modbus_send(to_send, 14 + (amount - 1) / 8);
-    }
-    delete[] to_send;
-    return status;
-}
+#define MODBUS_GET_HIGH_BYTE(data) (((data) >> 8) & 0xFF)
+#define MODBUS_GET_LOW_BYTE(data) ((data) & 0xFF)
+#define MODBUS_GET_INT64_FROM_INT16(tab_int16, index) \
+    (((int64_t)tab_int16[(index)    ] << 48) + \
+     ((int64_t)tab_int16[(index) + 1] << 32) + \
+     ((int64_t)tab_int16[(index) + 2] << 16) + \
+      (int64_t)tab_int16[(index) + 3])
+#define MODBUS_GET_INT32_FROM_INT16(tab_int16, index) ((tab_int16[(index)] << 16) + tab_int16[(index) + 1])
+#define MODBUS_GET_INT16_FROM_INT8(tab_int8, index) ((tab_int8[(index)] << 8) + tab_int8[(index) + 1])
+#define MODBUS_SET_INT16_TO_INT8(tab_int8, index, value) \
+    do { \
+        tab_int8[(index)] = (value) >> 8;  \
+        tab_int8[(index) + 1] = (value) & 0xFF; \
+    } while (0)
+#define MODBUS_SET_INT32_TO_INT16(tab_int16, index, value) \
+    do { \
+        tab_int16[(index)    ] = (value) >> 16; \
+        tab_int16[(index) + 1] = (value); \
+    } while (0)
+#define MODBUS_SET_INT64_TO_INT16(tab_int16, index, value) \
+    do { \
+        tab_int16[(index)    ] = (value) >> 48; \
+        tab_int16[(index) + 1] = (value) >> 32; \
+        tab_int16[(index) + 2] = (value) >> 16; \
+        tab_int16[(index) + 3] = (value); \
+    } while (0)
 
-/**
- * Read Request Builder and Sender
- * @param address   Reference Address
- * @param amount    Amount of Data to Read
- * @param func      Modbus Functional Code
- */
-inline int modbus::modbus_read(uint16_t address, uint16_t amount, int func)
-{
-    uint8_t to_send[12];
-    modbus_build_request(to_send, address, func);
-    to_send[5] = 6;
-    to_send[10] = (uint8_t)(amount >> 8u);
-    to_send[11] = (uint8_t)(amount & 0x00FFu);
-    return modbus_send(to_send, 12);
-}
+MODBUS_API void modbus_set_bits_from_byte(uint8_t *dest, int idx, const uint8_t value);
+MODBUS_API void modbus_set_bits_from_bytes(uint8_t *dest, int idx, unsigned int nb_bits,
+                                       const uint8_t *tab_byte);
+MODBUS_API uint8_t modbus_get_byte_from_bits(const uint8_t *src, int idx, unsigned int nb_bits);
+MODBUS_API float modbus_get_float(const uint16_t *src);
+MODBUS_API float modbus_get_float_abcd(const uint16_t *src);
+MODBUS_API float modbus_get_float_dcba(const uint16_t *src);
+MODBUS_API float modbus_get_float_badc(const uint16_t *src);
+MODBUS_API float modbus_get_float_cdab(const uint16_t *src);
 
-/**
- * Read Holding Registers
- * MODBUS FUNCTION 0x03
- * @param address    Reference Address
- * @param amount     Amount of Registers to Read
- * @param buffer     Buffer to Store Data Read from Registers
- */
-inline int modbus::modbus_read_holding_registers(uint16_t address, uint16_t amount, uint16_t *buffer)
-{
-    if (_connected)
-    {
-        modbus_read(address, amount, READ_REGS);
-        uint8_t to_rec[MAX_MSG_LENGTH];
-        ssize_t k = modbus_receive(to_rec);
-        if (k == -1)
-        {
-            set_bad_con();
-            return BAD_CON;
-        }
-        modbuserror_handle(to_rec, READ_REGS);
-        if (err)
-            return err_no;
-        for (auto i = 0; i < amount; i++)
-        {
-            buffer[i] = ((uint16_t)to_rec[9u + 2u * i]) << 8u;
-            buffer[i] += (uint16_t)to_rec[10u + 2u * i];
-        }
-        return 0;
-    }
-    else
-    {
-        set_bad_con();
-        return BAD_CON;
-    }
-}
+MODBUS_API void modbus_set_float(float f, uint16_t *dest);
+MODBUS_API void modbus_set_float_abcd(float f, uint16_t *dest);
+MODBUS_API void modbus_set_float_dcba(float f, uint16_t *dest);
+MODBUS_API void modbus_set_float_badc(float f, uint16_t *dest);
+MODBUS_API void modbus_set_float_cdab(float f, uint16_t *dest);
 
-/**
- * Read Input Registers
- * MODBUS FUNCTION 0x04
- * @param address     Reference Address
- * @param amount      Amount of Registers to Read
- * @param buffer      Buffer to Store Data Read from Registers
- */
-inline int modbus::modbus_read_input_registers(uint16_t address, uint16_t amount, uint16_t *buffer)
-{
-    if (_connected)
-    {
-        modbus_read(address, amount, READ_INPUT_REGS);
-        uint8_t to_rec[MAX_MSG_LENGTH];
-        ssize_t k = modbus_receive(to_rec);
-        if (k == -1)
-        {
-            set_bad_con();
-            return BAD_CON;
-        }
-        modbuserror_handle(to_rec, READ_INPUT_REGS);
-        if (err)
-            return err_no;
-        for (auto i = 0; i < amount; i++)
-        {
-            buffer[i] = ((uint16_t)to_rec[9u + 2u * i]) << 8u;
-            buffer[i] += (uint16_t)to_rec[10u + 2u * i];
-        }
-        return 0;
-    }
-    else
-    {
-        set_bad_con();
-        return BAD_CON;
-    }
-}
+#include "modbus-tcp.h"
+#include "modbus-rtu.h"
 
-/**
- * Read Coils
- * MODBUS FUNCTION 0x01
- * @param address     Reference Address
- * @param amount      Amount of Coils to Read
- * @param buffer      Buffer to Store Data Read from Coils
- */
-inline int modbus::modbus_read_coils(uint16_t address, uint16_t amount, bool *buffer)
-{
-    if (_connected)
-    {
-        if (amount > 2040)
-        {
-            set_bad_input();
-            return EX_BAD_DATA;
-        }
-        modbus_read(address, amount, READ_COILS);
-        uint8_t to_rec[MAX_MSG_LENGTH];
-        ssize_t k = modbus_receive(to_rec);
-        if (k == -1)
-        {
-            set_bad_con();
-            return BAD_CON;
-        }
-        modbuserror_handle(to_rec, READ_COILS);
-        if (err)
-            return err_no;
-        for (auto i = 0; i < amount; i++)
-        {
-            buffer[i] = (bool)((to_rec[9u + i / 8u] >> (i % 8u)) & 1u);
-        }
-        return 0;
-    }
-    else
-    {
-        set_bad_con();
-        return BAD_CON;
-    }
-}
+MODBUS_END_DECLS
 
-/**
- * Read Input Bits(Discrete Data)
- * MODBUS FUNCITON 0x02
- * @param address   Reference Address
- * @param amount    Amount of Bits to Read
- * @param buffer    Buffer to store Data Read from Input Bits
- */
-inline int modbus::modbus_read_input_bits(uint16_t address, uint16_t amount, bool *buffer)
-{
-    if (_connected)
-    {
-        if (amount > 2040)
-        {
-            set_bad_input();
-            return EX_BAD_DATA;
-        }
-        modbus_read(address, amount, READ_INPUT_BITS);
-        uint8_t to_rec[MAX_MSG_LENGTH];
-        ssize_t k = modbus_receive(to_rec);
-        if (k == -1)
-        {
-            set_bad_con();
-            return BAD_CON;
-        }
-        if (err)
-            return err_no;
-        for (auto i = 0; i < amount; i++)
-        {
-            buffer[i] = (bool)((to_rec[9u + i / 8u] >> (i % 8u)) & 1u);
-        }
-        modbuserror_handle(to_rec, READ_INPUT_BITS);
-        return 0;
-    }
-    else
-    {
-        return BAD_CON;
-    }
-}
-
-/**
- * Write Single Coils
- * MODBUS FUNCTION 0x05
- * @param address    Reference Address
- * @param to_write   Value to be Written to Coil
- */
-inline int modbus::modbus_write_coil(uint16_t address, const bool &to_write)
-{
-    if (_connected)
-    {
-        int value = to_write * 0xFF00;
-        modbus_write(address, 1, WRITE_COIL, (uint16_t *)&value);
-        uint8_t to_rec[MAX_MSG_LENGTH];
-        ssize_t k = modbus_receive(to_rec);
-        if (k == -1)
-        {
-            set_bad_con();
-            return BAD_CON;
-        }
-        modbuserror_handle(to_rec, WRITE_COIL);
-        if (err)
-            return err_no;
-        return 0;
-    }
-    else
-    {
-        set_bad_con();
-        return BAD_CON;
-    }
-}
-
-/**
- * Write Single Register
- * FUCTION 0x06
- * @param address   Reference Address
- * @param value     Value to Be Written to Register
- */
-inline int modbus::modbus_write_register(uint16_t address, const uint16_t &value)
-{
-    if (_connected)
-    {
-        modbus_write(address, 1, WRITE_REG, &value);
-        uint8_t to_rec[MAX_MSG_LENGTH];
-        ssize_t k = modbus_receive(to_rec);
-        if (k == -1)
-        {
-            set_bad_con();
-            return BAD_CON;
-        }
-        modbuserror_handle(to_rec, WRITE_COIL);
-        if (err)
-            return err_no;
-        return 0;
-    }
-    else
-    {
-        set_bad_con();
-        return BAD_CON;
-    }
-}
-
-/**
- * Write Multiple Coils
- * MODBUS FUNCTION 0x0F
- * @param address  Reference Address
- * @param amount   Amount of Coils to Write
- * @param value    Values to Be Written to Coils
- */
-inline int modbus::modbus_write_coils(uint16_t address, uint16_t amount, const bool *value)
-{
-    if (_connected)
-    {
-        uint16_t *temp = new uint16_t[amount];
-        for (int i = 0; i < amount; i++)
-        {
-            temp[i] = (uint16_t)value[i];
-        }
-        modbus_write(address, amount, WRITE_COILS, temp);
-        delete[] temp;
-        uint8_t to_rec[MAX_MSG_LENGTH];
-        ssize_t k = modbus_receive(to_rec);
-        if (k == -1)
-        {
-            set_bad_con();
-            return BAD_CON;
-        }
-        modbuserror_handle(to_rec, WRITE_COILS);
-        if (err)
-            return err_no;
-        return 0;
-    }
-    else
-    {
-        set_bad_con();
-        return BAD_CON;
-    }
-}
-
-/**
- * Write Multiple Registers
- * MODBUS FUNCION 0x10
- * @param address Reference Address
- * @param amount  Amount of Value to Write
- * @param value   Values to Be Written to the Registers
- */
-inline int modbus::modbus_write_registers(uint16_t address, uint16_t amount, const uint16_t *value)
-{
-    if (_connected)
-    {
-        modbus_write(address, amount, WRITE_REGS, value);
-        uint8_t to_rec[MAX_MSG_LENGTH];
-        ssize_t k = modbus_receive(to_rec);
-        if (k == -1)
-        {
-            set_bad_con();
-            return BAD_CON;
-        }
-        modbuserror_handle(to_rec, WRITE_REGS);
-        if (err)
-            return err_no;
-        return 0;
-    }
-    else
-    {
-        set_bad_con();
-        return BAD_CON;
-    }
-}
-
-/**
- * Data Sender
- * @param to_send Request to Be Sent to Server
- * @param length  Length of the Request
- * @return        Size of the request
- */
-inline ssize_t modbus::modbus_send(uint8_t *to_send, size_t length)
-{
-    _msg_id++;
-    return send(_socket, (const char *)to_send, (size_t)length, 0);
-}
-
-/**
- * Data Receiver
- * @param buffer Buffer to Store the Data Retrieved
- * @return       Size of Incoming Data
- */
-inline ssize_t modbus::modbus_receive(uint8_t *buffer) const
-{
-    return recv(_socket, (char *)buffer, MAX_MSG_LENGTH, 0);
-}
-
-inline void modbus::set_bad_con()
-{
-    err = true;
-    error_msg = "BAD CONNECTION";
-}
-
-inline void modbus::set_bad_input()
-{
-    err = true;
-    error_msg = "BAD FUNCTION INPUT";
-}
-
-/**
- * Error Code Handler
- * @param msg   Message Received from the Server
- * @param func  Modbus Functional Code
- */
-inline void modbus::modbuserror_handle(const uint8_t *msg, int func)
-{
-    err = false;
-    error_msg = "NO ERR";
-    if (msg[7] == func + 0x80)
-    {
-        err = true;
-        switch (msg[8])
-        {
-        case EX_ILLEGAL_FUNCTION:
-            error_msg = "1 Illegal Function";
-            break;
-        case EX_ILLEGAL_ADDRESS:
-            error_msg = "2 Illegal Address";
-            break;
-        case EX_ILLEGAL_VALUE:
-            error_msg = "3 Illegal Value";
-            break;
-        case EX_SERVER_FAILURE:
-            error_msg = "4 Server Failure";
-            break;
-        case EX_ACKNOWLEDGE:
-            error_msg = "5 Acknowledge";
-            break;
-        case EX_SERVER_BUSY:
-            error_msg = "6 Server Busy";
-            break;
-        case EX_NEGATIVE_ACK:
-            error_msg = "7 Negative Acknowledge";
-            break;
-        case EX_MEM_PARITY_PROB:
-            error_msg = "8 Memory Parity Problem";
-            break;
-        case EX_GATEWAY_PROBLEMP:
-            error_msg = "10 Gateway Path Unavailable";
-            break;
-        case EX_GATEWAY_PROBLEMF:
-            error_msg = "11 Gateway Target Device Failed to Respond";
-            break;
-        default:
-            error_msg = "UNK";
-            break;
-        }
-    }
-}
-
-#endif //MODBUSPP_MODBUS_H
+#endif  /* MODBUS_H */

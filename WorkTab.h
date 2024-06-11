@@ -52,9 +52,14 @@ protected:
 
 	// m_mat 儲存 cv::Mat
 	cv::Mat m_mat;
+
+	//m_matTemp 儲存 cv::Mat for template image
+	cv::Mat m_matTemp;
+
+
+
 	// m_image 儲存 CImage
 	CImage m_image;
-
 	CDC* pDC;
 	CWnd* pWnd;
 
@@ -113,4 +118,7 @@ public:
 	virtual void OnCancel();
 	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
 	afx_msg BOOL OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message);
+	afx_msg void OnBnClickedWorkTempImg();
+	afx_msg void OnBnClickedWorkMatchTemp();
+	afx_msg void OnBnClickedIdcWorkToolPath();
 };
