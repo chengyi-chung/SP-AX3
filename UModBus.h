@@ -16,7 +16,7 @@ public:
 public:
 	//Add modbus tcp/ip test function
 	char* ip_address;
-	int ModbusTcpIpTest(char* ip_address);
+	int ModbusTcpIpTest(const char* ip_address);
 
 	CButton* m_chk_coil; 
 	CButton* m_chk_discrete; 

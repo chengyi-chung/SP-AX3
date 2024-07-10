@@ -73,14 +73,29 @@ void UModBus::OnBnClickedBtnModbusTest()
 	//Get the IP address from the edit box
 	CString str;
 	GetDlgItemText(IDC_EDIT_IP_ADDRESS, str);
-	char* ip_address = (char*)str.GetBuffer();
 
-	//Call the modbus test function
-	// int ret = ModbusTcpIpTest
-	// -1 : error
-	// 0 : success
-	// if error, call MessageBox to show the error message
-	// if success, call MessageBox to show the success message
+	// Use CT2CA for conversion (CString to const char*)
+	CT2CA pszConvertedAnsiString(str);
+	const char* ip_address = pszConvertedAnsiString;
+
+	//modbus_t* ctx = modbus_new_tcp("127.0.0.1", 502);
+	modbus_t* ctx = modbus_new_tcp(ip_address, 502);
+
+	if (modbus_connect(ctx) == -1)
+	{
+		fprintf(stderr, "Connection failed: %s\n", modbus_strerror(errno));
+		modbus_free(ctx);
+		//return -1;
+	}
+	// Now you have a connected Modbus context (slave).
+	// ...
+	modbus_close(ctx);
+	modbus_free(ctx);
+	//return 0;
+
+
+
+/*
 	int ret = ModbusTcpIpTest(ip_address);
 	if (ret == -1)
 	{
@@ -93,52 +108,31 @@ void UModBus::OnBnClickedBtnModbusTest()
 	}
 
 
+*/
+
+
+
 }
 
 //Add modbus tcp/ip test function
-int UModBus::ModbusTcpIpTest(char* ip_address)
+int UModBus::ModbusTcpIpTest(const char* ip_address)
 {
-    modbus_t* ctx;
-    std::vector<uint16_t> reg(10); // 使用vector来存储读取到的寄存器值
+	//modbus_t* ctx = modbus_new_tcp("127.0.0.1", 502);
+	// ip_address : IP address of the modbus server
+	// port : port number of the modbus server
+	modbus_t* ctx = modbus_new_tcp(ip_address, 502);
 
-    // 创建Modbus TCP连接
-    ctx = modbus_new_tcp(ip_address, 502); // 服务器IP和端口
-    if (ctx == NULL) 
-    {
-        std::cerr << "Unable to allocate libmodbus context\n";
-        return -1;
-    }
-
-    // 连接到服务器
-    if (modbus_connect(ctx) == -1)
-    {
-        std::cerr << "Connection failed: " << modbus_strerror(errno) << std::endl;
-        modbus_free(ctx);
-		return -2;
-    }
-
-    // 读取保持寄存器
-    if (modbus_read_registers(ctx, 0, 10, &reg[0]) == -1) 
-    {
-        std::cerr << "Failed to read register: " << modbus_strerror(errno) << std::endl;
-        modbus_close(ctx);
-        modbus_free(ctx);
-        return -3;
-    }
-
-    for (size_t i = 0; i < reg.size(); i++)
-    {
-        std::cout << "reg[" << i << "]=" << reg[i] << std::endl;
-    }
-
-
-
-
-    // 关闭连接并释放资源
-    modbus_close(ctx);
-    modbus_free(ctx);
-
-    return 0;
+	if (modbus_connect(ctx) == -1)
+	{
+		fprintf(stderr, "Connection failed: %s\n", modbus_strerror(errno));
+		modbus_free(ctx);
+		return -1;
+	}
+	// Now you have a connected Modbus context (slave).
+	// ...
+	modbus_close(ctx);
+	modbus_free(ctx);
+	return 0;
 }
 
 BOOL UModBus::OnInitDialog()
