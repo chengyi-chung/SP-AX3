@@ -33,6 +33,11 @@ public:
 	};
 	ModbusFunctionCode m_modbus_function_code;
 
+	int test_coils(modbus_t* ctx);
+	int test_discrete_inputs(modbus_t* ctx);
+	int test_input_registers(modbus_t* ctx);
+	int test_holding_registers(modbus_t* ctx);
+
 // 對話方塊資料
 #ifdef AFX_DESIGN_TIME
 	enum { IDD = IDD_DIALOG1 };
