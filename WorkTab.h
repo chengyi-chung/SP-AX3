@@ -3,13 +3,19 @@
 #include <atlimage.h>
 #include <opencv2/opencv.hpp>
 #include <pylon/PylonIncludes.h>
-#include "../UAX/UAX.h"
 
-
+//add UAX.h
+#include "UAX.h"
 
 
 // WorkTab 對話方塊
 using namespace Pylon;
+
+
+
+
+
+
 
 class WorkTab : public CDialogEx
 {
@@ -81,6 +87,13 @@ protected:
 
 	void DisplayGrayImageInControl(uint8_t* pImage, int width, int height, CStatic& pictureControl);
 
+	// Show Image with OpenCV
+	// cv::Mat m_mat : Dispaly Image Data
+	// int ScreenHeight : Screen Height
+	// int ScreenWidth : Screen Width
+	// ScreenHeight and ScreenWidth are used to resize the image to fit the screen
+	void ShowImageWithOpenCV(cv::Mat m_mat, int ScreenHeight, int ScreenWidth);
+
 	//flag of Brab Thread
 	//bool m_bGrabThread;
 
@@ -118,6 +131,9 @@ public:
 	virtual void OnCancel();
 	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
 	afx_msg BOOL OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message);
+	//afx_msg void OnBnClickedWorkTempImg();
+	//afx_msg void OnBnClickedWorkMatchTemp();
+	//afx_msg void OnBnClickedIdcWorkToolPath();
 	afx_msg void OnBnClickedWorkTempImg();
 	afx_msg void OnBnClickedWorkMatchTemp();
 	afx_msg void OnBnClickedIdcWorkToolPath();

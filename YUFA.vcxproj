@@ -93,11 +93,11 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_WINDOWS;_DEBUG;..\UAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(OPENCV_path)\include;$(PYLON_DEV_DIR)\include;$(SolutionDir)sqlite3\head</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(OPENCV_path)\include;$(PYLON_DEV_DIR)\include;$(SolutionDir)sqlite3\head;$(VCInstallDir)include;$(SolutionDir)UAX</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
-      <AdditionalLibraryDirectories>$(OPENCV_path)\x64\vc16\lib;$(PYLON_DEV_DIR)lib\$(Platform);$(PYLON_LINK64);$(OutDir);$(SolutionDir)lib\x64</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(OPENCV_path)\x64\vc16\lib;$(PYLON_DEV_DIR)lib\$(Platform);$(OutDir)</AdditionalLibraryDirectories>
       <AdditionalDependencies>opencv_world470d.lib;UAX.lib;sqlite3.lib</AdditionalDependencies>
     </Link>
     <Midl>
@@ -168,7 +168,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_WINDOWS;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(PYLON_DEV_DIR)\include;$(OPENCV_path)\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(PYLON_DEV_DIR)\include;$(OPENCV_path)\include;$(SolutionDir)sqlite3\head;$(VCInstallDir)include;$(SolutionDir)UAX</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

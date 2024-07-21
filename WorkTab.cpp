@@ -1,4 +1,5 @@
 ﻿// WorkTab.cpp: 實作檔案
+#pragma once
 #include "pch.h"
 #include "YUFA.h"
 #include "afxdialogex.h"
@@ -31,6 +32,80 @@ using namespace std;
 static const uint32_t c_countOfImagesToGrab = 3;
 
 
+///// OpenCV zoon
+// Global variables for mouse callback function
+cv::Point startPoint(-1, -1);
+cv::Point endPoint(-1, -1);
+bool drawingRectangle = false;
+cv::Mat imageROI;
+
+void mouseCallback(int event, int x, int y, int flags, void* userdata)
+{
+    cv::Mat& img = *(cv::Mat*)userdata;
+
+    if (event == cv::EVENT_LBUTTONDOWN)
+    {
+        startPoint = cv::Point(x, y);
+        endPoint = cv::Point(x, y);
+        drawingRectangle = true;
+    }
+    else if (event == cv::EVENT_MOUSEMOVE && drawingRectangle)
+    {
+        endPoint = cv::Point(x, y);
+        img.copyTo(imageROI);
+        cv::rectangle(imageROI, startPoint, endPoint, cv::Scalar(255,255,255), 2); 
+        cv::imshow("Image", imageROI);
+    }
+    else if (event == cv::EVENT_LBUTTONUP)
+    {
+        drawingRectangle = false;
+        endPoint = cv::Point(x, y);
+        if (startPoint.x > endPoint.x) std::swap(startPoint.x, endPoint.x);
+        if (startPoint.y > endPoint.y) std::swap(startPoint.y, endPoint.y);
+
+        cv::Rect roi(startPoint, endPoint);
+        if (roi.width > 0 && roi.height > 0)
+        {
+            imageROI = img(roi);
+            cv::imshow("ROI", imageROI);
+        }
+    }
+}
+
+cv::Mat showImageAndReturnROI(cv::Mat& m_mat, int screenHeight, int screenWidth)
+{
+    if (m_mat.empty())
+    {
+        MessageBox(NULL, _T("No image to display."), _T("Error"), MB_ICONERROR);
+        return cv::Mat();
+    }
+
+    // Resize the image to fit the screen
+    cv::Mat dstImage = m_mat.clone();
+
+    // Resize the image to fit the screen if the image is larger than the screen
+    if (m_mat.cols > screenWidth || m_mat.rows > screenHeight)
+    {
+        double scaleFactor = std::min((double)screenWidth / m_mat.cols, (double)screenHeight / m_mat.rows);
+        cv::resize(m_mat, dstImage, cv::Size(), scaleFactor, scaleFactor);
+    }
+
+    // Create a window and display the image
+    cv::namedWindow("Image", cv::WINDOW_NORMAL);
+    cv::imshow("Image", dstImage);
+
+    // Set mouse callback function for the window
+    cv::setMouseCallback("Image", mouseCallback, (void*)&dstImage);
+
+    // Wait for a key press
+    cv::waitKey(0);
+
+    return imageROI;
+}
+
+
+/// OpenCV zoon
+
 // WorkTab 對話方塊
 
 IMPLEMENT_DYNAMIC(WorkTab, CDialogEx)
@@ -59,6 +134,9 @@ BEGIN_MESSAGE_MAP(WorkTab, CDialogEx)
     ON_BN_CLICKED(IDC_WORK_STOP_GRAB, &WorkTab::OnBnClickedWorkStopGrab)
     ON_WM_MOUSEMOVE()
     ON_WM_SETCURSOR()
+    //ON_BN_CLICKED(IDC_WORK_TEMP_IMG, &WorkTab::OnBnClickedWorkTempImg)
+    //ON_BN_CLICKED(IDC_WORK_MATCH_TEMP, &WorkTab::OnBnClickedWorkMatchTemp)
+    //ON_BN_CLICKED(IDC_IDC_WORK_TOOL_PATH, &WorkTab::OnBnClickedIdcWorkToolPath)
     ON_BN_CLICKED(IDC_WORK_TEMP_IMG, &WorkTab::OnBnClickedWorkTempImg)
     ON_BN_CLICKED(IDC_WORK_MATCH_TEMP, &WorkTab::OnBnClickedWorkMatchTemp)
     ON_BN_CLICKED(IDC_IDC_WORK_TOOL_PATH, &WorkTab::OnBnClickedIdcWorkToolPath)
@@ -98,6 +176,7 @@ BOOL WorkTab::OnInitDialog()
     float ret = Add(1.1f, 2.2f);
 
     PylonInitialize();
+
 
     return 0;
 
@@ -626,37 +705,45 @@ BOOL WorkTab::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message)
 	return TRUE;
 }
 
-
+//Create Template Image for Matching
 void WorkTab::OnBnClickedWorkTempImg()
 {
     // TODO: 在此加入控制項告知處理常式程式碼
-    // Create a template image
-    cv::Mat templ;
-    cv::Rect rect;
-    
-    CreateTemplate(m_mat, templ, rect);
-    //Check if the m_mat or templ image is empty
-    if (m_mat.empty() || templ.empty())
-	{
-		return;
-	}
-
-    // Display the template image until the user presses ESC
-    cv::imshow("Template Image", templ);
-    while (true)
+    //get the display size of monitor
+    // DisplayWidth : size of width of monitor
+    // DisplayHeight : size of height of monitor
+    //GetDisplaySize(DisplayWidth, DisplayHeight);
+    // Load the image
+   
+    if (m_mat.empty()) 
     {
-        int key = cv::waitKey(0);
-        if (key == 27) // ESC
-        {
-            break;
-        }
+        AfxMessageBox(_T("No image to display."));
+        return;
     }
 
-    // Destroy the window
-    cv::destroyWindow("Template Image");
+    //Get image size of m_mat and display on messagebox
+    //CString str;
+    //str.Format(_T("Image Size: %d x %d"), m_mat.cols, m_mat.rows);
+    //AfxMessageBox(str);
+    
    
-    //Assign the template image to m_matTemp
-    m_matTemp = templ.clone();
+    int screenHeight = GetSystemMetrics(SM_CYSCREEN);
+    int screenWidth = GetSystemMetrics(SM_CXSCREEN);
+
+    cv::Mat roi_image = showImageAndReturnROI(m_mat, screenHeight, screenWidth);
+
+
+
+    if (!roi_image.empty()) 
+    {
+        m_matTemp= roi_image.clone();
+        //cv::imshow("Selected ROI", roi_image);
+        //cv::waitKey(0);
+    }
+	else
+    {
+		AfxMessageBox(_T("No ROI selected."));
+	}
 
 }
 
@@ -664,31 +751,10 @@ void WorkTab::OnBnClickedWorkTempImg()
 void WorkTab::OnBnClickedWorkMatchTemp()
 {
     // TODO: 在此加入控制項告知處理常式程式碼
-
-    // Match template   
-    // Call the MatchTemplate function frme UAX.dll
-    // Get the position of the template in the image    
-    ImageLocation Location;
-    cv::Mat dst;
-    int match_method = cv::TM_CCOEFF_NORMED;
-    int result = MatchTemplate(m_mat, m_matTemp, dst, match_method, Location);  
-
-    //Draw the rectangle of the template in the image
-    cv::rectangle(dst, Location.Rect, cv::Scalar(0, 255, 0), 2);
-    cv::imshow("Result Image", dst);
 }
 
 
 void WorkTab::OnBnClickedIdcWorkToolPath()
 {
     // TODO: 在此加入控制項告知處理常式程式碼
-
-    // Find Tool Path
-    // ImgSrc: the input image
-    // Offset: the offset of the tool path
-    // ToolPath: the output tool path
-    ToolPath toolpath;
-    //ContourToToolPath(m_mat, toolpath);
-
-
 }

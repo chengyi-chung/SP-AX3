@@ -16,13 +16,12 @@ public:
 public:
 	//Add modbus tcp/ip test function
 	char* ip_address;
-	int ModbusTcpIpTest(const char* ip_address);
 
 	CButton* m_chk_coil; 
 	CButton* m_chk_discrete; 
 	CButton* m_chk_input_reg;
 	CButton* m_chk_holding_reg; 
-
+	
 	//Enum for modbus function code
 	enum ModbusFunctionCode
 	{
@@ -33,10 +32,7 @@ public:
 	};
 	ModbusFunctionCode m_modbus_function_code;
 
-	int test_coils(modbus_t* ctx);
-	int test_discrete_inputs(modbus_t* ctx);
-	int test_input_registers(modbus_t* ctx);
-	int test_holding_registers(modbus_t* ctx);
+	int ModbusTcpIpTest(const char* ip_address);
 
 // 對話方塊資料
 #ifdef AFX_DESIGN_TIME

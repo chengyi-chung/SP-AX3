@@ -5,7 +5,7 @@ VisualStudioVersion = 17.8.34511.84
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "YUFA", "YUFA.vcxproj", "{0384E222-EED4-4C45-B33D-C96EBFA7CADE}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "UAX", "..\UAX\UAX.vcxproj", "{929ED134-8BA6-4AD0-8D5F-4C009AE6EDAB}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "UAX", "UAX\UAX.vcxproj", "{929ED134-8BA6-4AD0-8D5F-4C009AE6EDAB}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

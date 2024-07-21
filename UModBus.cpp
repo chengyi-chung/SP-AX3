@@ -73,27 +73,30 @@ void UModBus::OnBnClickedBtnModbusTest()
 	//Get the IP address from the edit box
 	CString str;
 	GetDlgItemText(IDC_EDIT_IP_ADDRESS, str);
+	//char* ip_address = (char*)str.GetBuffer();
 
 	// Use CT2CA for conversion (CString to const char*)
 	CT2CA pszConvertedAnsiString(str);
 	const char* ip_address = pszConvertedAnsiString;
 
 	//modbus_t* ctx = modbus_new_tcp("127.0.0.1", 502);
-	//modbus_t* ctx = modbus_new_tcp(ip_address, 502);
-	//int ret = ModbusTcpIpTest(ip_address);
+	modbus_t* ctx = modbus_new_tcp(ip_address, 502);
 
-	//if (modbus_connect(ctx) == -1)
-	//{
-	//	fprintf(stderr, "Connection failed: %s\n", modbus_strerror(errno));
-	//	modbus_free(ctx);
-	//	//return -1;
-	//}
+	if (modbus_connect(ctx) == -1)
+	{
+		fprintf(stderr, "Connection failed: %s\n", modbus_strerror(errno));
+		modbus_free(ctx);
+		//return -1;
+	}
 	// Now you have a connected Modbus context (slave).
 	// ...
-	//modbus_close(ctx);
-	//modbus_free(ctx);
+	modbus_close(ctx);
+	modbus_free(ctx);
 	//return 0;
 
+
+
+/*
 	int ret = ModbusTcpIpTest(ip_address);
 	if (ret == -1)
 	{
@@ -105,36 +108,8 @@ void UModBus::OnBnClickedBtnModbusTest()
 
 	}
 
-	//Test modbus function code
-	modbus_t* ctx = modbus_new_tcp(ip_address, 502);
-	if (modbus_connect(ctx) == -1)
-	{
-		fprintf(stderr, "Connection failed: %s\n", modbus_strerror(errno));
-		modbus_free(ctx);
-		//return -1;
-	}
 
-	// Coil test
-	if (m_modbus_function_code == Coil)
-	{
-		int ret = test_coils(ctx);
-		if (ret == -10)
-		{
-			MessageBox(L"Failed to read coils");
-		}
-		else if (ret == -11)
-		{
-			MessageBox(L"Failed to write single coil");
-		}
-		else if (ret == -12)
-		{
-			MessageBox(L"Failed to write multiple coils");
-		}
-		else
-		{
-			MessageBox(L"Coil test success");
-		}
-	}
+*/
 
 
 
@@ -142,14 +117,6 @@ void UModBus::OnBnClickedBtnModbusTest()
 }
 
 //Add modbus tcp/ip test function
-//char* ip_address: IP address of the modbus slave
-//int port: port number of the modbus slave: 502
-//return 0 : new test  success, -1: if failed
-//return -1: if failed
-//return -10: if failed to read coils
-//return -11: if failed to write single coil
-//return -12: if failed to write multiple coils
-//return -13: if failed to read discrete inputs
 int UModBus::ModbusTcpIpTest(const char* ip_address)
 {
 	//modbus_t* ctx = modbus_new_tcp("127.0.0.1", 502);
@@ -163,139 +130,11 @@ int UModBus::ModbusTcpIpTest(const char* ip_address)
 		modbus_free(ctx);
 		return -1;
 	}
-
-	// Coil test
-
-
 	// Now you have a connected Modbus context (slave).
 	// ...
 	modbus_close(ctx);
 	modbus_free(ctx);
 	return 0;
-}
-
-int UModBus::test_coils(modbus_t* ctx) 
-{
-	uint8_t coils[10];
-
-	// Read coils
-	int rc = modbus_read_bits(ctx, 0, 10, coils);
-	if (rc == -1)
-	{
-		fprintf(stderr, "Failed to read coils: %s\n", modbus_strerror(errno));
-		return -10;
-	}
-	printf("Coils state: ");
-	for (int i = 0; i < 10; i++) {
-		printf("%d ", coils[i]);
-	}
-	printf("\n");
-
-	// Write single coil
-	rc = modbus_write_bit(ctx, 0, 1);
-	if (rc == -1) {
-		fprintf(stderr, "Failed to write single coil: %s\n", modbus_strerror(errno));
-		return -11;
-	}
-
-	// Write multiple coils
-	uint8_t coils_to_write[10] = { 1, 0, 1, 0, 1, 0, 1, 0, 1, 0 };
-	rc = modbus_write_bits(ctx, 0, 10, coils_to_write);
-	if (rc == -1) {
-		fprintf(stderr, "Failed to write multiple coils: %s\n", modbus_strerror(errno));
-		return -12;
-	}
-
-	return 1;
-}
-
-// Test discrete inputs
-// return 2: discrete success
-// -20: if failed to read discrete inputs
-//
-int UModBus::test_discrete_inputs(modbus_t* ctx)
-{
-	uint8_t discrete_inputs[10];
-
-	// Read discrete inputs
-	int rc = modbus_read_input_bits(ctx, 0, 10, discrete_inputs);
-	if (rc == -1)
-	{
-		fprintf(stderr, "Failed to read discrete inputs: %s\n", modbus_strerror(errno));
-		return -20;
-	}
-	printf("Discrete inputs state: ");
-	for (int i = 0; i < 10; i++) {
-		printf("%d ", discrete_inputs[i]);
-	}
-	printf("\n");
-
-	return 2;
-}
-
-// Test input registers
-// return 3: input registers success
-// -30: if failed to read input registers
-int UModBus::test_input_registers(modbus_t* ctx)
-{
-	uint16_t input_registers[10];
-
-	// Read input registers
-	int rc = modbus_read_input_registers(ctx, 0, 10, input_registers);
-	if (rc == -1)
-	{
-		fprintf(stderr, "Failed to read input registers: %s\n", modbus_strerror(errno));
-		return -30;
-	}
-	printf("Input registers: ");
-	for (int i = 0; i < 10; i++) {
-		printf("%d ", input_registers[i]);
-	}
-	printf("\n");
-	return 3;
-}
-
-// Test holding registers
-// return 4: holding registers success
-// -40: if failed to read holding registers
-// -41: if failed to write single register
-// -42: if failed to write multiple registers
-
-int UModBus::test_holding_registers(modbus_t* ctx)
-{
-	uint16_t holding_registers[10];
-
-	// Read holding registers
-	int rc = modbus_read_registers(ctx, 0, 10, holding_registers);
-	if (rc == -1) 
-	{
-		fprintf(stderr, "Failed to read holding registers: %s\n", modbus_strerror(errno));
-		return -40;
-	}
-	printf("Holding registers: ");
-	for (int i = 0; i < 10; i++)
-	{
-		printf("%d ", holding_registers[i]);
-	}
-	printf("\n");
-
-	// Write single register
-	rc = modbus_write_register(ctx, 0, 1234);
-	if (rc == -1)
-	{
-		fprintf(stderr, "Failed to write single register: %s\n", modbus_strerror(errno));
-		return -41;
-	}
-
-	// Write multiple registers
-	uint16_t registers_to_write[10] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
-	rc = modbus_write_registers(ctx, 0, 10, registers_to_write);
-	if (rc == -1)
-	{
-		fprintf(stderr, "Failed to write multiple registers: %s\n", modbus_strerror(errno));
-		return -42;
-	}
-
 }
 
 BOOL UModBus::OnInitDialog()
