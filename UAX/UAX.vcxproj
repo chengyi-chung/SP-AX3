@@ -106,14 +106,14 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;UAX_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(OPENCV_path)\include;$(PYLON_DEV_DIR)\include;$(SolutionDir)UAX</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(OPENCV_path)\include;$(PYLON_DEV_DIR)\include;$(SolutionDir)UAX;$(SolutionDir)sqlite3</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalLibraryDirectories>$(OPENCV_path)\x64\vc16\lib</AdditionalLibraryDirectories>
-      <AdditionalDependencies>opencv_world470d.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(OPENCV_path)\x64\vc16\lib;$(SolutionDir)Sqlite3\lib</AdditionalLibraryDirectories>
+      <AdditionalDependencies>opencv_world470d.lib;sqlite3.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">

@@ -11,14 +11,12 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <vector>
 
+#include <sqlite3.h>
+
 using namespace cv;
 using namespace std;
 
-#include <sqlite3.h>
 
-
-
-using namespace std;
 
 //add a AES encrypt function 
 // 128位密钥
