@@ -20,6 +20,9 @@ UModBus::UModBus(CWnd* pParent /*=nullptr*/)
 	// make related check box member variables to identify nunber of check boxes
 
 	//delclare the member variables of check boxes
+
+
+
 	m_chk_coil = FALSE;
 	m_chk_discrete = FALSE;
 	m_chk_input_reg = FALSE;
