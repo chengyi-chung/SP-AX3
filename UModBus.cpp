@@ -1,7 +1,4 @@
-﻿// UModBus.cpp: 實作檔案
-//
-
-#include "pch.h"
+﻿#include "pch.h"
 #include "YUFA.h"
 #include "afxdialogex.h"
 #include "UModBus.h"
