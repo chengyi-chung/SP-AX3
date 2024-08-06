@@ -84,34 +84,41 @@ void UModBus::OnBnClickedBtnModbusTest()
 	{
 		fprintf(stderr, "Connection failed: %s\n", modbus_strerror(errno));
 		modbus_free(ctx);
-		//return -1;
+		return;
 	}
-	// Now you have a connected Modbus context (slave).
-	// ...
+	
+	//test coil
+   // Read 10 coils from address 0
+	uint8_t coils[10] = { 0 };
+
+	// Read the coils
+	modbus_set_slave(ctx, 1);  // 設置為設備 ID 1
+	int rc = modbus_read_bits(ctx, 0, 10, coils);
+
+	if (rc == -1)
+	{
+		std::cerr << "Failed to read coils: " << modbus_strerror(errno) << std::endl;
+		modbus_close(ctx);
+		modbus_free(ctx);
+		return;
+	}
+	// Print the coils
+	for (int i = 0; i < rc; i++) {
+		std::cout << "Coil " << i << " = " << (int)coils[i] << std::endl;
+	}
+
+	//test discrete output
+	// Read 10 discrete inputs from address 0
+	uint8_t discrete_inputs[10] = { 0 };
+
+
+
+
+
+
+	// Close the connection
 	modbus_close(ctx);
 	modbus_free(ctx);
-	//return 0;
-
-
-
-/*
-	int ret = ModbusTcpIpTest(ip_address);
-	if (ret == -1)
-	{
-		MessageBox(L"Modbus test failed");
-	}
-	else
-	{
-		//MessageBox(L"Modbus test success");
-
-	}
-
-
-*/
-
-
-
-
 }
 
 //Add modbus tcp/ip test function
