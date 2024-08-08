@@ -80,6 +80,7 @@ void UModBus::OnBnClickedBtnModbusTest()
 	//modbus_t* ctx = modbus_new_tcp("127.0.0.1", 502);
 	modbus_t* ctx = modbus_new_tcp(ip_address, 502);
 
+	//Connection test
 	if (modbus_connect(ctx) == -1)
 	{
 		fprintf(stderr, "Connection failed: %s\n", modbus_strerror(errno));
@@ -103,18 +104,52 @@ void UModBus::OnBnClickedBtnModbusTest()
 		return;
 	}
 	// Print the coils
-	for (int i = 0; i < rc; i++) {
+	for (int i = 0; i < rc; i++) 
+	{
 		std::cout << "Coil " << i << " = " << (int)coils[i] << std::endl;
 	}
 
-	//test discrete output
-	// Read 10 discrete inputs from address 0
-	uint8_t discrete_inputs[10] = { 0 };
+	// Write a single coil (set coil at address 21 to ON)
+	rc = modbus_write_bit(ctx, 21, TRUE);
+	if (rc == -1)
+	{
+		std::cerr << "Failed to write coil: " << modbus_strerror(errno) << std::endl;
+		modbus_close(ctx);
+		modbus_free(ctx);
+		return;
+	}
 
 
+	//Client wrtie holding register
+	// Write a single holding register (set register at address 10 to 0x00FF)
+	rc = modbus_write_register(ctx, 10, 0x00FF);
+	if (rc == -1) 
+	{
+		std::cerr << "Failed to write holding register: " << modbus_strerror(errno) << std::endl;
+		modbus_close(ctx);
+		modbus_free(ctx);
+		return;
+	}
 
+	//Client read Input register
+    // Allocate space for the register data
+	uint16_t registers[10];
 
+	// Read 10 holding registers starting from address 10
+    rc = modbus_read_registers(ctx, 10, 10, registers);
+	if (rc == -1)
+	{
+		fprintf(stderr, "Failed to read registers\n");
+		modbus_close(ctx);
+		modbus_free(ctx);
+		return;
+	}
 
+	// Print the register values
+	for (int i = 0; i < rc; i++) {
+		printf("Register %d: %d\n", i, registers[i]);
+	}
+	
 
 	// Close the connection
 	modbus_close(ctx);
