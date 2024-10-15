@@ -361,3 +361,21 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/UAX/x64/Debug/dllmain.obj
+/UAX/x64/Debug/UAX.dll.recipe
+/UAX/x64/Debug/UAX.ilk
+/UAX/x64/Debug/UAX.log
+/UAX/x64/Debug/UAX.tlog/CL.command.1.tlog
+/UAX/x64/Debug/UAX.tlog/Cl.items.tlog
+/UAX/x64/Debug/UAX.Build.CppClean.log
+/UAX/x64/Debug/UAX.obj
+/UAX/x64/Debug/UAX.tlog/CL.write.1.tlog
+/UAX/x64/Debug/UAX.tlog/link.command.1.tlog
+/UAX/x64/Debug/UAX.tlog/link.read.1.tlog
+/UAX/x64/Debug/UAX.tlog/link.secondary.1.tlog
+/UAX/x64/Debug/UAX.tlog/link.write.1.tlog
+/UAX/x64/Debug/UAX.tlog/UAX.lastbuildstate
+/UAX/x64/Debug/vc143.idb
+/UAX/x64/Debug/vc143.pdb
+/UAX/x64/Debug/vcpkg.applocal.log
+/UAX/x64/Debug/UAX.tlog/CL.read.1.tlog
