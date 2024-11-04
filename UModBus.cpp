@@ -5,9 +5,12 @@
 #include "modbus.h"
 #include <iostream>
 #include <vector>
+#include <string>
 
 
 // UModBus 對話方塊
+using namespace std;
+
 
 IMPLEMENT_DYNAMIC(UModBus, CDialog)
 
@@ -77,8 +80,11 @@ void UModBus::OnBnClickedBtnModbusTest()
 	CT2CA pszConvertedAnsiString(str);
 	const char* ip_address = pszConvertedAnsiString;
 
-	//modbus_t* ctx = modbus_new_tcp("127.0.0.1", 502);
-	modbus_t* ctx = modbus_new_tcp(ip_address, 502);
+	//modbus_t * ctx = modbus_new_tcp("127.0.0.1", 502);
+	modbus_t* ctx = modbus_new_tcp("192.168.0.11", 502);
+	//modbus_t* ctx = modbus_new_tcp(ip_address, 502);
+
+	modbus_set_slave(ctx, 1);  // 設置為設備 ID 1
 
 	//Connection test
 	if (modbus_connect(ctx) == -1)
@@ -88,13 +94,50 @@ void UModBus::OnBnClickedBtnModbusTest()
 		return;
 	}
 	
+	// Now you have a connected Modbus context (slave).
+	//Test read holding register
+	// Allocate space for the register data
+	uint16_t tab_reg[64] = { 0 };
+	// Read 64 holding registers starting from address 0
+	int rc = modbus_read_registers(ctx, 0,64, tab_reg);
+	if (rc == -1)
+	{
+		fprintf(stderr, "Failed to read registers\n");
+		modbus_close(ctx);
+		modbus_free(ctx);
+		return;
+	}
+	// Print the register values
+	string str_Reg = "";
+	for (int i = 0; i < rc; i++)
+	{
+		//將  tab_reg[i] 轉換為字串
+		str_Reg += to_string(tab_reg[i]) + "\r\n";
+
+		//str_Reg =  to_string(tab_reg[i]) + "\n\r";
+
+	}
+	// Display str in IDC_MODBUS_EDIT_RETURN
+	str = str_Reg.c_str();
+	SetDlgItemText(IDC_MODBUS_EDIT_RETURN, str);
+
+	//close the connection annd return
+	modbus_close(ctx);
+	modbus_free(ctx);
+	return;
+
+
+
+
+
+
 	//test coil
    // Read 10 coils from address 0
 	uint8_t coils[10] = { 0 };
 
 	// Read the coils
 	modbus_set_slave(ctx, 1);  // 設置為設備 ID 1
-	int rc = modbus_read_bits(ctx, 0, 10, coils);
+	rc = modbus_read_bits(ctx, 0, 10, coils);
 
 	if (rc == -1)
 	{
@@ -130,6 +173,8 @@ void UModBus::OnBnClickedBtnModbusTest()
 		modbus_free(ctx);
 		return;
 	}
+
+
 
 	//Client read Input register
     // Allocate space for the register data

@@ -139,6 +139,37 @@ void GetToolPath(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpath)
 	cv::destroyAllWindows();
 }
 
+//Convert contour to tool path
+// cv::Mat& src: the input image
+// ToolPath: the output tool path
+void ContourToToolPath(cv::Mat& src, ToolPath& toolpath)
+{
+	// Convert the image to grayscale
+	cv::Mat gray;
+	cv::cvtColor(src, gray, cv::COLOR_BGR2GRAY);
+
+	// Apply a binary threshold to the image
+	cv::Mat binary;
+	cv::threshold(gray, binary, 0, 255, cv::THRESH_BINARY | cv::THRESH_OTSU);
+
+	// Find contours
+	std::vector<std::vector<cv::Point>> contours;
+	std::vector<cv::Vec4i> hierarchy;
+	cv::findContours(binary, contours, hierarchy, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
+
+	// Convert the contour to a tool path
+	std::vector<cv::Point2d> path;
+	for (size_t i = 0; i < contours.size(); i++)
+	{
+		for (size_t j = 0; j < contours[i].size(); j++)
+		{
+			path.push_back(contours[i][j]);
+		}
+	}
+
+	// Store the tool path in the struct
+	toolpath.Path = path;
+}
 
 
 // Function to resize the image to fit the screen
@@ -291,6 +322,7 @@ int MatchTemplate(cv::Mat& ImageSrc, cv::Mat& ImageTemp, cv::Mat& ImageDst, int 
 	cornersTemp[2] = cv::Point2f(static_cast<float>(ImageTemp.cols), static_cast<float>(ImageTemp.rows));
 	cornersTemp[3] = cv::Point2f(0, static_cast<float>(ImageTemp.rows));
 
+	// Transform the corners to the source image
 	std::vector<cv::Point2f> cornersSrc(4);
 	cv::perspectiveTransform(cornersTemp, cornersSrc, H);
 
@@ -308,7 +340,67 @@ int MatchTemplate(cv::Mat& ImageSrc, cv::Mat& ImageTemp, cv::Mat& ImageDst, int 
 	return 0; // Return success
 }
 
+/*
+//feature match template with FLANN
+// cv::Mat& ImageSrc: Source image
+// cv::Mat& ImageTemp: template image
+// cv::Mat& ImageDst: output image
+// match_method: method to match the template
+// Location: output location of the template in the image
+// Offset: output offset of the template in the image
+int MatchTemplateFLANN(cv::Mat& ImageSrc, cv::Mat& ImageTemp, cv::Mat& ImageDst, int match_method, ImageLocation& Location, cv::Point2d Offset)
+{
+	//-- Step 1: Detect the keypoints using SURF Detector, compute the descriptors
+	int minHessian = 400;
+	// Detect ORB keypoints and descriptors in both images
+	Ptr<SURF> detector = cv::SURF::create();
+	std::vector<cv::KeyPoint> keypointsSrc, keypointsTemp;
+	cv::Mat descriptorsSrc, descriptorsTemp;
 
+	orb->detectAndCompute(ImageSrc, cv::noArray(), keypointsSrc, descriptorsSrc);
+	orb->detectAndCompute(ImageTemp, cv::noArray(), keypointsTemp, descriptorsTemp);
+
+	// Match descriptors using FLANN
+	cv::FlannBasedMatcher matcher;
+	std::vector<cv::DMatch> matches;
+	matcher.match(descriptorsTemp, descriptorsSrc, matches);
+
+	if (matches.empty())
+	{
+		std::cerr << "No matches found!" << std::endl;
+		return -1;
+	}
+
+	// Extract location of good matches
+	std::vector<cv::Point2f> pointsTemp, pointsSrc;
+	for (size_t i = 0; i < matches.size(); i++)
+	{
+		pointsTemp.push_back(keypointsTemp[matches[i].queryIdx].pt);
+		pointsSrc.push_back(keypointsSrc[matches[i].trainIdx].pt);
+	}
+
+	// Find homography
+	cv::Mat H = cv::findHomography(pointsTemp, pointsSrc, cv::RANSAC);
+
+	// Get the corners from the template image
+	std::vector<cv::Point2f> cornersTemp(4);
+	cornersTemp[0] = cv::Point2f(0, 0);
+	cornersTemp[1] = cv::Point2f(static_cast<float>(ImageTemp.cols), 0);
+	cornersTemp[2] = cv::Point2f(static_cast<float>(ImageTemp.cols), static_cast<float>(ImageTemp.rows));
+	cornersTemp[3] = cv::Point2f(0, static_cast<float>(ImageTemp.rows));
+
+	// Transform the corners to the source image
+	std::vector<cv::Point2f> cornersSrc(4);
+	cv::perspectiveTransform(cornersTemp, cornersSrc, H);
+
+	// Calculate the bounding box
+	cv::Rect boundingBox = cv::boundingRect(cornersSrc);
+	Location.Rect = boundingBox;
+
+	// Calculate the center position
+	Location.Position = cv;
+}
+*/
 
 
 //Create a database with sqlite3

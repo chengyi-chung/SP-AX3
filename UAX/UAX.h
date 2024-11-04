@@ -6,17 +6,30 @@
 
 #pragma once
 #include <atlimage.h>
-#include <opencv2/core/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
+//#include <opencv2/core/core.hpp>
+//#include <opencv2/highgui/highgui.hpp>
+//#include <opencv2/imgproc/imgproc.hpp>
 #include <vector>
+
+
+#include "opencv2/core.hpp"
+
+
+#include "opencv2/calib3d.hpp"
+#include "opencv2/highgui.hpp"
+#include "opencv2/imgproc.hpp"
+#include "opencv2/features2d.hpp"
+//#include "opencv2/xfeatures2d.hpp"
+
 
 #include <sqlite3.h>
 
 using namespace cv;
 using namespace std;
 
-
+//using namespace cv::xfeatures2d;
+using std::cout;
+using std::endl;
 
 //add a AES encrypt function 
 // 128位密钥
@@ -99,6 +112,8 @@ extern "C" UAX_API void CreateTemplate(cv::Mat & src, cv::Mat & templ, cv::Rect 
 // Get the position of the template in the image
 extern "C" UAX_API int MatchTemplate(cv::Mat& src, cv::Mat& templ, cv::Mat& dst, int match_method, ImageLocation &Location);
 
+extern "C" UAX_API int MatchTemplateFLANN(cv::Mat& src, cv::Mat& templ, cv::Mat& dst, int match_method, ImageLocation& Location, cv::Point2d Offset);
+
 // Get Tool Path
 // Use Erosiong find the tool path
 // ImgSrc: the input image
@@ -116,7 +131,6 @@ extern "C" UAX_API void FindArea(cv::Mat& src, ContourArea& contourarea);
 //Convert contour to tool path
 //
 extern "C" UAX_API void ContourToToolPath(cv::Mat& src, ToolPath& toolpath);
-
 
 
 
@@ -142,5 +156,4 @@ extern "C" UAX_API int DeleteData(sqlite3* db, const char* db_name, const char* 
 
 //Close the database
 extern "C" UAX_API int CloseDatabase(sqlite3* db);
-
 

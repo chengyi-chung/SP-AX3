@@ -751,6 +751,86 @@ void WorkTab::OnBnClickedWorkTempImg()
 void WorkTab::OnBnClickedWorkMatchTemp()
 {
     // TODO: 在此加入控制項告知處理常式程式碼
+	//m_mat: Source Image
+	//m_matTemp: Template Image
+
+	//Load the Source Image
+	if (m_mat.empty())
+	{
+		AfxMessageBox(_T("No image to match."));
+		return;
+	}
+
+	// Load the template image
+	if (m_matTemp.empty())
+	{
+		AfxMessageBox(_T("No template image to match."));
+		return;
+	}
+
+    // Rotate the template image
+    //double angle = 30.0; // Rotation angle in degrees
+    //cv::Point2f center(templateImg.cols / 2.0, templateImg.rows / 2.0);
+    //cv::Mat rotMat = cv::getRotationMatrix2D(center, angle, 1.0);
+    //cv::Mat rotatedTemplate;
+    //cv::warpAffine(templateImg, rotatedTemplate, rotMat, templateImg.size());
+	
+
+	// Match the template
+	//ImageSrc: Source Image m_mat
+	//ImageTemp: Template Image m_matTemp
+	//ImageDst: Result Image result
+	//match_method: Matching method
+	//Location: ImageLocation
+    cv::Mat ImageSrc = m_mat;
+	cv::Mat ImageTemp = m_matTemp.clone();
+	cv::Mat ImageDst;
+	int match_method = cv::TM_CCOEFF_NORMED;
+	ImageLocation Location;
+
+	int ret = MatchTemplate(ImageSrc, ImageTemp, ImageDst, match_method, Location);
+		if (ret == 0)
+		{
+			AfxMessageBox(_T("Template not found."));
+			return;
+		}
+
+		// Display the matched image withthe Location of the template to display rotated rectangle
+
+		cv::Mat source = ImageSrc.clone();
+		cv::Point2f vertices[4];
+
+        //Freom  Location to get center and degree to rotate ractangle
+		cv::Point2f center;
+		cv::Rect rotatedRect;
+		center.x = Location.Position.x;
+		center.y = Location.Position.y;
+		int degree = Location.Angle;
+		rotatedRect = Location.Rect;
+
+		//Convert cv::Rect rotatedRect to cv::Point2f vertices[4]
+		vertices[0] = cv::Point(rotatedRect.x, rotatedRect.y);
+		vertices[1] = cv::Point(rotatedRect.x + rotatedRect.width, rotatedRect.y);
+		vertices[2] = cv::Point(rotatedRect.x + rotatedRect.width, rotatedRect.y + rotatedRect.height);
+		vertices[3] = cv::Point(rotatedRect.x, rotatedRect.y + rotatedRect.height);
+
+		
+		
+		for (int i = 0; i < 4; i++)
+		{
+			cv::line(source, vertices[i], vertices[(i + 1) % 4], cv::Scalar(0, 255, 0), 2);
+		}
+
+
+
+
+    // Display the result
+    cv::imshow("Matched Image", source);
+    cv::waitKey(0);
+
+    //return 0;
+
+
 }
 
 
