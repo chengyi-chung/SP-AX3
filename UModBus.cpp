@@ -121,6 +121,15 @@ void UModBus::OnBnClickedBtnModbusTest()
 	str = str_Reg.c_str();
 	SetDlgItemText(IDC_MODBUS_EDIT_RETURN, str);
 
+	tab_reg[0] = 99999;
+	//write to modbus tcp holding register with 
+	rc = modbus_write_register(ctx, 0, 999);
+
+	//write to modbus tcp holding register with tab_reg[64]
+	rc = modbus_write_registers(ctx, 0,64, tab_reg);
+
+
+    
 	//close the connection annd return
 	modbus_close(ctx);
 	modbus_free(ctx);
