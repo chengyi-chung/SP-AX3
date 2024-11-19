@@ -16,6 +16,7 @@ public:
 public:
 	//Add modbus tcp/ip test function
 	char* ip_address;
+	int ServerId;
 
 	CButton* m_chk_coil; 
 	CButton* m_chk_discrete; 

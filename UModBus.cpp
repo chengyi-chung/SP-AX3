@@ -81,10 +81,14 @@ void UModBus::OnBnClickedBtnModbusTest()
 	const char* ip_address = pszConvertedAnsiString;
 
 	//modbus_t * ctx = modbus_new_tcp("127.0.0.1", 502);
-	modbus_t* ctx = modbus_new_tcp("192.168.0.11", 502);
-	//modbus_t* ctx = modbus_new_tcp(ip_address, 502);
+	//modbus_t* ctx = modbus_new_tcp("192.168.0.11", 502);
+	modbus_t* ctx = modbus_new_tcp(ip_address, 502);
 
-	modbus_set_slave(ctx, 1);  // 設置為設備 ID 1
+	//Assign the server id to IDC_EDIT_SERVER_ID
+	//Get the server id from the edit box
+	GetDlgItemText(IDC_EDIT_SERVER_ID, str);
+	int ServerId = _ttoi(str);
+	modbus_set_slave(ctx, ServerId);  // 設置為設備 ID 1
 
 	//Connection test
 	if (modbus_connect(ctx) == -1)
@@ -112,6 +116,7 @@ void UModBus::OnBnClickedBtnModbusTest()
 	for (int i = 0; i < rc; i++)
 	{
 		//將  tab_reg[i] 轉換為字串
+		    
 		str_Reg += to_string(tab_reg[i]) + "\r\n";
 
 		//str_Reg =  to_string(tab_reg[i]) + "\n\r";
