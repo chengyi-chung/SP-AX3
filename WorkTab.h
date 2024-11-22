@@ -137,4 +137,5 @@ public:
 	afx_msg void OnBnClickedWorkTempImg();
 	afx_msg void OnBnClickedWorkMatchTemp();
 	afx_msg void OnBnClickedIdcWorkToolPath();
+	afx_msg void OnBnClickedIdcWorkLoadImg();
 };

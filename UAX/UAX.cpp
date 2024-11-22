@@ -106,7 +106,8 @@ void GetToolPath(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpath)
 	//use Offset to caculate numPixelsToErode
 	numPixelsToErode = Offset.x + Offset.y;
 
-	for (int i = 0; i < numPixelsToErode; ++i) {
+	for (int i = 0; i < numPixelsToErode; ++i) 
+	{
 		cv::erode(result, result, cv::Mat());
 	}
 

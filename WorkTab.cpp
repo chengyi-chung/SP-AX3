@@ -140,6 +140,7 @@ BEGIN_MESSAGE_MAP(WorkTab, CDialogEx)
     ON_BN_CLICKED(IDC_WORK_TEMP_IMG, &WorkTab::OnBnClickedWorkTempImg)
     ON_BN_CLICKED(IDC_WORK_MATCH_TEMP, &WorkTab::OnBnClickedWorkMatchTemp)
     ON_BN_CLICKED(IDC_IDC_WORK_TOOL_PATH, &WorkTab::OnBnClickedIdcWorkToolPath)
+    ON_BN_CLICKED(IDC_IDC_WORK_LOAD_IMG, &WorkTab::OnBnClickedIdcWorkLoadImg)
 END_MESSAGE_MAP()
 
 
@@ -837,4 +838,11 @@ void WorkTab::OnBnClickedWorkMatchTemp()
 void WorkTab::OnBnClickedIdcWorkToolPath()
 {
     // TODO: 在此加入控制項告知處理常式程式碼
+}
+
+
+void WorkTab::OnBnClickedIdcWorkLoadImg()
+{
+    // TODO: 在此加入控制項告知處理常式程式碼
+
 }

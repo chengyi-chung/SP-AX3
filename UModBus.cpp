@@ -116,11 +116,7 @@ void UModBus::OnBnClickedBtnModbusTest()
 	for (int i = 0; i < rc; i++)
 	{
 		//將  tab_reg[i] 轉換為字串
-		    
 		str_Reg += to_string(tab_reg[i]) + "\r\n";
-
-		//str_Reg =  to_string(tab_reg[i]) + "\n\r";
-
 	}
 	// Display str in IDC_MODBUS_EDIT_RETURN
 	str = str_Reg.c_str();
@@ -132,9 +128,6 @@ void UModBus::OnBnClickedBtnModbusTest()
 
 	//write to modbus tcp holding register with tab_reg[64]
 	rc = modbus_write_registers(ctx, 0,64, tab_reg);
-
-
-    
 	//close the connection annd return
 	modbus_close(ctx);
 	modbus_free(ctx);
@@ -165,6 +158,11 @@ void UModBus::OnBnClickedBtnModbusTest()
 	{
 		std::cout << "Coil " << i << " = " << (int)coils[i] << std::endl;
 	}
+
+
+
+
+
 
 	// Write a single coil (set coil at address 21 to ON)
 	rc = modbus_write_bit(ctx, 21, TRUE);

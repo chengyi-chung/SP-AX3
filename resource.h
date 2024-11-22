@@ -36,6 +36,8 @@
 #define IDC_MODBUS_EDIT_RETURN          1028
 #define IDC_EDIT1                       1029
 #define IDC_EDIT_SERVER_ID              1029
+#define IDC_BUTTON3                     1033
+#define IDC_IDC_WORK_LOAD_IMG           1033
 #define ID_INDICATOR_TIME               59142
 #define ID_INDICATOR_FILE               59143
 
@@ -45,7 +47,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        136
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1030
+#define _APS_NEXT_CONTROL_VALUE         1034
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
