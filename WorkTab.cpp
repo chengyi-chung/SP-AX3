@@ -844,5 +844,19 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
 void WorkTab::OnBnClickedIdcWorkLoadImg()
 {
     // TODO: 在此加入控制項告知處理常式程式碼
+	//Add Dialog Box to load image
+	CString strFilter = _T("Image Files (*.bmp;*.jpg;*.jpeg;*.png;*.tif;*.tiff)|*.bmp;*.jpg;*.jpeg;*.png;*.tif;*.tiff|All Files (*.*)|*.*||");
+	CFileDialog dlg(TRUE, NULL, NULL, OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_HIDEREADONLY, strFilter, this);
+	if (dlg.DoModal() == IDOK)
+	{
+		CString strPath = dlg.GetPathName();
+		// Convert CString to std::string
+		std::string strPathA = CT2A(strPath);
+		// Load the image
+		m_mat = cv::imread(strPathA, cv::IMREAD_GRAYSCALE);
+		// Display the image
+		ShowImageOnPictureControl();
+	}
+
 
 }
