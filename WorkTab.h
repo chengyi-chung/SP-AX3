@@ -94,6 +94,11 @@ protected:
 	// ScreenHeight and ScreenWidth are used to resize the image to fit the screen
 	void ShowImageWithOpenCV(cv::Mat m_mat, int ScreenHeight, int ScreenWidth);
 
+	//Get tools path from the image
+	// cv::Mat& src: the input image
+	// ToolPath: the output tool path
+	void GetToolPathData(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpath);
+
 	//flag of Brab Thread
 	//bool m_bGrabThread;
 
@@ -138,4 +143,5 @@ public:
 	afx_msg void OnBnClickedWorkMatchTemp();
 	afx_msg void OnBnClickedIdcWorkToolPath();
 	afx_msg void OnBnClickedIdcWorkLoadImg();
+	afx_msg void OnBnClickedIdcWorkSaveImg();
 };

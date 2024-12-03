@@ -31,7 +31,7 @@ D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(107,30): warning C4244:        
 D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(107,30): warning C4244:         ]
      正在建立程式庫 D:\Git Repository\chengyi-chung\YUFA\x64\Release\UAX.lib 和物件 D:\Git Repository\chengyi-chung\YUFA\x64\Release\UAX.exp
   正在產生程式碼
-  Previous IPDB was built with incompatible compiler, fall back to full compilation.
+  Previous IPDB not found, fall back to full compilation.
   All 468 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
   已完成程式碼產生
   UAX.vcxproj -> D:\Git Repository\chengyi-chung\YUFA\x64\Release\UAX.dll

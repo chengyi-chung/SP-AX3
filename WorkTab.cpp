@@ -141,6 +141,7 @@ BEGIN_MESSAGE_MAP(WorkTab, CDialogEx)
     ON_BN_CLICKED(IDC_WORK_MATCH_TEMP, &WorkTab::OnBnClickedWorkMatchTemp)
     ON_BN_CLICKED(IDC_IDC_WORK_TOOL_PATH, &WorkTab::OnBnClickedIdcWorkToolPath)
     ON_BN_CLICKED(IDC_IDC_WORK_LOAD_IMG, &WorkTab::OnBnClickedIdcWorkLoadImg)
+    ON_BN_CLICKED(IDC_IDC_WORK_SAVE_IMG, &WorkTab::OnBnClickedIdcWorkSaveImg)
 END_MESSAGE_MAP()
 
 
@@ -838,6 +839,9 @@ void WorkTab::OnBnClickedWorkMatchTemp()
 void WorkTab::OnBnClickedIdcWorkToolPath()
 {
     // TODO: 在此加入控制項告知處理常式程式碼
+
+
+
 }
 
 
@@ -858,5 +862,33 @@ void WorkTab::OnBnClickedIdcWorkLoadImg()
 		ShowImageOnPictureControl();
 	}
 
+
+}
+
+
+void WorkTab::OnBnClickedIdcWorkSaveImg()
+{
+    // TODO: 在此加入控制項告知處理常式程式碼
+	//Add Dialog Box to save image
+	CString strFilter = _T("Image Files (*.bmp;*.jpg;*.jpeg;*.png;*.tif;*.tiff)|*.bmp;*.jpg;*.jpeg;*.png;*.tif;*.tiff|All Files (*.*)|*.*||");
+	CFileDialog dlg(FALSE, NULL, NULL, OFN_PATHMUSTEXIST | OFN_HIDEREADONLY, strFilter, this);
+	if (dlg.DoModal() == IDOK)
+	{
+		CString strPath = dlg.GetPathName();
+		// Convert CString to std::string
+		std::string strPathA = CT2A(strPath);
+		// Save the image
+		cv::imwrite(strPathA, m_mat);
+	}
+}
+
+//Get Tools Path from image
+void WorkTab::GetToolPathData(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpath)
+{
+	//Call the function to get the tool path from UAX
+	//ImgSrc: Source Image
+	//Offset: Offset of the tool path
+	//toolpath: Tool Path
+	GetToolPath(ImgSrc, Offset, toolpath);
 
 }
