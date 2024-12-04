@@ -840,7 +840,16 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
 {
     // TODO: 在此加入控制項告知處理常式程式碼
 
+	//Get the tool path from the image m_mat
+	//m_mat: Source Image m_mat
+	//Offset: Offset of the tool path
+	//toolpath: Tool Path
+	cv::Mat ImgSrc = m_mat.clone();
+	cv::Point2d Offset;
+	ToolPath toolpath;
 
+
+    GetToolPathData(ImgSrc, Offset, toolpath);
 
 }
 
@@ -889,6 +898,10 @@ void WorkTab::GetToolPathData(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& too
 	//ImgSrc: Source Image
 	//Offset: Offset of the tool path
 	//toolpath: Tool Path
+
+    Offset.x = 10;
+	Offset.y = 10;
+
 	GetToolPath(ImgSrc, Offset, toolpath);
 
 }

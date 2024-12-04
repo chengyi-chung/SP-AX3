@@ -94,49 +94,65 @@ void FindArea(cv::Mat& src, ContourArea& contourarea)
 // ImgSrc: the input image
 // Offset: the offse value of the tool path
 // ToolPath: the output tool path
-void GetToolPath(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpath)
-{
-	cv::Mat erodedImage;  // Eroded image will be stored here
-
-	cv::Mat result = ImgSrc.clone();  // 複製輸入圖像
-
-	cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
-
-	int numPixelsToErode = 35;  // 設定要侵蝕的像素數量
-	//use Offset to caculate numPixelsToErode
-	numPixelsToErode = Offset.x + Offset.y;
-
-	for (int i = 0; i < numPixelsToErode; ++i) 
-	{
-		cv::erode(result, result, cv::Mat());
+void  GetToolPath(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpath) {
+	// Validate input image
+	if (ImgSrc.empty()) {
+		throw std::invalid_argument("Input image is empty.");
 	}
 
-	//Test for github
-	int a = 2;
+	cv::Mat result = ImgSrc.clone(); // Clone the input image
 
-	// Convert the image to grayscale
+	// Calculate erosion iterations based on Offset
+	int numPixelsToErode = static_cast<int>(Offset.x + Offset.y);
+
+	// Create erosion kernel
+	cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
+
+	// Apply erosion iteratively
+	for (int i = 0; i < numPixelsToErode; ++i) {
+		cv::erode(result, result, kernel);
+	}
+
+	// Check if result is already grayscale (1 channel)
 	cv::Mat gray;
-	cvtColor(result, gray, COLOR_BGR2GRAY);
+	if (result.channels() != 1) {
+		// Convert the image to grayscale if it is not already grayscale
+		cv::cvtColor(result, gray, cv::COLOR_BGR2GRAY);
+	}
+	else {
+		// If the image is already grayscale, just use it as is
+		gray = result;
+	}
 
-	// Apply a binary threshold to the image
-	Mat thresh;
-	threshold(gray, thresh, 50, 200, THRESH_BINARY);
+	// Apply binary thresholding
+	cv::Mat thresh;
+	cv::threshold(gray, thresh, 128, 255, cv::THRESH_BINARY);
 
-	vector<vector<Point>> contours;
-	vector<Vec4i> hierarchy; // Contour hierarchy
+	// Find contours to derive the tool path
+	std::vector<std::vector<cv::Point>> contours; // Contours detected
+	std::vector<cv::Vec4i> hierarchy;            // Contour hierarchy
+	cv::findContours(thresh, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
-	findContours(thresh, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
+	// 在原始影像上繪製輪廓
+	cv::Mat outputImage = inputImage.clone();
+	cv::drawContours(outputImage, contours, -1, Scalar(0, 255, 0), 2);
 
-	// Draw the contours on the input image
-	drawContours(ImgSrc, contours, -1, Scalar(0, 255, 0), 2);
+	// Populate the toolpath
+	toolpath.Offset = Offset;
+	for (const auto& contour : contours) {
+		for (const auto& point : contour) {
+			toolpath.Path.push_back(cv::Point2d(point));
+		}
+	}
 
-	// Display the eroded binary image
+	// Draw contours on the original image for visualization
+	cv::drawContours(ImgSrc, contours, -1, cv::Scalar(0, 255, 0), 2);
+
+	// Display the images
 	cv::imshow("Input Image", ImgSrc);
 
-	cv::imshow("Result", result);
-
+	//cv::imshow("Eroded Result", result);
 	cv::waitKey(0);
-
 	cv::destroyAllWindows();
 }
 
