@@ -52,4 +52,5 @@ public:
 	afx_msg void OnBnClickedModbusChkDiscrete();
 	afx_msg void OnBnClickedModbusChkInputReg();
 	afx_msg void OnBnClickedModbusChkHoldingReg();
+	afx_msg void OnBnClickedIdcWorkGo();
 };

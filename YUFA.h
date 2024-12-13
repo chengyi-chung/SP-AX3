@@ -20,6 +20,8 @@ class CYUFAApp : public CWinApp
 public:
 	CYUFAApp();
 
+	
+
 // 覆寫
 public:
 	virtual BOOL InitInstance();

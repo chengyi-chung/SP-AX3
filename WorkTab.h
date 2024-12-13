@@ -40,6 +40,15 @@ public:
 	//String of mouse position
 	CString m_strMousePos;
 
+	struct SystemPara
+	{
+		int iStart; //Coil Start flag : 0:stop 1:start 
+		float OffsetX;
+		float OffsetY;
+		int iPara4;
+	};
+	SystemPara m_SystemPara;
+
 protected:
 	CBrush m_brush;
 
@@ -76,6 +85,26 @@ protected:
 
 	int oriImageWidth;
 	int oriImageHeight;
+
+	//structure of system parameter for YUFA system
+
+
+	//Array Data of Tool Path : Max 2000
+	int m_ToolPath[2000];
+	//Tool Path use ToolPath structure to store the data
+	ToolPath m_ToolPathData;
+	//Function GetToolPathStruct() from GetToolPathData()
+	//Get the Tool Path from the image m_mat
+	//m_mat: Source Image m_mat
+	//Offset: Offset of the tool path
+	//toolpath: m_ToolPathData
+	//void GetToolPathData(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpath);
+	// Function :ToolPathTransform : Transform the ToolPath structure to m_ToolPath array inorder to send to the PLC
+	// m_ToolPathData : the Input ToolPath structure
+	// m_ToolPath : the Output ToolPath array
+	void ToolPathTransform(ToolPath& toolpath, int* m_ToolPath);
+
+	//
 
 	void ShowImageOnPictureCtl(); // 在Picture Control上直接显示图像的函数。
 

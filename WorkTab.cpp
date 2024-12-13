@@ -884,6 +884,7 @@ void WorkTab::OnBnClickedIdcWorkSaveImg()
 	if (dlg.DoModal() == IDOK)
 	{
 		CString strPath = dlg.GetPathName();
+       
 		// Convert CString to std::string
 		std::string strPathA = CT2A(strPath);
 		// Save the image
@@ -899,9 +900,9 @@ void WorkTab::GetToolPathData(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& too
 	//Offset: Offset of the tool path
 	//toolpath: Tool Path
 
-    Offset.x = 10;
-	Offset.y = 10;
+    Offset.x = 5;
+	Offset.y = 5;
 
-	GetToolPath(ImgSrc, Offset, toolpath);
+  	GetToolPath(ImgSrc, Offset, toolpath);
 
 }

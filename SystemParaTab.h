@@ -4,7 +4,7 @@
 
 // SystemParaTab 對話方塊
 
-class SystemParaTab : public CDialogEx
+class SystemParaTab : public CDialog
 {
 	DECLARE_DYNAMIC(SystemParaTab)
 
@@ -22,5 +22,7 @@ protected:
 
 	DECLARE_MESSAGE_MAP()
 public:
+	virtual BOOL OnInitDialog();
 	afx_msg void OnBnClickedSystemCreateData();
+	afx_msg void OnEnChangeTabSysOffsetValue();
 };

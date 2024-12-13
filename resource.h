@@ -8,7 +8,6 @@
 #define IDD_YUFA_DIALOG                 102
 #define IDD_TAB_WOK                     105
 #define IDC_IDC_WORK_SAVE_IMG           105
-#define IDC_IDC_DLG_MAIN                105
 #define IDD_TAB_SYSTEM_PARA             106
 #define IDR_MAINFRAME                   128
 #define IDD_TAB_MODBUS                  134
@@ -39,7 +38,11 @@
 #define IDC_EDIT1                       1029
 #define IDC_EDIT_SERVER_ID              1029
 #define IDC_IDC_WORK_LOAD_IMG           1033
-#define IDC_BUTTON3                     1034
+#define IDC_IDC_WORK_GO                 1035
+#define IDD_TAB_SYS_OFFSET_VALUE        1036
+#define IDD_TAB_SYS_X_OFFSET            1037
+#define IDC_EDIT4                       1038
+#define IDD_TAB_SYS_Y_OFFSET            1038
 #define ID_INDICATOR_TIME               59142
 #define ID_INDICATOR_FILE               59143
 
@@ -49,7 +52,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        136
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1035
+#define _APS_NEXT_CONTROL_VALUE         1038
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

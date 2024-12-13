@@ -134,17 +134,18 @@ void  GetToolPath(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpath) {
 	cv::findContours(thresh, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
 	// 在原始影像上繪製輪廓
-	cv::Mat outputImage = inputImage.clone();
+	cv::Mat outputImage = ImgSrc.clone();
 	cv::drawContours(outputImage, contours, -1, Scalar(0, 255, 0), 2);
 
 	// Populate the toolpath
 	toolpath.Offset = Offset;
-	for (const auto& contour : contours) {
+	for (const auto& contour : contours)
+	{
 		for (const auto& point : contour) {
 			toolpath.Path.push_back(cv::Point2d(point));
 		}
 	}
-
+	
 	// Draw contours on the original image for visualization
 	cv::drawContours(ImgSrc, contours, -1, cv::Scalar(0, 255, 0), 2);
 

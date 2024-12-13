@@ -18,10 +18,22 @@ class CYUFADlg : public CDialogEx
 public:
 	CYUFADlg(CWnd* pParent = nullptr);	// 標準建構函式
 
+	struct SystemPara
+	{
+		int iStart; //Coil Start flag : 0:stop 1:start 
+		float OffsetX;
+		float OffsetY;
+		int iPara4;
+	};
+	SystemPara m_SystemPara;
+
+	
 // 對話方塊資料
 #ifdef AFX_DESIGN_TIME
 	enum { IDD = IDD_YUFA_DIALOG };
 #endif
+
+
 
 	protected:
 	virtual void DoDataExchange(CDataExchange* pDX);	// DDX/DDV 支援

@@ -51,6 +51,7 @@ BEGIN_MESSAGE_MAP(UModBus, CDialog)
 	ON_BN_CLICKED(IDC_MODBUS_CHK_DISCRETE, &UModBus::OnBnClickedModbusChkDiscrete)
 	ON_BN_CLICKED(IDC_MODBUS_CHK_INPUT_REG, &UModBus::OnBnClickedModbusChkInputReg)
 	ON_BN_CLICKED(IDC_MODBUS_CHK_HOLDING_REG, &UModBus::OnBnClickedModbusChkHoldingReg)
+	ON_BN_CLICKED(IDC_IDC_WORK_GO, &UModBus::OnBnClickedIdcWorkGo)
 END_MESSAGE_MAP()
 
 
@@ -322,4 +323,12 @@ void UModBus::OnBnClickedModbusChkHoldingReg()
 		m_modbus_function_code = HoldingReg;
 	}
 	UpdateData(TRUE);
+}
+
+
+void UModBus::OnBnClickedIdcWorkGo()
+{
+	// TODO: 在此加入控制項告知處理常式程式碼
+
+
 }
