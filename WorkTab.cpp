@@ -2,6 +2,7 @@
 #pragma once
 #include "pch.h"
 #include "YUFA.h"
+#include "YUFADlg.h"
 #include "afxdialogex.h"
 #include "WorkTab.h"
 
@@ -900,8 +901,17 @@ void WorkTab::GetToolPathData(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& too
 	//Offset: Offset of the tool path
 	//toolpath: Tool Path
 
-    Offset.x = 5;
-	Offset.y = 5;
+    CYUFADlg* pParentWnd = (CYUFADlg*)GetParent();
+	if (pParentWnd == NULL)
+	{
+		AfxMessageBox(_T("Parent window is NULL."));
+		return;
+	}
+	Offset.x = pParentWnd -> m_SystemPara.OffsetX;
+	Offset.y = pParentWnd -> m_SystemPara.OffsetY;
+
+    //Offset.x = 5;
+	//Offset.y = 5;
 
   	GetToolPath(ImgSrc, Offset, toolpath);
 

@@ -22,6 +22,7 @@ SystemParaTab::SystemParaTab(CWnd* pParent /*=nullptr*/)
 
 SystemParaTab::~SystemParaTab()
 {
+	
 }
 
 
@@ -52,6 +53,8 @@ BOOL SystemParaTab::OnInitDialog()
 	str.Format(_T("%0.3f"), 5.253);
 	SetDlgItemText(IDD_TAB_SYS_X_OFFSET, str);
 	SetDlgItemText(IDD_TAB_SYS_Y_OFFSET, str);
+
+	//pParentWnd = (CYUFADlg*)GetParent();
 
 	return TRUE;  // return TRUE unless you set the focus to a control
 	// EXCEPTION: OCX 屬性頁應傳回 FALSE
@@ -85,39 +88,11 @@ void SystemParaTab::OnEnChangeTabSysOffsetValue()
 // Set iResult to m_SystemPara.OffsetX, m_SystemPara.OffsetY from class WorkTab
 // Get a pointer to the parent property sheet
 // 獲取父對話框
-	CYUFADlg* pParentWnd = (CYUFADlg*)GetParent();
+    CYUFADlg* pParentWnd = (CYUFADlg*)GetParent();
 
-	pParentWnd->m_SystemPara.OffsetX = iResult;
+    pParentWnd->m_SystemPara.OffsetX = iResult;
+    pParentWnd->m_SystemPara.OffsetY = iResult;
 
-	//pParentWnd->m_SystemParaTab = iResult;
-	//pParentWnd->m_SystemPara.OffsetX = iResult;
-	//if (pParentWnd != nullptr)
-	//{
-		// Get the pointer to the WorkTab control
-		//CWnd* pWnd = pParentWnd->GetDlgItem(IDD_YUFA_DIALOG); // 確保使用的是正確的控件 ID
-
-		//if (pWnd != nullptr) 
-		//{
-			// Now you can use pWnd as needed
-			//WorkTab* pWorkTab = dynamic_cast<WorkTab*>(pWnd);
-			//if (pWorkTab != nullptr)
-			{
-				// Set iResult to m_SystemPara.OffsetX, m_SystemPara.OffsetY
-				//pWorkTab->m_SystemPara.OffsetX = iResult;
-				//pWorkTab->m_SystemPara.OffsetY = iResult;
-			}
-			//else {
-				// Handle the error: dynamic_cast failed
-			//}
-		//}
-		//else {
-			// Handle the error: control not found
-		//}
-	//}
-	//else 
-	//{
-		// Handle the error: parent window not found
-	//}
-	
+   
 
 }
