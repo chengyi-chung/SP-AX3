@@ -22,7 +22,16 @@ SystemParaTab::SystemParaTab(CWnd* pParent /*=nullptr*/)
 
 SystemParaTab::~SystemParaTab()
 {
-	
+	TRACE("Entering SystemParaTab Destructor\n"); // 獲取父對話框指針 
+	CYUFADlg* pParentWnd = (CYUFADlg*)GetParent();
+	if (pParentWnd != NULL) 
+	{ // 確保安全的父對話框訪問 
+		TRACE("Parent window is valid\n");
+	}
+	else
+	{ // 父對話框指針無效 
+		TRACE("Parent window is NULL\n");
+	}
 }
 
 
@@ -92,7 +101,5 @@ void SystemParaTab::OnEnChangeTabSysOffsetValue()
 
     pParentWnd->m_SystemPara.OffsetX = iResult;
     pParentWnd->m_SystemPara.OffsetY = iResult;
-
-   
 
 }

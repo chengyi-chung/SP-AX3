@@ -21,11 +21,14 @@ public:
 	struct SystemPara
 	{
 		int iStart; //Coil Start flag : 0:stop 1:start 
-		float OffsetX;
-		float OffsetY;
-		int iPara4;
+		float OffsetX;  //Tool Path Offset X
+		float OffsetY;  //Tool Path Offset Y
+		CString  IpAddress ; //Modbus TCP/IP IP Address
+		int StationID; //Modbus TCP/IP Station ID
 	};
 	SystemPara m_SystemPara;
+
+
 
 	
 // 對話方塊資料

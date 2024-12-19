@@ -87,8 +87,6 @@ struct YUFA
 {
     // 0 or 1 data type
 	int type;
-
-
 	cv::Point2d Position; // Position of the template in the image
 };
 

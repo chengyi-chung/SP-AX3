@@ -143,6 +143,7 @@ BEGIN_MESSAGE_MAP(WorkTab, CDialogEx)
     ON_BN_CLICKED(IDC_IDC_WORK_TOOL_PATH, &WorkTab::OnBnClickedIdcWorkToolPath)
     ON_BN_CLICKED(IDC_IDC_WORK_LOAD_IMG, &WorkTab::OnBnClickedIdcWorkLoadImg)
     ON_BN_CLICKED(IDC_IDC_WORK_SAVE_IMG, &WorkTab::OnBnClickedIdcWorkSaveImg)
+    ON_BN_CLICKED(IDC_IDC_WORK_GO, &WorkTab::OnBnClickedIdcWorkGo)
 END_MESSAGE_MAP()
 
 
@@ -847,10 +848,10 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
 	//toolpath: Tool Path
 	cv::Mat ImgSrc = m_mat.clone();
 	cv::Point2d Offset;
-	ToolPath toolpath;
+	//ToolPath toolpath;
 
 
-    GetToolPathData(ImgSrc, Offset, toolpath);
+    GetToolPathData(ImgSrc, Offset, toolPath);
 
 }
 
@@ -915,4 +916,108 @@ void WorkTab::GetToolPathData(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& too
 
   	GetToolPath(ImgSrc, Offset, toolpath);
 
+}
+
+
+void WorkTab::OnBnClickedIdcWorkGo()
+{
+    // TODO: 在此加入控制項告知處理常式程式碼
+	//Convert toolPath to m_ToolPathData[20000]
+	//toolPath: Tool Path
+	//m_ToolPathData: Tool Path Data Array
+	//toolPath.Path : Path of the tool
+	//Convert toolPath.Path to m_ToolPathData[20000]
+	int sizeOfToolPath = toolPath.Path.size();
+
+	// int m_ToolPathData[20000];
+	int* m_ToolPathData = new int[20000];
+    //call ToolPathTransform(ToolPath& toolpath, int* m_ToolPathData)
+	ToolPathTransform(toolPath, m_ToolPathData);
+
+	//send m_ToolPathData to PLC with modbus tcp
+	SendToolPathData(m_ToolPathData, sizeOfToolPath);
+
+
+}
+
+void WorkTab::ToolPathTransform(ToolPath& toolpath, int* m_ToolPathData)
+{
+	//Convert toolPath to m_ToolPathData[20000]
+	//toolPath: Tool Path
+	//m_ToolPathData: Tool Path Data Array
+	//toolPath.Path : Path of the tool
+	//Convert toolPath.Path to m_ToolPathData[20000]
+	int sizeOfToolPath = toolpath.Path.size();
+	for (int i = 0; i < sizeOfToolPath; i++)
+	{
+		m_ToolPathData[i] = toolpath.Path[i].x;
+		m_ToolPathData[i + 1] = toolpath.Path[i].y;
+	}
+}
+
+//Send Tool Path Data to PLC with Modbus TCP
+//int* m_ToolPathData: Tool Path Data Array
+void WorkTab::SendToolPathData(int* m_ToolPathData, int sizeOfArray)
+{
+    // TODO: 在此加入控制項告知處理常式程式碼
+      
+            // 將大陣列移到堆積
+            int* toolPathDataHeap = new int[sizeOfArray];
+            memcpy(toolPathDataHeap, m_ToolPathData, sizeOfArray * sizeof(int));
+
+            // 這裡是你的處理邏輯
+
+//Get the IP address from the edit box
+  CString str;
+  GetDlgItemText(IDC_EDIT_IP_ADDRESS, str);
+   //char* ip_address = (char*)str.GetBuffer();
+
+   // Use CT2CA for conversion (CString to const char*)
+   CT2CA pszConvertedAnsiString(str);
+   const char* ip_address = pszConvertedAnsiString;
+   modbus_t* ctx = modbus_new_tcp(ip_address, 502);
+
+   //Assign the server id to IDC_EDIT_SERVER_ID
+   //Get the server id from the edit box
+   GetDlgItemText(IDC_EDIT_SERVER_ID, str);
+   int ServerId = _ttoi(str);
+   modbus_set_slave(ctx, ServerId);  // 設置為設備 ID 1
+
+   //Connection test
+            if (modbus_connect(ctx) == -1)
+            {
+                fprintf(stderr, "Connection failed: %s\n", modbus_strerror(errno));
+                modbus_free(ctx);
+                return;
+            }
+
+            // Now you have a connected Modbus context (slave).
+            //Test read holding register
+            // Allocate space for the register data
+
+            //tab_reg[0] = 1118;
+            //write to modbus tcp holding register with 
+            //rc = modbus_write_register(ctx, 0, 999);
+
+            //convert int* m_ToolPathData to uint16_t m_ToolPath[sizeOfArray]
+            uint16_t m_ToolPath[20000];
+            for (int i = 0; i < sizeOfArray; i++)
+            {
+                m_ToolPath[i] = m_ToolPathData[i];
+
+            }
+
+            //write to modbus tcp holding register with tab_reg[64]
+            int rc = modbus_write_registers(ctx, 0, sizeOfArray, m_ToolPath);
+            //close the connection annd return
+            modbus_close(ctx);
+            modbus_free(ctx);
+
+            // ...
+
+            // 完成後釋放堆積記憶體
+            delete[] toolPathDataHeap;
+       
+
+    //return;
 }

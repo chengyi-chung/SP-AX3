@@ -173,6 +173,13 @@ BOOL CYUFADlg::OnInitDialog()
 	m_ModBusTab.MoveWindow(&rect);
 	m_ModBusTab.ShowWindow(SW_HIDE);
 
+	//Initial m_SystemPara
+	m_SystemPara.iStart = 0;
+	m_SystemPara.OffsetX = 0.0;
+	m_SystemPara.OffsetY = 0.0;
+	m_SystemPara.IpAddress = _T("168.95.192.1");
+	m_SystemPara.StationID = 1;
+
 
 	return TRUE;  // 傳回 TRUE，除非您對控制項設定焦點
 }

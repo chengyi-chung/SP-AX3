@@ -1,7 +1,7 @@
 ﻿#pragma once
 #include "afxdialogex.h"
 #include "modbus.h"
-
+//#include "YUFADlg.h"
 
 // UModBus 對話方塊
 
@@ -35,6 +35,8 @@ public:
 
 	int ModbusTcpIpTest(const char* ip_address);
 
+	void SetDlgParam();
+
 // 對話方塊資料
 #ifdef AFX_DESIGN_TIME
 	enum { IDD = IDD_DIALOG1 };
@@ -53,4 +55,5 @@ public:
 	afx_msg void OnBnClickedModbusChkInputReg();
 	afx_msg void OnBnClickedModbusChkHoldingReg();
 	afx_msg void OnBnClickedIdcWorkGo();
+	afx_msg void OnEnKillfocusEditIpAddress();
 };

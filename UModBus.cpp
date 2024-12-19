@@ -7,7 +7,7 @@
 #include <vector>
 #include <string>
 
-
+#include "YUFADlg.h"
 // UModBus 對話方塊
 using namespace std;
 
@@ -21,18 +21,16 @@ UModBus::UModBus(CWnd* pParent /*=nullptr*/)
 
 	//delclare the member variables of check boxes
 
-
-
 	m_chk_coil = FALSE;
 	m_chk_discrete = FALSE;
 	m_chk_input_reg = FALSE;
 	m_chk_holding_reg = FALSE;
 
-
 }
 
 UModBus::~UModBus()
 {
+	//pParentWnd = NULL;
 }
 
 void UModBus::DoDataExchange(CDataExchange* pDX)
@@ -52,6 +50,7 @@ BEGIN_MESSAGE_MAP(UModBus, CDialog)
 	ON_BN_CLICKED(IDC_MODBUS_CHK_INPUT_REG, &UModBus::OnBnClickedModbusChkInputReg)
 	ON_BN_CLICKED(IDC_MODBUS_CHK_HOLDING_REG, &UModBus::OnBnClickedModbusChkHoldingReg)
 	ON_BN_CLICKED(IDC_IDC_WORK_GO, &UModBus::OnBnClickedIdcWorkGo)
+	ON_EN_KILLFOCUS(IDC_EDIT_IP_ADDRESS, &UModBus::OnEnKillfocusEditIpAddress)
 END_MESSAGE_MAP()
 
 
@@ -331,4 +330,44 @@ void UModBus::OnBnClickedIdcWorkGo()
 	// TODO: 在此加入控制項告知處理常式程式碼
 
 
+}
+
+//Set the dialog parameters
+//m_SystemPara
+//m_SystemPara.IpAddress
+//m_SystemPara.StationID
+void UModBus::SetDlgParam()
+{
+	//Get the IP address to the edit box
+	CString str;
+	GetDlgItemText(IDC_EDIT_IP_ADDRESS, str);
+	//char* ip_address = (char*)str.GetBuffer();
+	// Use CT2CA for conversion (CString to const char*)
+	//CT2CA pszConvertedAnsiString(str);
+	//const char* ip_address = pszConvertedAnsiString;
+
+	CYUFADlg* pParentWnd = (CYUFADlg*)GetParent();
+
+	if (pParentWnd != nullptr) 
+	{
+		//Assign str to pParentWnd->m_SystemPara.IpAddress
+		pParentWnd->m_SystemPara.IpAddress = str;
+	}
+	else
+	{
+		// Handle the error appropriately
+	}
+
+
+	//Get the server id from the edit box
+	GetDlgItemText(IDC_EDIT_SERVER_ID, str);
+	//pParentWnd->m_SystemPara.StationID = _ttoi(str);
+	
+}
+
+
+void UModBus::OnEnKillfocusEditIpAddress()
+{
+	// TODO: 在此加入控制項告知處理常式程式碼
+	SetDlgParam();
 }

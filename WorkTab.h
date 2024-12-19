@@ -49,6 +49,12 @@ public:
 	};
 	SystemPara m_SystemPara;
 
+	ToolPath toolPath;
+	//ToolPathData Array of Tool Path : Max 20000
+	int m_ToolPathData[20000];
+
+
+
 protected:
 	CBrush m_brush;
 
@@ -89,20 +95,13 @@ protected:
 	//structure of system parameter for YUFA system
 
 
-	//Array Data of Tool Path : Max 2000
-	int m_ToolPath[2000];
-	//Tool Path use ToolPath structure to store the data
-	ToolPath m_ToolPathData;
-	//Function GetToolPathStruct() from GetToolPathData()
-	//Get the Tool Path from the image m_mat
-	//m_mat: Source Image m_mat
-	//Offset: Offset of the tool path
-	//toolpath: m_ToolPathData
-	//void GetToolPathData(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpath);
-	// Function :ToolPathTransform : Transform the ToolPath structure to m_ToolPath array inorder to send to the PLC
-	// m_ToolPathData : the Input ToolPath structure
-	// m_ToolPath : the Output ToolPath array
-	void ToolPathTransform(ToolPath& toolpath, int* m_ToolPath);
+	//Array Data of Tool Path : Max 20000
+	//Convert toolPath to m_ToolPathData[20000]
+	//toolPath: Tool Path
+	//m_ToolPathData: Tool Path Data Array
+	//toolPath.Path : Path of the tool
+	//Convert toolPath.Path to m_ToolPathData[20000]
+	void ToolPathTransform(ToolPath& toolpath, int* m_ToolPathData);
 
 	//
 
@@ -137,6 +136,16 @@ protected:
 	CButton m_Work_Grab;
 	//Add a button IDC_WORK_STOP
 	void DrawPicToHDC(cv::Mat cvImg, UINT ID, bool bOnPaint);
+
+
+
+	//Send Tm_ToolPath[] Data to PLC with Modbus TCP
+	//m_ToolPathData[]: Tool Path Data Array
+	//int sizeOfArray: Size of the Tool Path Data Array
+	void SendToolPathData(int* m_ToolPathData, int sizeOfArray);
+
+	//void SendToolPathData(m_ToolPathData, int sizeOfArray);
+
 
 	HICON m_hIcon; // 這裡宣告 m_hIcon
 
@@ -173,4 +182,5 @@ public:
 	afx_msg void OnBnClickedIdcWorkToolPath();
 	afx_msg void OnBnClickedIdcWorkLoadImg();
 	afx_msg void OnBnClickedIdcWorkSaveImg();
+	afx_msg void OnBnClickedIdcWorkGo();
 };
