@@ -45,6 +45,9 @@ public:
 protected:
 	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV 支援
 
+	virtual BOOL PreTranslateMessage(MSG* pMsg);
+	virtual void OnOK();
+
 	DECLARE_MESSAGE_MAP()
 public:
 	afx_msg void OnEnChangeEditIpAddress();
@@ -56,4 +59,5 @@ public:
 	afx_msg void OnBnClickedModbusChkHoldingReg();
 	afx_msg void OnBnClickedIdcWorkGo();
 	afx_msg void OnEnKillfocusEditIpAddress();
+	afx_msg void OnEnKillfocusEditServerId();
 };

@@ -15,7 +15,7 @@ C:\opencv\build\include\opencv2\calib3d.hpp(1,1): warning C4819: 檔案含有無
 C:\opencv\build\include\opencv2\objdetect\aruco_board.hpp(1,1): warning C4819: 檔案含有無法在目前字碼頁 (950) 中表示的字元。請以 Unicode 格式儲存檔案以防止資料遺失
   (編譯來源檔案 'UAX.cpp')
   
-D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.h(101,28): warning C4190: 'fitImageToScreen' 已指定 C-連結，但傳回與 C 不相容的 UDT 'cv::Mat'
+D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.h(99,28): warning C4190: 'fitImageToScreen' 已指定 C-連結，但傳回與 C 不相容的 UDT 'cv::Mat'
   (編譯來源檔案 'UAX.cpp')
       C:\opencv\build\include\opencv2\core\mat.hpp(810,18):
       請參閱 'cv::Mat' 的宣告
@@ -24,14 +24,13 @@ D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(25,9): warning C4005: '_T': 巨
       C:\Program Files (x86)\Windows Kits\10\Include\10.0.22621.0\ucrt\tchar.h(2320,9):
       參閱 '_T' 之前的定義
   
-D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(107,30): warning C4244: '=': 將 '_Tp' 轉換為 'int'，由於類型不同，可能導致資料遺失
-D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(107,30): warning C4244:         with
-D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(107,30): warning C4244:         [
-D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(107,30): warning C4244:             _Tp=double
-D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(107,30): warning C4244:         ]
+D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(100,3): warning C4297: 'GetToolPath': 函式預設並不會擲回例外狀況，但卻擲回例外狀況
+      D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(100,3):
+      已在函式指定 __declspec(nothrow)、throw()、noexcept(true) 或 noexcept
+  
      正在建立程式庫 D:\Git Repository\chengyi-chung\YUFA\x64\Release\UAX.lib 和物件 D:\Git Repository\chengyi-chung\YUFA\x64\Release\UAX.exp
   正在產生程式碼
   Previous IPDB not found, fall back to full compilation.
-  All 468 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+  All 484 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
   已完成程式碼產生
   UAX.vcxproj -> D:\Git Repository\chengyi-chung\YUFA\x64\Release\UAX.dll

@@ -51,6 +51,7 @@ BEGIN_MESSAGE_MAP(UModBus, CDialog)
 	ON_BN_CLICKED(IDC_MODBUS_CHK_HOLDING_REG, &UModBus::OnBnClickedModbusChkHoldingReg)
 	ON_BN_CLICKED(IDC_IDC_WORK_GO, &UModBus::OnBnClickedIdcWorkGo)
 	ON_EN_KILLFOCUS(IDC_EDIT_IP_ADDRESS, &UModBus::OnEnKillfocusEditIpAddress)
+	ON_EN_KILLFOCUS(IDC_EDIT_SERVER_ID, &UModBus::OnEnKillfocusEditServerId)
 END_MESSAGE_MAP()
 
 
@@ -348,21 +349,22 @@ void UModBus::SetDlgParam()
 
 	CYUFADlg* pParentWnd = (CYUFADlg*)GetParent();
 
-	if (pParentWnd != nullptr) 
+	
+	if (pParentWnd != nullptr)
 	{
-		//Assign str to pParentWnd->m_SystemPara.IpAddress
-		pParentWnd->m_SystemPara.IpAddress = str;
+		//Assign str to pParentWnd->m_SystemPara.StationID
+		GetDlgItemText(IDC_EDIT_IP_ADDRESS, str);
+		wcscpy_s(pParentWnd->m_SystemPara.IpAddress, str);
+
+		//Get the server id from the edit box
+		GetDlgItemText(IDC_EDIT_SERVER_ID, str);
+		pParentWnd->m_SystemPara.StationID = _ttoi(str);
+		
 	}
 	else
 	{
 		// Handle the error appropriately
 	}
-
-
-	//Get the server id from the edit box
-	GetDlgItemText(IDC_EDIT_SERVER_ID, str);
-	//pParentWnd->m_SystemPara.StationID = _ttoi(str);
-	
 }
 
 
@@ -370,4 +372,35 @@ void UModBus::OnEnKillfocusEditIpAddress()
 {
 	// TODO: 在此加入控制項告知處理常式程式碼
 	SetDlgParam();
+	//UpdateData(TRUE);
+}
+
+
+void UModBus::OnEnKillfocusEditServerId()
+{
+	// TODO: 在此加入控制項告知處理常式程式碼
+	SetDlgParam();
+}
+
+
+BOOL UModBus::PreTranslateMessage(MSG* pMsg)
+{
+	
+	if (pMsg->message == WM_KEYDOWN && pMsg->wParam == VK_RETURN)
+	{
+		HWND hwndFocus = ::GetFocus();
+		if (hwndFocus && (hwndFocus == GetDlgItem(IDC_EDIT1)->GetSafeHwnd()))
+		{
+			// 模擬 TAB 鍵，以移動焦點或執行其他行為
+			::SendMessage(pMsg->hwnd, WM_KEYDOWN, VK_TAB, 0);
+			return TRUE;
+		}
+	} 
+	//return UModBus::PreTranslateMessage(pMsg);
+	return CDialog::PreTranslateMessage(pMsg); // Call the base class implementation
+}
+
+
+void UModBus::OnOK()
+{
 }

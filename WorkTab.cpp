@@ -5,7 +5,7 @@
 #include "YUFADlg.h"
 #include "afxdialogex.h"
 #include "WorkTab.h"
-
+#include <string>
 //Add pylon header files to MFC project
 
 #include <pylon/PylonIncludes.h>
@@ -969,18 +969,35 @@ void WorkTab::SendToolPathData(int* m_ToolPathData, int sizeOfArray)
 
 //Get the IP address from the edit box
   CString str;
-  GetDlgItemText(IDC_EDIT_IP_ADDRESS, str);
+ 
+  CYUFADlg* pParentWnd = (CYUFADlg*)GetParent();
+
+  if (pParentWnd == NULL)
+  {
+	  AfxMessageBox(_T("Parent window is NULL."));
+	  return;
+  }
+
+  //GetDlgItemText(IDC_EDIT_IP_ADDRESS, str);
    //char* ip_address = (char*)str.GetBuffer();
 
-   // Use CT2CA for conversion (CString to const char*)
-   CT2CA pszConvertedAnsiString(str);
-   const char* ip_address = pszConvertedAnsiString;
-   modbus_t* ctx = modbus_new_tcp(ip_address, 502);
+   //MessageBox(pParentWnd->m_SystemPara.IpAddress);
 
+   // Use CT2CA for conversion (CString to const char*)
+   //CT2CA pszConvertedAnsiString(str);
+   //const char* ip_address = pszConvertedAnsiString;
+   //modbus_t* ctx = modbus_new_tcp(pParentWnd->m_SystemPara.IpAddress, 502);
+    //#include <string>
+
+    // Convert wchar_t* to std::string
+    std::wstring ws(pParentWnd->m_SystemPara.IpAddress);
+    std::string ipAddress(ws.begin(), ws.end());
+
+    modbus_t* ctx = modbus_new_tcp(ipAddress.c_str(), 502);
    //Assign the server id to IDC_EDIT_SERVER_ID
    //Get the server id from the edit box
-   GetDlgItemText(IDC_EDIT_SERVER_ID, str);
-   int ServerId = _ttoi(str);
+   //GetDlgItemText(IDC_EDIT_SERVER_ID, str);
+    int ServerId = pParentWnd->m_SystemPara.StationID;   // _ttoi(str);
    modbus_set_slave(ctx, ServerId);  // 設置為設備 ID 1
 
    //Connection test
