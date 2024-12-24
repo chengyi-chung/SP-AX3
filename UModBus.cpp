@@ -102,9 +102,9 @@ void UModBus::OnBnClickedBtnModbusTest()
 	// Now you have a connected Modbus context (slave).
 	//Test read holding register
 	// Allocate space for the register data
-	uint16_t tab_reg[64] = { 0 };
+	uint16_t tab_reg[10000] = { 0 };
 	// Read 64 holding registers starting from address 0
-	int rc = modbus_read_registers(ctx, 0,64, tab_reg);
+	int rc = modbus_read_registers(ctx, 100,100, tab_reg);
 	if (rc == -1)
 	{
 		fprintf(stderr, "Failed to read registers\n");
@@ -112,6 +112,7 @@ void UModBus::OnBnClickedBtnModbusTest()
 		modbus_free(ctx);
 		return;
 	}
+
 	// Print the register values
 	string str_Reg = "";
 	for (int i = 0; i < rc; i++)
@@ -123,12 +124,14 @@ void UModBus::OnBnClickedBtnModbusTest()
 	str = str_Reg.c_str();
 	SetDlgItemText(IDC_MODBUS_EDIT_RETURN, str);
 
-	tab_reg[0] = 1118;
+	tab_reg[0] = 88;
+	tab_reg[1] = 7777;
+	tab_reg[23] = 6688;
 	//write to modbus tcp holding register with 
-	rc = modbus_write_register(ctx, 0, 999);
+	//rc = modbus_write_register(ctx, 0, 999);
 
 	//write to modbus tcp holding register with tab_reg[64]
-	rc = modbus_write_registers(ctx, 0,64, tab_reg);
+	rc = modbus_write_registers(ctx, 100,122, tab_reg);
 	//close the connection annd return
 	modbus_close(ctx);
 	modbus_free(ctx);
@@ -240,7 +243,9 @@ BOOL UModBus::OnInitDialog()
 	CDialog::OnInitDialog();
 
 	// TODO:  在此加入額外的初始化
-	SetDlgItemText(IDC_EDIT_IP_ADDRESS, L"127.0.0.1");
+	SetDlgItemText(IDC_EDIT_IP_ADDRESS, L"192.168.0.11");
+
+	SetDlgItemText(IDC_EDIT_SERVER_ID, L"1");
 
 	// 初始化 Checkbox 控制項指針
 	m_chk_coil = (CButton*)GetDlgItem(IDC_MODBUS_CHK_COIL);

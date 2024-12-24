@@ -1017,15 +1017,50 @@ void WorkTab::SendToolPathData(int* m_ToolPathData, int sizeOfArray)
             //rc = modbus_write_register(ctx, 0, 999);
 
             //convert int* m_ToolPathData to uint16_t m_ToolPath[sizeOfArray]
+            //uint16_t m_ToolPath[20000];
+            int intIndex = 0;
             uint16_t m_ToolPath[20000];
             for (int i = 0; i < sizeOfArray; i++)
             {
                 m_ToolPath[i] = m_ToolPathData[i];
-
+                intIndex++;
             }
 
+			//write to modbus tcp holding register with m_ToolPath[20000], sizeOfArray less than 20000
+            //m_ToolPath_Temp[100]
+			//copy 100 item from m_ToolPath to m_ToolPath_Temp eatch time
+			//write to modbus tcp holding register with m_ToolPath_Temp[100] each time
+			//pageIndex = 0;
+            // rc = modbus_write_registers(ctx, pageIndex * i, 100, m_ToolPath);
+			int sizeOfTempArray = 100;
+			uint16_t m_ToolPath_Temp[100];
+			int pageIndex = 0;
+			int rc = 0;
+			while (intIndex > 0)
+			{
+				//copy 100 item from m_ToolPath to m_ToolPath_Temp eatch time
+				for (int i = 0; i < sizeOfTempArray; i++)
+				{
+					m_ToolPath_Temp[i] = m_ToolPath[pageIndex * sizeOfTempArray + i];
+				}
+				//write to modbus tcp holding register with m_ToolPath_Temp[100] each time
+				rc = modbus_write_registers(ctx, pageIndex * sizeOfTempArray, sizeOfTempArray, m_ToolPath_Temp);
+				intIndex -= sizeOfTempArray;
+				pageIndex++;
+			}
+
+				
+			
+
+
+           
             //write to modbus tcp holding register with tab_reg[64]
-            int rc = modbus_write_registers(ctx, 0, sizeOfArray, m_ToolPath);
+            //int rc = modbus_write_registers(ctx, 0, sizeOfArray, m_ToolPath);
+            //int rc = modbus_write_registers(ctx, 0, (intIndex-1), m_ToolPath);
+
+
+
+
             //close the connection annd return
             modbus_close(ctx);
             modbus_free(ctx);
