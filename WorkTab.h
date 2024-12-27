@@ -51,7 +51,7 @@ public:
 
 	ToolPath toolPath;
 	//ToolPathData Array of Tool Path : Max 20000
-	int m_ToolPathData[20000];
+	uint16_t m_ToolPathData[20000];
 
 
 
@@ -101,7 +101,7 @@ protected:
 	//m_ToolPathData: Tool Path Data Array
 	//toolPath.Path : Path of the tool
 	//Convert toolPath.Path to m_ToolPathData[20000]
-	void ToolPathTransform(ToolPath& toolpath, int* m_ToolPathData);
+	void ToolPathTransform(ToolPath& toolpath, uint16_t* m_ToolPathData);
 
 	//
 
@@ -142,7 +142,7 @@ protected:
 	//Send Tm_ToolPath[] Data to PLC with Modbus TCP
 	//m_ToolPathData[]: Tool Path Data Array
 	//int sizeOfArray: Size of the Tool Path Data Array
-	void SendToolPathData(int* m_ToolPathData, int sizeOfArray);
+	void SendToolPathData(uint16_t *m_ToolPathData, int sizeOfArray, int stationID);
 
 	//void SendToolPathData(m_ToolPathData, int sizeOfArray);
 

@@ -930,17 +930,17 @@ void WorkTab::OnBnClickedIdcWorkGo()
 	int sizeOfToolPath = toolPath.Path.size();
 
 	// int m_ToolPathData[20000];
-	int* m_ToolPathData = new int[20000];
+    uint16_t* m_ToolPathData = new uint16_t[20000];
     //call ToolPathTransform(ToolPath& toolpath, int* m_ToolPathData)
 	ToolPathTransform(toolPath, m_ToolPathData);
 
 	//send m_ToolPathData to PLC with modbus tcp
-	SendToolPathData(m_ToolPathData, sizeOfToolPath);
+	SendToolPathData(m_ToolPathData, sizeOfToolPath, 1);
 
 
 }
 
-void WorkTab::ToolPathTransform(ToolPath& toolpath, int* m_ToolPathData)
+void WorkTab::ToolPathTransform(ToolPath& toolpath, uint16_t* m_ToolPathData)
 {
 	//Convert toolPath to m_ToolPathData[20000]
 	//toolPath: Tool Path
@@ -955,121 +955,75 @@ void WorkTab::ToolPathTransform(ToolPath& toolpath, int* m_ToolPathData)
 	}
 }
 
+
+
+
+
+
+
 //Send Tool Path Data to PLC with Modbus TCP
 //int* m_ToolPathData: Tool Path Data Array
-void WorkTab::SendToolPathData(int* m_ToolPathData, int sizeOfArray)
+void WorkTab::SendToolPathData(uint16_t *m_ToolPathData, int sizeOfArray, int stationID)
 {
-    // TODO: 在此加入控制項告知處理常式程式碼
-      
-            // 將大陣列移到堆積
-            int* toolPathDataHeap = new int[sizeOfArray];
-            memcpy(toolPathDataHeap, m_ToolPathData, sizeOfArray * sizeof(int));
+    const int maxBatchSize = 100;
+    const int maxModbusBatchSize = 123;
 
-            // 這裡是你的處理邏輯
+    CYUFADlg* pParentWnd = (CYUFADlg*)GetParent();
+    if (pParentWnd == NULL) {
+        AfxMessageBox(_T("Parent window is NULL."));
+        return;
+    }
 
-//Get the IP address from the edit box
-  CString str;
- 
-  CYUFADlg* pParentWnd = (CYUFADlg*)GetParent();
-
-  if (pParentWnd == NULL)
-  {
-	  AfxMessageBox(_T("Parent window is NULL."));
-	  return;
-  }
-
-  //GetDlgItemText(IDC_EDIT_IP_ADDRESS, str);
-   //char* ip_address = (char*)str.GetBuffer();
-
-   //MessageBox(pParentWnd->m_SystemPara.IpAddress);
-
-   // Use CT2CA for conversion (CString to const char*)
-   //CT2CA pszConvertedAnsiString(str);
-   //const char* ip_address = pszConvertedAnsiString;
-   //modbus_t* ctx = modbus_new_tcp(pParentWnd->m_SystemPara.IpAddress, 502);
-    //#include <string>
-
-    // Convert wchar_t* to std::string
     std::wstring ws(pParentWnd->m_SystemPara.IpAddress);
     std::string ipAddress(ws.begin(), ws.end());
 
     modbus_t* ctx = modbus_new_tcp(ipAddress.c_str(), 502);
-   //Assign the server id to IDC_EDIT_SERVER_ID
-   //Get the server id from the edit box
-   //GetDlgItemText(IDC_EDIT_SERVER_ID, str);
-    int ServerId = pParentWnd->m_SystemPara.StationID;   // _ttoi(str);
-   modbus_set_slave(ctx, ServerId);  // 設置為設備 ID 1
+    if (ctx == NULL) {
+        fprintf(stderr, "Failed to create Modbus context.\n");
+        return;
+    }
 
-   //Connection test
-            if (modbus_connect(ctx) == -1)
-            {
-                fprintf(stderr, "Connection failed: %s\n", modbus_strerror(errno));
-                modbus_free(ctx);
-                return;
-            }
+    int ServerId = pParentWnd->m_SystemPara.StationID;
+    modbus_set_slave(ctx, ServerId);
 
-            // Now you have a connected Modbus context (slave).
-            //Test read holding register
-            // Allocate space for the register data
-
-            //tab_reg[0] = 1118;
-            //write to modbus tcp holding register with 
-            //rc = modbus_write_register(ctx, 0, 999);
-
-            //convert int* m_ToolPathData to uint16_t m_ToolPath[sizeOfArray]
-            //uint16_t m_ToolPath[20000];
-            int intIndex = 0;
-            uint16_t m_ToolPath[20000];
-            for (int i = 0; i < sizeOfArray; i++)
-            {
-                m_ToolPath[i] = m_ToolPathData[i];
-                intIndex++;
-            }
-
-			//write to modbus tcp holding register with m_ToolPath[20000], sizeOfArray less than 20000
-            //m_ToolPath_Temp[100]
-			//copy 100 item from m_ToolPath to m_ToolPath_Temp eatch time
-			//write to modbus tcp holding register with m_ToolPath_Temp[100] each time
-			//pageIndex = 0;
-            // rc = modbus_write_registers(ctx, pageIndex * i, 100, m_ToolPath);
-			int sizeOfTempArray = 100;
-			uint16_t m_ToolPath_Temp[100];
-			int pageIndex = 0;
-			int rc = 0;
-			while (intIndex > 0)
-			{
-				//copy 100 item from m_ToolPath to m_ToolPath_Temp eatch time
-				for (int i = 0; i < sizeOfTempArray; i++)
-				{
-					m_ToolPath_Temp[i] = m_ToolPath[pageIndex * sizeOfTempArray + i];
-				}
-				//write to modbus tcp holding register with m_ToolPath_Temp[100] each time
-				rc = modbus_write_registers(ctx, pageIndex * sizeOfTempArray, sizeOfTempArray, m_ToolPath_Temp);
-				intIndex -= sizeOfTempArray;
-				pageIndex++;
-			}
-
-				
-			
-
-
-           
-            //write to modbus tcp holding register with tab_reg[64]
-            //int rc = modbus_write_registers(ctx, 0, sizeOfArray, m_ToolPath);
-            //int rc = modbus_write_registers(ctx, 0, (intIndex-1), m_ToolPath);
+    if (modbus_connect(ctx) == -1) {
+        fprintf(stderr, "Connection failed: %s\n", modbus_strerror(errno));
+        modbus_free(ctx);
+        return;
+    }
 
 
 
+    uint16_t index = 0;
+    while (index < sizeOfArray) 
+    {
+        int batchSize = (sizeOfArray - index > maxBatchSize) ? maxBatchSize : (sizeOfArray - index);
+        batchSize = (batchSize > maxModbusBatchSize) ? maxModbusBatchSize : batchSize;
 
-            //close the connection annd return
+        //cout 100 items for debug
+		int iResult = 0;
+        for (int i = 0; i < 100; i++)
+        {
+            //output m_ToolPathData[i] for debug
+			iResult = m_ToolPathData[i];
+           // cout << m_ToolPathData[i] << " ";
+        }
+
+        int rc = modbus_write_registers(ctx, index, batchSize, &m_ToolPathData[index]);
+     
+
+
+        if (rc == -1) 
+        {
+            fprintf(stderr, "Failed to write registers: %s\n", modbus_strerror(errno));
             modbus_close(ctx);
             modbus_free(ctx);
+            return;
+        }
 
-            // ...
+        index += batchSize;
+    }
 
-            // 完成後釋放堆積記憶體
-            delete[] toolPathDataHeap;
-       
-
-    //return;
+    modbus_close(ctx);
+    modbus_free(ctx);
 }
