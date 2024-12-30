@@ -94,7 +94,8 @@ void FindArea(cv::Mat& src, ContourArea& contourarea)
 // ImgSrc: the input image
 // Offset: the offse value of the tool path
 // ToolPath: the output tool path
-void  GetToolPath(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpath) {
+void  GetToolPath(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpath)
+{
 	// Validate input image
 	if (ImgSrc.empty()) {
 		throw std::invalid_argument("Input image is empty.");
@@ -139,6 +140,7 @@ void  GetToolPath(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpath) {
 
 	// Populate the toolpath
 	toolpath.Offset = Offset;
+	//toolpath.Path.clear();
 	for (const auto& contour : contours)
 	{
 		for (const auto& point : contour) {

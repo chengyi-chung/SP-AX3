@@ -35,7 +35,8 @@ public:
         int iStart; //Coil Start flag : 0:stop 1:start 
         float OffsetX;  //Tool Path Offset X
         float OffsetY;  //Tool Path Offset Y
-        wchar_t IpAddress[16]; //Modbus TCP/IP IP Address
+        //wchar_t IpAddress[16]; //Modbus TCP/IP IP Address
+		char IpAddress[16]; //Modbus TCP/IP IP Address
         int StationID; //Modbus TCP/IP Station ID
     };
 

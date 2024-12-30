@@ -179,7 +179,7 @@ BOOL CYUFADlg::OnInitDialog()
 	m_SystemPara.OffsetY = 0.0;
 	//Assign 192.168.0.11 to m_SystemPara.IpAddress
    
-    wcscpy_s(m_SystemPara.IpAddress, _T("192.168.0.11"));
+    m_SystemPara.IpAddress, _T("192.168.0.11");
 	//m_SystemPara.IpAddress = _T("168.95.192.1");
 	m_SystemPara.StationID = 1;
 

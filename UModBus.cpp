@@ -31,6 +31,7 @@ UModBus::UModBus(CWnd* pParent /*=nullptr*/)
 UModBus::~UModBus()
 {
 	//pParentWnd = NULL;
+
 }
 
 void UModBus::DoDataExchange(CDataExchange* pDX)
@@ -124,7 +125,7 @@ void UModBus::OnBnClickedBtnModbusTest()
 	str = str_Reg.c_str();
 	SetDlgItemText(IDC_MODBUS_EDIT_RETURN, str);
 
-	int index = 20;
+	int index = 0;
 
 	tab_reg[0] = 88;
 	tab_reg[1] = 7777;
@@ -138,17 +139,14 @@ void UModBus::OnBnClickedBtnModbusTest()
 	//write to modbus tcp holding register with 
 	//rc = modbus_write_register(ctx, 0, 999);
 
+	rc = modbus_write_bit(ctx, 21, TRUE);
+
 	//write to modbus tcp holding register with tab_reg[64]
-	rc = modbus_write_registers(ctx, 100,100, &tab_reg[index]);
+	rc = modbus_write_registers(ctx, 0,100, &tab_reg[index]);
 	//close the connection annd return
 	modbus_close(ctx);
 	modbus_free(ctx);
 	return;
-
-
-
-
-
 
 	//test coil
    // Read 10 coils from address 0
@@ -354,12 +352,6 @@ void UModBus::SetDlgParam()
 {
 	//Get the IP address to the edit box
 	CString str;
-	GetDlgItemText(IDC_EDIT_IP_ADDRESS, str);
-	//char* ip_address = (char*)str.GetBuffer();
-	// Use CT2CA for conversion (CString to const char*)
-	//CT2CA pszConvertedAnsiString(str);
-	//const char* ip_address = pszConvertedAnsiString;
-
 	CYUFADlg* pParentWnd = (CYUFADlg*)GetParent();
 
 	
@@ -367,7 +359,7 @@ void UModBus::SetDlgParam()
 	{
 		//Assign str to pParentWnd->m_SystemPara.StationID
 		GetDlgItemText(IDC_EDIT_IP_ADDRESS, str);
-		wcscpy_s(pParentWnd->m_SystemPara.IpAddress, str);
+		//pParentWnd->m_SystemPara.IpAddress = str.GetBuffer();
 
 		//Get the server id from the edit box
 		GetDlgItemText(IDC_EDIT_SERVER_ID, str);
@@ -378,21 +370,47 @@ void UModBus::SetDlgParam()
 	{
 		// Handle the error appropriately
 	}
+
+	
+
 }
 
 
 void UModBus::OnEnKillfocusEditIpAddress()
 {
 	// TODO: 在此加入控制項告知處理常式程式碼
-	SetDlgParam();
-	//UpdateData(TRUE);
+	//Get the IP address to the edit box
+	CString str;
+	CYUFADlg* pParentWnd = (CYUFADlg*)GetParent();
+
+	if (pParentWnd != nullptr)
+	{
+		//Assign str to pParentWnd->m_SystemPara.StationID
+		GetDlgItemText(IDC_EDIT_IP_ADDRESS, str);
+		// 將 CString 轉換為 char 陣列並賦值給 pParentWnd->m_SystemPara.IpAddress 
+
+		strncpy_s(pParentWnd->m_SystemPara.IpAddress, CT2A(str), sizeof(pParentWnd->m_SystemPara.IpAddress) - 1); 
+		pParentWnd->m_SystemPara.IpAddress[sizeof(pParentWnd->m_SystemPara.IpAddress) - 1] = '\0'; // 確保字串以 null 結尾
+
+		// 釋放 CString 的緩衝區
+		str.ReleaseBuffer();
+
+
+
+	}
+	else
+	{
+		// 適當地處理錯誤
+		// 例如：顯示錯誤訊息或記錄日誌
+		AfxMessageBox(_T("Failed to get parent window."));
+	}
 }
 
 
 void UModBus::OnEnKillfocusEditServerId()
 {
 	// TODO: 在此加入控制項告知處理常式程式碼
-	SetDlgParam();
+	//SetDlgParam();
 }
 
 

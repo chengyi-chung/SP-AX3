@@ -914,6 +914,8 @@ void WorkTab::GetToolPathData(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& too
     //Offset.x = 5;
 	//Offset.y = 5;
 
+	toolpath.Path.clear();
+
   	GetToolPath(ImgSrc, Offset, toolpath);
 
 }
@@ -974,10 +976,11 @@ void WorkTab::SendToolPathData(uint16_t *m_ToolPathData, int sizeOfArray, int st
         return;
     }
 
-    std::wstring ws(pParentWnd->m_SystemPara.IpAddress);
-    std::string ipAddress(ws.begin(), ws.end());
+    pParentWnd->m_SystemPara.IpAddress;
+    std::string ipAddress = pParentWnd->m_SystemPara.IpAddress;
 
     modbus_t* ctx = modbus_new_tcp(ipAddress.c_str(), 502);
+   
     if (ctx == NULL) {
         fprintf(stderr, "Failed to create Modbus context.\n");
         return;
@@ -992,7 +995,8 @@ void WorkTab::SendToolPathData(uint16_t *m_ToolPathData, int sizeOfArray, int st
         return;
     }
 
-
+    //Write bit to PLC
+    int rc = modbus_write_bit(ctx, 0, TRUE);
 
     uint16_t index = 0;
     while (index < sizeOfArray) 
@@ -1023,6 +1027,8 @@ void WorkTab::SendToolPathData(uint16_t *m_ToolPathData, int sizeOfArray, int st
 
         index += batchSize;
     }
+
+
 
     modbus_close(ctx);
     modbus_free(ctx);
