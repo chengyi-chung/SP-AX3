@@ -8,6 +8,7 @@
 #include "SystemParaTab.h"
 #include "WorkTab.h"
 #include "UModBus.h"
+#include "MachineTab.h"
 
 
 
@@ -71,6 +72,8 @@ protected:
 	WorkTab m_WorkTab;
 	//Add  UModBus  m_ModBusTab
 	UModBus m_ModBusTab;
+	//Add MachineTab m_MachineTab
+	MachineTab m_MachineTab;
 
 	//Add CStatusBar m_Status_Bar
 	CStatusBar m_Status_Bar;
@@ -97,4 +100,5 @@ public:
 	afx_msg void OnSize(UINT nType, int cx, int cy);
 	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
 	afx_msg void OnBnClickedBtnModbus();
+	afx_msg void OnBnClickedBtnMachine();
 };

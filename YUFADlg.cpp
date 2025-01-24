@@ -70,13 +70,14 @@ BEGIN_MESSAGE_MAP(CYUFADlg, CDialogEx)
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
 	ON_WM_CLOSE()
-	ON_BN_CLICKED(IDC_BTN_QUIT, &CYUFADlg::OnBnClickedBtnQuit)
-	ON_WM_TIMER()
-	ON_BN_CLICKED(IDC_BTN_SYS_PARA, &CYUFADlg::OnBnClickedBtnSysPara)
-	ON_BN_CLICKED(IDC_BTN_WORKING, &CYUFADlg::OnBnClickedBtnWorking)
 	ON_WM_SIZE()
 	ON_WM_MOUSEMOVE()
+	ON_WM_TIMER()
+	ON_BN_CLICKED(IDC_BTN_QUIT, &CYUFADlg::OnBnClickedBtnQuit)
+	ON_BN_CLICKED(IDC_BTN_SYS_PARA, &CYUFADlg::OnBnClickedBtnSysPara)
+	ON_BN_CLICKED(IDC_BTN_WORKING, &CYUFADlg::OnBnClickedBtnWorking)
 	ON_BN_CLICKED(IDC_BTN_MODBUS, &CYUFADlg::OnBnClickedBtnModbus)
+	ON_BN_CLICKED(IDC_BTN_MACHINE, &CYUFADlg::OnBnClickedBtnMachine)
 END_MESSAGE_MAP()
 
 
@@ -148,6 +149,7 @@ BOOL CYUFADlg::OnInitDialog()
 	m_Tab_Main.InsertItem(0, _T("Working"));
 	m_Tab_Main.InsertItem(1, _T("System Parameter"));
 	m_Tab_Main.InsertItem(2, _T("Modbus TCP"));
+	m_Tab_Main.InsertItem(3, _T("Machine"));
 
 	//Set Table Control Size
 	//m_Tab_Main.SetParent(this);
@@ -172,6 +174,13 @@ BOOL CYUFADlg::OnInitDialog()
 	m_ModBusTab.Create(IDD_TAB_MODBUS, &m_Tab_Main);
 	m_ModBusTab.MoveWindow(&rect);
 	m_ModBusTab.ShowWindow(SW_HIDE);
+
+	//Add Tab Control Item Machine
+	m_MachineTab.Create(IDD_TAB_MACHINE, &m_Tab_Main);
+	m_MachineTab.MoveWindow(&rect);
+	m_MachineTab.ShowWindow(SW_HIDE);
+
+
 
 	//Initial m_SystemPara
 	m_SystemPara.iStart = 0;
@@ -314,6 +323,7 @@ void CYUFADlg::OnBnClickedBtnWorking()
 	m_WorkTab.ShowWindow(SW_SHOW);
 	m_SystemParaTab.ShowWindow(SW_HIDE);
 	m_ModBusTab.ShowWindow(SW_HIDE);
+	m_MachineTab.ShowWindow(SW_HIDE);
 	m_Tab_Main.SetCurSel(0);
 }
 
@@ -323,6 +333,7 @@ void CYUFADlg::OnBnClickedBtnSysPara()
 	m_WorkTab.ShowWindow(SW_HIDE);
 	m_SystemParaTab.ShowWindow(SW_SHOW);
 	m_ModBusTab.ShowWindow(SW_HIDE);
+	m_MachineTab.ShowWindow(SW_HIDE);
 	//change to select tab
 	m_Tab_Main.SetCurSel(1);
 }
@@ -333,10 +344,23 @@ void CYUFADlg::OnBnClickedBtnModbus()
 	m_WorkTab.ShowWindow(SW_HIDE);
 	m_SystemParaTab.ShowWindow(SW_HIDE);	
 	m_ModBusTab.ShowWindow(SW_SHOW);
+	m_MachineTab.ShowWindow(SW_HIDE);
 	//change to select tab
 	m_Tab_Main.SetCurSel(2);
 }
 
+
+void CYUFADlg::OnBnClickedBtnMachine()
+{
+	// TODO: 在此加入控制項告知處理常式程式碼
+	m_WorkTab.ShowWindow(SW_HIDE);
+	m_SystemParaTab.ShowWindow(SW_HIDE);
+	m_ModBusTab.ShowWindow(SW_HIDE);
+	m_MachineTab.ShowWindow(SW_SHOW);
+	//change to select tab
+	m_Tab_Main.SetCurSel(3);
+
+}
 
 void CYUFADlg::OnSize(UINT nType, int cx, int cy)
 {
@@ -369,6 +393,8 @@ void CYUFADlg::OnMouseMove(UINT nFlags, CPoint point)
 
 	CDialogEx::OnMouseMove(nFlags, point);
 }
+
+
 
 
 

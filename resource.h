@@ -11,6 +11,7 @@
 #define IDD_TAB_SYSTEM_PARA             106
 #define IDR_MAINFRAME                   128
 #define IDD_TAB_MODBUS                  134
+#define IDD_TAB_MACHINE                 136
 #define IDC_BTN_QUIT                    1000
 #define IDC_BTN_WORKING                 1003
 #define IDC_BTN_SYS_PARA                1004
@@ -26,6 +27,7 @@
 #define IDC_BTN_MODBUS_TEST             1017
 #define IDC_WORK_TEMP_IMG               1017
 #define IDC_SYSTEM_CREATE_DATA          1017
+#define IDC_BTN_MACHINE                 1017
 #define IDC_WORK_MATCH_TEMP             1018
 #define IDC_BUTTON2                     1019
 #define IDC_IDC_WORK_TOOL_PATH          1019
@@ -41,7 +43,6 @@
 #define IDC_IDC_WORK_GO                 1035
 #define IDD_TAB_SYS_OFFSET_VALUE        1036
 #define IDD_TAB_SYS_X_OFFSET            1037
-#define IDC_EDIT4                       1038
 #define IDD_TAB_SYS_Y_OFFSET            1038
 #define ID_INDICATOR_TIME               59142
 #define ID_INDICATOR_FILE               59143
@@ -50,7 +51,7 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        136
+#define _APS_NEXT_RESOURCE_VALUE        138
 #define _APS_NEXT_COMMAND_VALUE         32771
 #define _APS_NEXT_CONTROL_VALUE         1038
 #define _APS_NEXT_SYMED_VALUE           101

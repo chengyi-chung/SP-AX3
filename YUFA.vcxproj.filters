@@ -45,6 +45,9 @@
     <ClInclude Include="UModBus.h">
       <Filter>標頭檔</Filter>
     </ClInclude>
+    <ClInclude Include="MachineTab.h">
+      <Filter>標頭檔</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="YUFA.cpp">
@@ -63,6 +66,9 @@
       <Filter>來源檔案</Filter>
     </ClCompile>
     <ClCompile Include="UModBus.cpp">
+      <Filter>來源檔案</Filter>
+    </ClCompile>
+    <ClCompile Include="MachineTab.cpp">
       <Filter>來源檔案</Filter>
     </ClCompile>
   </ItemGroup>
