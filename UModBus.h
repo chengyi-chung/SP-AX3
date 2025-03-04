@@ -60,4 +60,5 @@ public:
 	afx_msg void OnBnClickedIdcWorkGo();
 	afx_msg void OnEnKillfocusEditIpAddress();
 	afx_msg void OnEnKillfocusEditServerId();
+	afx_msg void OnBnClickedBtnSendData();
 };

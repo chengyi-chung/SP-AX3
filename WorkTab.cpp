@@ -959,10 +959,6 @@ void WorkTab::ToolPathTransform(ToolPath& toolpath, uint16_t* m_ToolPathData)
 
 
 
-
-
-
-
 //Send Tool Path Data to PLC with Modbus TCP
 //int* m_ToolPathData: Tool Path Data Array
 void WorkTab::SendToolPathData(uint16_t *m_ToolPathData, int sizeOfArray, int stationID)
@@ -1015,8 +1011,6 @@ void WorkTab::SendToolPathData(uint16_t *m_ToolPathData, int sizeOfArray, int st
 
         int rc = modbus_write_registers(ctx, index, batchSize, &m_ToolPathData[index]);
      
-
-
         if (rc == -1) 
         {
             fprintf(stderr, "Failed to write registers: %s\n", modbus_strerror(errno));
@@ -1027,8 +1021,6 @@ void WorkTab::SendToolPathData(uint16_t *m_ToolPathData, int sizeOfArray, int st
 
         index += batchSize;
     }
-
-
 
     modbus_close(ctx);
     modbus_free(ctx);

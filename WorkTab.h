@@ -51,6 +51,8 @@ public:
 
 	ToolPath toolPath;
 	//ToolPathData Array of Tool Path : Max 20000
+	//index 0~9999: x
+	//index 10000~19999: y
 	uint16_t m_ToolPathData[20000];
 
 
@@ -143,6 +145,8 @@ protected:
 	//m_ToolPathData[]: Tool Path Data Array
 	//int sizeOfArray: Size of the Tool Path Data Array
 	void SendToolPathData(uint16_t *m_ToolPathData, int sizeOfArray, int stationID);
+
+	void SendToolPathDataA(uint16_t* m_ToolPathData, int sizeOfArray, int stationID);
 
 	//void SendToolPathData(m_ToolPathData, int sizeOfArray);
 

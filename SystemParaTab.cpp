@@ -22,16 +22,7 @@ SystemParaTab::SystemParaTab(CWnd* pParent /*=nullptr*/)
 
 SystemParaTab::~SystemParaTab()
 {
-	TRACE("Entering SystemParaTab Destructor\n"); // 獲取父對話框指針 
-	CYUFADlg* pParentWnd = (CYUFADlg*)GetParent();
-	if (pParentWnd != NULL) 
-	{ // 確保安全的父對話框訪問 
-		TRACE("Parent window is valid\n");
-	}
-	else
-	{ // 父對話框指針無效 
-		TRACE("Parent window is NULL\n");
-	}
+
 }
 
 
@@ -64,6 +55,12 @@ BOOL SystemParaTab::OnInitDialog()
 	SetDlgItemText(IDD_TAB_SYS_Y_OFFSET, str);
 
 	//pParentWnd = (CYUFADlg*)GetParent();
+
+		// 確保視窗已正確初始化
+	if (m_hWnd == NULL)
+	{
+		return FALSE; // 初始化失敗
+	}
 
 	return TRUE;  // return TRUE unless you set the focus to a control
 	// EXCEPTION: OCX 屬性頁應傳回 FALSE
@@ -102,4 +99,10 @@ void SystemParaTab::OnEnChangeTabSysOffsetValue()
     pParentWnd->m_SystemPara.OffsetX = iResult;
     pParentWnd->m_SystemPara.OffsetY = iResult;
 
+	//釋放 pParentWnd
+	
+}
+
+void SystemParaTab::OnOK()
+{
 }

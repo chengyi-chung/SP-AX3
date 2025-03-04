@@ -28,10 +28,17 @@
 #define IDC_WORK_TEMP_IMG               1017
 #define IDC_SYSTEM_CREATE_DATA          1017
 #define IDC_BTN_MACHINE                 1017
+#define IDC_BTN_JOG_Y_PLUS              1017
 #define IDC_WORK_MATCH_TEMP             1018
+#define IDC_BTN_JOG_X_PLUS              1018
 #define IDC_BUTTON2                     1019
 #define IDC_IDC_WORK_TOOL_PATH          1019
+#define IDC_BTN_JOG_Y_MINUS             1019
+#define IDC_BTN_SEND_DATA               1019
+#define IDC_BTN_JOG_X_MINUX             1020
+#define IDC_BTN_JOG_Z_PLUS              1021
 #define IDC_MODBUS_CHK_COIL             1022
+#define IDC_BTN_JOG_Z_MINUS             1022
 #define IDC_MODBUS_GROUP_CHK            1024
 #define IDC_MODBUS_CHK_DISCRETE         1025
 #define IDC_MODBUS_CHK_INPUT_REG        1026
@@ -44,6 +51,17 @@
 #define IDD_TAB_SYS_OFFSET_VALUE        1036
 #define IDD_TAB_SYS_X_OFFSET            1037
 #define IDD_TAB_SYS_Y_OFFSET            1038
+#define IDC_RADIO_AUTO                  1038
+#define IDC_RADIO_MANUAL                1039
+#define IDC_CHECK_HOME                  1040
+#define IDC_CHECK_RESET                 1041
+#define IDC_CHECK_AUTO_WORK_START       1042
+#define IDC_CHECK_AUTO_WORK_STOP        1043
+#define IDC_EDIT_JOG_VELOCITY           1045
+#define IDC_STATIC_AUTO_VELOCITY        1046
+#define IDC_EDIT_AUTO_VELOCITY          1047
+#define IDC_EDIT_AXIS_ACC_DEC           1048
+#define IDC_EDIT_AXIS_ACC_INC           1049
 #define ID_INDICATOR_TIME               59142
 #define ID_INDICATOR_FILE               59143
 
@@ -53,7 +71,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        138
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1038
+#define _APS_NEXT_CONTROL_VALUE         1047
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
