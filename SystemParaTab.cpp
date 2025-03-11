@@ -22,7 +22,7 @@ SystemParaTab::SystemParaTab(CWnd* pParent /*=nullptr*/)
 
 SystemParaTab::~SystemParaTab()
 {
-
+	
 }
 
 

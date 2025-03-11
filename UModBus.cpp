@@ -129,22 +129,40 @@ void UModBus::OnBnClickedBtnModbusTest()
 	int index = 0;
 
 	tab_reg[0] = 88;
-	tab_reg[1] = 7777;
+	tab_reg[1] = 2222;
 	tab_reg[20] =9999;
 	tab_reg[23] = 6688;
-	tab_reg[50] = 9990;
-	tab_reg[51] = 9991;
-	tab_reg[52] = 9992;
-	tab_reg[53] = 9993;
-	tab_reg[99] = 2222;
+	tab_reg[40] = 7777;
+	tab_reg[41] = 9999;
+	tab_reg[42] = 9992;
+	tab_reg[43] = 9993;
+	tab_reg[49] = 2222;
 	//write to modbus tcp holding register with 
 	//rc = modbus_write_register(ctx, 0, 999);
 
-	rc = modbus_write_bit(ctx, 21, TRUE);
+	rc = modbus_write_register(ctx, 21, 1);
+	// Write Coil
+	// Write a single coil (set coil at address 21 to ON)
+	//rc = modbus_write_bit(ctx, 21, true);
+	rc = modbus_write_register(ctx, 20001, 1);
+
+	//use mapping table to write to modbus tcp holding register over address 20000
+	//write to modbus tcp holding register with tab_reg[64]
+	//modbus_mapping_t* mb_mapping = modbus_mapping_new(0, 0, 0, 20000);
+	//rc = mb_mapping->tab_registers[0] = 20000;
+	//rc = mb_mapping->tab_registers[1] = 20001;
+	//rc = mb_mapping->tab_registers[2] = 20002;
+	//rc = modbus
+
+	rc = modbus_write_register(ctx, 19999, 1);
+	rc = modbus_write_register(ctx, 30001, 1);
+	rc = modbus_write_register(ctx, 40002, 1);
 
 	//write to modbus tcp holding register with tab_reg[64]
-	rc = modbus_write_registers(ctx, 0,100, &tab_reg[index]);
+	rc = modbus_write_registers(ctx, 0,50, &tab_reg[index]);
 	//close the connection annd return
+
+	//modbus_mapping_free(mb_mapping);
 	modbus_close(ctx);
 	modbus_free(ctx);
 	return;
@@ -169,11 +187,6 @@ void UModBus::OnBnClickedBtnModbusTest()
 	{
 		std::cout << "Coil " << i << " = " << (int)coils[i] << std::endl;
 	}
-
-
-
-
-
 
 	// Write a single coil (set coil at address 21 to ON)
 	rc = modbus_write_bit(ctx, 21, TRUE);

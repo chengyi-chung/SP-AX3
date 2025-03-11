@@ -937,7 +937,7 @@ void WorkTab::OnBnClickedIdcWorkGo()
 	ToolPathTransform(toolPath, m_ToolPathData);
 
 	//send m_ToolPathData to PLC with modbus tcp
-	SendToolPathData(m_ToolPathData, sizeOfToolPath, 1);
+	SendToolPathDataA(m_ToolPathData, sizeOfToolPath, 1);
 
 
 }
@@ -1024,4 +1024,76 @@ void WorkTab::SendToolPathData(uint16_t *m_ToolPathData, int sizeOfArray, int st
 
     modbus_close(ctx);
     modbus_free(ctx);
+}
+
+//Send Tool Path Data to PLC with Modbus TCP
+//int* m_ToolPathData: Tool Path Data Array
+//int sizeOfArray: Size of the Tool Path Data Array
+//int stationID: Station ID
+//int startAddress: Start Address of the Tool Path Data Array
+void WorkTab::SendToolPathDataA(uint16_t* m_ToolPathData, int sizeOfArray, int stationID)
+{
+	const int maxBatchSize = 100;
+	const int maxModbusBatchSize = 123;
+	CYUFADlg* pParentWnd = (CYUFADlg*)GetParent();
+	if (pParentWnd == NULL) {
+		AfxMessageBox(_T("Parent window is NULL."));
+		return;
+	}
+	pParentWnd->m_SystemPara.IpAddress;
+	std::string ipAddress = pParentWnd->m_SystemPara.IpAddress;
+	modbus_t* ctx = modbus_new_tcp(ipAddress.c_str(), 502);
+	if (ctx == NULL) {
+		fprintf(stderr, "Failed to create Modbus context.\n");
+		return;
+	}
+	int ServerId = pParentWnd->m_SystemPara.StationID;
+	modbus_set_slave(ctx, ServerId);
+	if (modbus_connect(ctx) == -1) {
+		fprintf(stderr, "Connection failed: %s\n", modbus_strerror(errno));
+		modbus_free(ctx);
+		return;
+	}
+
+	//int rc = modbus_write_bit(ctx, 0, TRUE);
+
+	//int rc = modbus_write_register(ctx, 20001,1);
+
+	uint16_t index = 0;
+	while (index < sizeOfArray)
+	{
+		int batchSize = (sizeOfArray - index > maxBatchSize) ? maxBatchSize : (sizeOfArray - index);
+		batchSize = (batchSize > maxModbusBatchSize) ? maxModbusBatchSize : batchSize;
+		//cout 100 items for debug
+		int iResult = 0;
+		for (int i = 0; i < 100; i++)
+		{
+			//output m_ToolPathData[i] for debug
+			iResult = m_ToolPathData[i];
+			//print m_ToolPathData[i] for debug
+			//TRACE(_T("%d "), m_ToolPathData[i]);
+			 cout << m_ToolPathData[i] << " ";
+		}
+
+		//int startAddressX : Start Address of the Tool Path Data Array even index
+		//int startAddressY : Start Address of the Tool Path Data Array odd index
+         
+		//Write the Tool Path Data Array to PLC
+		int startAddressX = 0;
+		int startAddressY = 10000;
+		int rc = modbus_write_registers(ctx, startAddressX + index, batchSize, &m_ToolPathData[index]);
+		rc = modbus_write_registers(ctx, startAddressY + index, batchSize, &m_ToolPathData[index + 1]);
+
+		//int rc = modbus_write_registers(ctx, startAddress + index, batchSize, &m_ToolPathData[index]);
+		if (rc == -1)
+		{
+			fprintf(stderr, "Failed to write registers: %s\n", modbus_strerror(errno));
+			modbus_close(ctx);
+			modbus_free(ctx);
+			return;
+		}
+		index += batchSize;
+	}
+	modbus_close(ctx);
+	modbus_free(ctx);
 }
