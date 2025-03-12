@@ -78,6 +78,7 @@ BEGIN_MESSAGE_MAP(CYUFADlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BTN_WORKING, &CYUFADlg::OnBnClickedBtnWorking)
 	ON_BN_CLICKED(IDC_BTN_MODBUS, &CYUFADlg::OnBnClickedBtnModbus)
 	ON_BN_CLICKED(IDC_BTN_MACHINE, &CYUFADlg::OnBnClickedBtnMachine)
+	ON_NOTIFY(NM_RCLICK, IDC_TAB_MAIN, &CYUFADlg::OnNMRClickTabMain)
 END_MESSAGE_MAP()
 
 
@@ -398,3 +399,15 @@ void CYUFADlg::OnMouseMove(UINT nFlags, CPoint point)
 
 
 
+
+void CYUFADlg::OnNMRClickTabMain(NMHDR* pNMHDR, LRESULT* pResult)
+{
+	// TODO: 在此加入控制項告知處理常式程式碼
+	//Get the current selected tab
+	int iCurSel = m_Tab_Main.GetCurSel();
+	CString str;
+	str.Format(_T("Current Selected Tab: %d"), iCurSel);
+	MessageBox(str);
+
+	*pResult = 0;
+}

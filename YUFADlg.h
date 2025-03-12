@@ -101,4 +101,5 @@ public:
 	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
 	afx_msg void OnBnClickedBtnModbus();
 	afx_msg void OnBnClickedBtnMachine();
+	afx_msg void OnNMRClickTabMain(NMHDR* pNMHDR, LRESULT* pResult);
 };

@@ -100,6 +100,7 @@ void SystemParaTab::OnEnChangeTabSysOffsetValue()
     pParentWnd->m_SystemPara.OffsetY = iResult;
 
 	//釋放 pParentWnd
+
 	
 }
 
