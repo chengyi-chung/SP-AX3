@@ -19,16 +19,20 @@ public:
 	enum { IDD = IDD_TAB_MACHINE };
 #endif
 
+	//Open Modbus TCP/IP server 
+	void OpenModBus();
+	//send data to modbus server
+	void SendDataToModBus();
+	//Close Modbus TCP/IP server
+	void CloseModBus();
+	//define modbus context
+	modbus_t* m_ctx;
+
 protected:
 	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV 支援
 
 	//initial function
 	virtual BOOL OnInitDialog();
-
-	//
-
-	//define modbus context
-	modbus_t* m_ctx;
 
 
 	//define machine mode : Auto or Manual

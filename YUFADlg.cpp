@@ -79,6 +79,7 @@ BEGIN_MESSAGE_MAP(CYUFADlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BTN_MODBUS, &CYUFADlg::OnBnClickedBtnModbus)
 	ON_BN_CLICKED(IDC_BTN_MACHINE, &CYUFADlg::OnBnClickedBtnMachine)
 	ON_NOTIFY(NM_RCLICK, IDC_TAB_MAIN, &CYUFADlg::OnNMRClickTabMain)
+	ON_NOTIFY(TCN_SELCHANGE, IDC_TAB_MAIN, &CYUFADlg::OnTcnSelchangeTabMain)
 END_MESSAGE_MAP()
 
 
@@ -321,6 +322,10 @@ void CYUFADlg::OnTimer(UINT_PTR nIDEvent)
 void CYUFADlg::OnBnClickedBtnWorking()
 {
 	// TODO: 在此加入控制項告知處理常式程式碼
+
+
+
+	
 	m_WorkTab.ShowWindow(SW_SHOW);
 	m_SystemParaTab.ShowWindow(SW_HIDE);
 	m_ModBusTab.ShowWindow(SW_HIDE);
@@ -408,6 +413,49 @@ void CYUFADlg::OnNMRClickTabMain(NMHDR* pNMHDR, LRESULT* pResult)
 	CString str;
 	str.Format(_T("Current Selected Tab: %d"), iCurSel);
 	MessageBox(str);
+
+	*pResult = 0;
+}
+
+void CYUFADlg::OnTcnSelchangeTabMain(NMHDR* pNMHDR, LRESULT* pResult)
+{
+	// TODO: 在此加入控制項告知處理常式程式碼
+		// 獲取 Tab Control 的指針
+	CTabCtrl* pTabCtrl = (CTabCtrl*)GetDlgItem(IDC_TAB_MAIN);
+	if (pTabCtrl != nullptr)
+	{
+		// 獲取當前選中的 Tab 頁面索引
+		int nSel = pTabCtrl->GetCurSel();
+
+		// 根據選中的索引通知相應的子頁面
+		switch (nSel)
+		{
+		case 0:
+			// 通知第一個子頁面
+			OnBnClickedBtnWorking();
+			//m_SystemParaTab.OnTabSelected();
+			break;
+		case 1:
+			// 通知第二個子頁面
+			OnBnClickedBtnSysPara();
+			//m_WorkTab.OnTabSelected();
+			break;
+			// 添加更多的 case 來處理其他子頁面
+		case 2:
+
+			OnBnClickedBtnModbus();
+			break;
+		case 3:
+			OnBnClickedBtnMachine();
+			m_MachineTab.OpenModBus();
+			break;
+		default:
+			break;
+		}
+	}
+
+
+
 
 	*pResult = 0;
 }

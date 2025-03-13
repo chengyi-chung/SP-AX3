@@ -106,9 +106,73 @@ void MachineTab::OnBnClickedCheckReset()
 void MachineTab::OnBnClickedCheckAutoWorkStart()
 {
 	// TODO: 在此加入控制項告知處理常式程式碼
+	//Check the Auto Work Start is checked or not
+	//If checked, send the data to the Modbus server
+	//If not checked, do nothing
+	if (((CButton*)GetDlgItem(IDC_CHECK_AUTO_WORK_START))->GetCheck() == 1)
+	{
+		//SendDataToModBus();
+		int rc = modbus_write_register(m_ctx, 21, 1);
+	}
+	else
+	{
+		//Do nothing
+	}
+
+
 }
 
 void MachineTab::OnBnClickedCheckAutoWorkStop()
 {
 	// TODO: 在此加入控制項告知處理常式程式碼
+}
+
+//Open Modbus TCP/IP server 
+void MachineTab::OpenModBus()
+{
+	//Initial Modbus TCP/IP
+	//get ip address from m_SystemPara of parrent dialog
+
+	CYUFADlg* pParentWnd = (CYUFADlg*)GetParent();
+	char* ip = pParentWnd->m_SystemPara.IpAddress;
+    
+	int port = 502;
+	m_ctx = modbus_new_tcp(ip, port);
+	
+	int ServerId = pParentWnd->m_SystemPara.StationID;
+	modbus_set_slave(m_ctx, ServerId);  // 設置為設備 ID 1
+
+	if (m_ctx == NULL)
+	{
+		AfxMessageBox(_T("Failed to create the libmodbus context."));
+	}
+	else
+	{
+		
+	}
+
+
+
+}
+
+//Close Modbus TCP/IP server
+void MachineTab::CloseModBus()
+{
+	//Close Modbus TCP/IP
+	modbus_close(m_ctx);
+	modbus_free(m_ctx);
+}
+
+//send data to modbus server
+void MachineTab::SendDataToModBus()
+{
+	//Send data to Modbus TCP/IP server
+	//Get the data from the dialog control
+	//Send the data to the Modbus TCP/IP server
+	//Get the data from the Modbus TCP/IP server
+	//Display the data to the dialog control
+
+
+
+
 }
