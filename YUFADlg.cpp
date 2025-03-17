@@ -430,24 +430,27 @@ void CYUFADlg::OnTcnSelchangeTabMain(NMHDR* pNMHDR, LRESULT* pResult)
 		// 根據選中的索引通知相應的子頁面
 		switch (nSel)
 		{
-		case 0:
+		case 0: //CCD working
 			// 通知第一個子頁面
+			m_MachineTab.CloseModBus();
 			OnBnClickedBtnWorking();
 			//m_SystemParaTab.OnTabSelected();
 			break;
-		case 1:
+		case 1: //System Parameter
 			// 通知第二個子頁面
+			m_MachineTab.CloseModBus();
 			OnBnClickedBtnSysPara();
 			//m_WorkTab.OnTabSelected();
 			break;
 			// 添加更多的 case 來處理其他子頁面
-		case 2:
-
+		case 2://Modbus TCP	
+			m_MachineTab.CloseModBus();
 			OnBnClickedBtnModbus();
 			break;
-		case 3:
-			OnBnClickedBtnMachine();
+		case 3://Machine
 			m_MachineTab.OpenModBus();
+			OnBnClickedBtnMachine();
+			
 			break;
 		default:
 			break;

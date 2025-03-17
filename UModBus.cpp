@@ -75,6 +75,7 @@ void UModBus::OnBnClickedBtnModbusTest()
 {
 	// TODO: 在此加入控制項告知處理常式程式碼
 	//Get the IP address from the edit box
+	int ret=-1;
 	CString str;
 	GetDlgItemText(IDC_EDIT_IP_ADDRESS, str);
 	//char* ip_address = (char*)str.GetBuffer();
@@ -91,7 +92,7 @@ void UModBus::OnBnClickedBtnModbusTest()
 	//Get the server id from the edit box
 	GetDlgItemText(IDC_EDIT_SERVER_ID, str);
 	int ServerId = _ttoi(str);
-	modbus_set_slave(ctx, ServerId);  // 設置為設備 ID 1
+	ret = modbus_set_slave(ctx, ServerId);  // 設置為設備 ID 1
 
 	//Connection test
 	if (modbus_connect(ctx) == -1)

@@ -53,6 +53,11 @@ BOOL MachineTab::OnInitDialog()
 	((CButton*)GetDlgItem(IDC_RADIO_AUTO))->SetCheck(1);
 	m_iMachineMode = 1;
 
+	//Initial Discrete3000
+	Discrete3000.reset();
+	//Discrete3000.set(0, 1);
+
+
 
 	return TRUE;  // return TRUE unless you set the focus to a control
 	// EXCEPTION: OCX Property Pages should return FALSE
@@ -109,14 +114,32 @@ void MachineTab::OnBnClickedCheckAutoWorkStart()
 	//Check the Auto Work Start is checked or not
 	//If checked, send the data to the Modbus server
 	//If not checked, do nothing
+	int rc;
+
+	// Check if the Modbus context is initialized
+	if (m_ctx == NULL)
+	{
+		AfxMessageBox(_T("Failed to create the libmodbus context."));
+		return;
+	}
+
 	if (((CButton*)GetDlgItem(IDC_CHECK_AUTO_WORK_START))->GetCheck() == 1)
 	{
-		//SendDataToModBus();
-		int rc = modbus_write_register(m_ctx, 21, 1);
+		Discrete3000.set(12, 1);
 	}
 	else
 	{
-		//Do nothing
+		Discrete3000.set(12, 0);
+	}
+
+	Discrete3000Word = Discrete3000.to_ulong();
+	rc = modbus_write_register(m_ctx, 30000, Discrete3000Word);
+
+	if (rc == -1)
+	{
+		CString errorMessage;
+		errorMessage.Format(_T("Failed to write to Modbus register: %S"), modbus_strerror(errno));
+		AfxMessageBox(errorMessage);
 	}
 
 
@@ -135,20 +158,28 @@ void MachineTab::OpenModBus()
 
 	CYUFADlg* pParentWnd = (CYUFADlg*)GetParent();
 	char* ip = pParentWnd->m_SystemPara.IpAddress;
+	int rc;
     
 	int port = 502;
 	m_ctx = modbus_new_tcp(ip, port);
-	
-	int ServerId = pParentWnd->m_SystemPara.StationID;
-	modbus_set_slave(m_ctx, ServerId);  // 設置為設備 ID 1
 
+	//prinrt the ip address and port on m_strReportData
+	m_strReportData = "IP Address: " + string(ip) + " Port: " + to_string(port) + "\r\n";
+    SetDlgItemText(IDC_EDIT_REPORT, CString(m_strReportData.c_str()));
+	
+	int ServerId = 1; // pParentWnd->m_SystemPara.StationID;
+	rc = modbus_set_slave(m_ctx, ServerId);  // 設置為設備 ID 1
+	
 	if (m_ctx == NULL)
 	{
 		AfxMessageBox(_T("Failed to create the libmodbus context."));
 	}
 	else
 	{
-		
+		uint16_t tab_reg[60000] = { 0 };
+		// Read 64 holding registers starting from address 0
+		rc = modbus_read_registers(m_ctx, 100, 100, tab_reg);
+		rc = modbus_write_register(m_ctx, 30001, 1);
 	}
 
 

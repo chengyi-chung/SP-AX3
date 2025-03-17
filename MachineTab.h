@@ -2,7 +2,7 @@
 #include "afxdialogex.h"
 //add libmodbus header
 #include <modbus.h>
-
+#include <bitset>
 
 // MachineTab 對話方塊
 
@@ -28,11 +28,23 @@ public:
 	//define modbus context
 	modbus_t* m_ctx;
 
+	//define Report Data on  IDC_EDIT_REPORT
+	string m_strReportData;
+
 protected:
 	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV 支援
 
 	//initial function
 	virtual BOOL OnInitDialog();
+
+	//define Holding Register bitset for Modbus
+	bitset<16> Discrete3000;
+	//Convert bitset to word
+	uint16_t Discrete3000Word = 0;
+	void ConvertBitsetToWord(bitset<16> bitset, uint16_t* word);
+	//Convert word to bitset
+	void ConvertWordToBitset(uint16_t word, bitset<16>* bitset);
+
 
 
 	//define machine mode : Auto or Manual

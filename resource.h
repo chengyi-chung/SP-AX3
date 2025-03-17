@@ -46,6 +46,7 @@
 #define IDC_MODBUS_EDIT_RETURN          1028
 #define IDC_EDIT1                       1029
 #define IDC_EDIT_SERVER_ID              1029
+#define IDC_EDIT_REPORT                 1029
 #define IDC_IDC_WORK_LOAD_IMG           1033
 #define IDC_IDC_WORK_GO                 1035
 #define IDD_TAB_SYS_OFFSET_VALUE        1036
