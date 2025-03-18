@@ -135,6 +135,14 @@ void MachineTab::OnBnClickedCheckAutoWorkStart()
 	Discrete3000Word = Discrete3000.to_ulong();
 	rc = modbus_write_register(m_ctx, 30000, Discrete3000Word);
 
+    //append Discrete3000Word value to IDC_EDIT_REPORT with m_strReportData
+    m_strReportData = m_strReportData + "\r\n" +"Reg[30000] = " + std::to_string(Discrete3000Word) + " " + Discrete3000.to_string();
+	SetDlgItemText(IDC_EDIT_REPORT, CString(m_strReportData.c_str()));
+
+	
+
+
+
 	if (rc == -1)
 	{
 		CString errorMessage;
@@ -162,6 +170,21 @@ void MachineTab::OpenModBus()
     
 	int port = 502;
 	m_ctx = modbus_new_tcp(ip, port);
+
+	//check if the context is created
+	if (m_ctx == NULL)
+	{
+		AfxMessageBox(_T("Failed to create the libmodbus context."));
+	}
+	else
+	{
+		//Connect to the Modbus TCP/IP server
+		rc = modbus_connect(m_ctx);
+		if (rc == -1)
+		{
+			AfxMessageBox(_T("Failed to connect to the Modbus server."));
+		}
+	}
 
 	//prinrt the ip address and port on m_strReportData
 	m_strReportData = "IP Address: " + string(ip) + " Port: " + to_string(port) + "\r\n";
