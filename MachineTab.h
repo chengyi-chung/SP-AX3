@@ -45,6 +45,18 @@ protected:
 	//Convert word to bitset
 	void ConvertWordToBitset(uint16_t word, bitset<16>* bitset);
 
+	//define functio for Discrete3000 value change in Control
+	//intType: 0: check 1: button
+	//BitAdress: Bit Adress
+	//BitValue: Bit Value
+	//nID: check or button Control ID
+	void Discrete3000Change(int intType, int BitAdress, int BitValue, int nID);
+
+	//Clear All Discrete3000
+	//int Start Adress: iStartAdress
+	//int End Adress: iEndAdress
+	void ClearDiscrete3000(int iStartAdress, int iEndAdress);
+
 
 
 	//define machine mode : Auto or Manual

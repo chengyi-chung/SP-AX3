@@ -66,57 +66,107 @@ BOOL MachineTab::OnInitDialog()
 void MachineTab::OnBnClickedBtnJogXPlus()
 {
 	// TODO: 在此加入控制項告知處理常式程式碼
+	int bitAdress = 2;
+	int bitValue = 1;
+	int nID = IDC_BTN_JOG_X_PLUS;
+	ClearDiscrete3000(0, 7);
+	Discrete3000Change(1,bitAdress, bitValue, nID);
 }
 
 void MachineTab::OnBnClickedBtnJogXMinux()
 {
 	// TODO: 在此加入控制項告知處理常式程式碼
+	int bitAdress = 3;
+	int bitValue = 1;
+	int nID = IDC_BTN_JOG_X_MINUX;
+	ClearDiscrete3000(0, 7);
+	Discrete3000Change(1, bitAdress, bitValue, nID);
+
 }
 
 void MachineTab::OnBnClickedBtnJogYPlus()
 {
 	// TODO: 在此加入控制項告知處理常式程式碼
+	int bitAdress = 4;
+	int bitValue = 1;
+	int nID = IDC_BTN_JOG_Y_PLUS;
+	ClearDiscrete3000(0, 7);
+	Discrete3000Change(1, bitAdress, bitValue, nID);
 }
 
 void MachineTab::OnBnClickedBtnJogYMinus()
 {
 	// TODO: 在此加入控制項告知處理常式程式碼
+	int bitAdress = 5;
+	int bitValue = 1;
+	int nID = IDC_BTN_JOG_Y_MINUS;
+	ClearDiscrete3000(0, 7);
+	Discrete3000Change(1, bitAdress, bitValue, nID);
 }
 
 void MachineTab::OnBnClickedBtnJogZPlus()
 {
 	// TODO: 在此加入控制項告知處理常式程式碼
+	int bitAdress = 6;
+	int bitValue = 1;
+	int nID = IDC_BTN_JOG_Z_PLUS;
+	ClearDiscrete3000(0, 7);
+	Discrete3000Change(1, bitAdress, bitValue, nID);
 }
 
 void MachineTab::OnBnClickedBtnJogZMinus()
 {
 	// TODO: 在此加入控制項告知處理常式程式碼
+	int bitAdress = 7;
+	int bitValue = 1;
+	int nID = IDC_BTN_JOG_Z_MINUS;
+	ClearDiscrete3000(0, 7);
+	Discrete3000Change(1, bitAdress, bitValue, nID);
 }
 
 void MachineTab::OnBnClickedRadioAuto()
 {
 	// TODO: 在此加入控制項告知處理常式程式碼
+	int bitAdress = 0;
+	int bitValue = 1;
+	int nID = IDC_RADIO_AUTO;
+	//ClearDiscrete3000(0, 7);
+	Discrete3000Change(0, bitAdress, bitValue, nID);
 }
 
 void MachineTab::OnBnClickedCheckHome()
 {
 	// TODO: 在此加入控制項告知處理常式程式碼
+	int bitAdress = 10;
+	int bitValue = 1;
+	int nID = IDC_CHECK_HOME;
+	//ClearDiscrete3000(0, 7);
+	Discrete3000Change(0, bitAdress, bitValue, nID);
+
+
 }
 
 void MachineTab::OnBnClickedCheckReset()
 {
 	// TODO: 在此加入控制項告知處理常式程式碼
+	int bitAdress = 11;
+	int bitValue = 1;
+	int nID = IDC_CHECK_RESET;
+	//ClearDiscrete3000(0, 7);
+	Discrete3000Change(0, bitAdress, bitValue, nID);
 }
 
 void MachineTab::OnBnClickedCheckAutoWorkStart()
 {
 	// TODO: 在此加入控制項告知處理常式程式碼
-	//Check the Auto Work Start is checked or not
-	//If checked, send the data to the Modbus server
-	//If not checked, do nothing
-	int rc;
+	int bitAdress = 12;
+	int bitValue = 1;
+	int nID = IDC_CHECK_AUTO_WORK_START;
+	//ClearDiscrete3000(0, 7);
+	Discrete3000Change(0, bitAdress, bitValue, nID);
 
 	// Check if the Modbus context is initialized
+	/*
 	if (m_ctx == NULL)
 	{
 		AfxMessageBox(_T("Failed to create the libmodbus context."));
@@ -136,12 +186,8 @@ void MachineTab::OnBnClickedCheckAutoWorkStart()
 	rc = modbus_write_register(m_ctx, 30000, Discrete3000Word);
 
     //append Discrete3000Word value to IDC_EDIT_REPORT with m_strReportData
-    m_strReportData = m_strReportData + "\r\n" +"Reg[30000] = " + std::to_string(Discrete3000Word) + " " + Discrete3000.to_string();
+    m_strReportData = m_strReportData + "\r\n" +"Reg[30000]" + " " + " = " + std::to_string(Discrete3000Word) + " " + Discrete3000.to_string();
 	SetDlgItemText(IDC_EDIT_REPORT, CString(m_strReportData.c_str()));
-
-	
-
-
 
 	if (rc == -1)
 	{
@@ -149,6 +195,8 @@ void MachineTab::OnBnClickedCheckAutoWorkStart()
 		errorMessage.Format(_T("Failed to write to Modbus register: %S"), modbus_strerror(errno));
 		AfxMessageBox(errorMessage);
 	}
+	*/
+	
 
 
 }
@@ -156,6 +204,12 @@ void MachineTab::OnBnClickedCheckAutoWorkStart()
 void MachineTab::OnBnClickedCheckAutoWorkStop()
 {
 	// TODO: 在此加入控制項告知處理常式程式碼
+	int bitAdress = 13;
+	int bitValue = 1;
+	int nID = IDC_CHECK_AUTO_WORK_STOP;
+	//ClearDiscrete3000(0, 7);
+	Discrete3000Change(0, bitAdress, bitValue, nID);
+
 }
 
 //Open Modbus TCP/IP server 
@@ -225,8 +279,86 @@ void MachineTab::SendDataToModBus()
 	//Send the data to the Modbus TCP/IP server
 	//Get the data from the Modbus TCP/IP server
 	//Display the data to the dialog control
+}
+
+//define functio for Discrete3000 value change in Control
+//intType: 0: check 1: button
+//BitAdress: Bit Adress
+//BitValue: Bit Value
+//nID: check or button Control ID
+void MachineTab::Discrete3000Change(int intType, int BitAdress, int BitValue, int nID)
+{
+	//Check the Modbus context is enabled or not
+		// TODO: 在此加入控制項告知處理常式程式碼
+	int rc;
+
+	// Check if the Modbus context is initialized
+	if (m_ctx == NULL)
+	{
+		AfxMessageBox(_T("Failed to create the libmodbus context."));
+		return;
+	}
+	
+	if (intType == 0)  //Check or Radio Control
+	{
+		if (((CButton*)GetDlgItem(nID))->GetCheck() == 1)
+		{
+			Discrete3000.set(BitAdress, BitValue);
+		}
+		else
+		{
+			Discrete3000.set(BitAdress, 0);
+		}
+	}
+	else if (intType == 1) //Button Control
+	{
+		
+			Discrete3000.set(BitAdress, 1);
+		
+	}
+	else
+	{
+		Discrete3000.set(BitAdress, BitValue);
+	}
+	
+	Discrete3000Word = Discrete3000.to_ulong();
+	rc = modbus_write_register(m_ctx, 30000, Discrete3000Word);
+
+	//append Discrete3000Word value to IDC_EDIT_REPORT with m_strReportData
+	m_strReportData = m_strReportData + "\r\n" + "Reg[30000]." + std::to_string(BitAdress) + "  = " + std::to_string(Discrete3000Word) + " " + Discrete3000.to_string();
+	SetDlgItemText(IDC_EDIT_REPORT, CString(m_strReportData.c_str()));
+
+	if (rc == -1)
+	{
+		CString errorMessage;
+		errorMessage.Format(_T("Failed to write to Modbus register: %S"), modbus_strerror(errno));
+		AfxMessageBox(errorMessage);
+	}
 
 
+}
 
+//Clear All Discrete3000
+//int Start Adress: iStartAdress
+//int End Adress: iEndAdress
+void MachineTab::ClearDiscrete3000(int iStartAdress, int iEndAdress)
+{
+	//Clear All Discrete3000
+	//Discrete3000.reset();
+	for (int i = iStartAdress; i <= iEndAdress; i++)
+	{
+		Discrete3000.set(i, 0);
+	}
 
+	Discrete3000Word = Discrete3000.to_ulong();
+	int rc = modbus_write_register(m_ctx, 30000, Discrete3000Word);
+	//append Discrete3000Word value to IDC_EDIT_REPORT with m_strReportData
+	m_strReportData = m_strReportData + "\r\n" + "Reg[30000]." + std::to_string(iStartAdress) + "  = " + std::to_string(Discrete3000Word) + " " + Discrete3000.to_string();
+	SetDlgItemText(IDC_EDIT_REPORT, CString(m_strReportData.c_str()));
+	if (rc == -1)
+	{
+		CString errorMessage;
+		errorMessage.Format(_T("Failed to write to Modbus register: %S"), modbus_strerror(errno));
+		AfxMessageBox(errorMessage);
+	}
 }

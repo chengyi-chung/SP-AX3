@@ -484,7 +484,7 @@ void UModBus::OnBnClickedBtnSendData()
 	// Now you have a connected Modbus context (slave).
 	//Test read holding register
 	// Allocate space for the register data
-	uint16_t tab_reg[10000] = { 0 };
+	uint16_t tab_reg[50000] = { 0 };
 	// Read 64 holding registers starting from address 0
 	int rc = modbus_read_registers(ctx, 100, 100, tab_reg);
 	if (rc == -1)

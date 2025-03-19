@@ -323,14 +323,12 @@ void CYUFADlg::OnBnClickedBtnWorking()
 {
 	// TODO: 在此加入控制項告知處理常式程式碼
 
-
-
-	
 	m_WorkTab.ShowWindow(SW_SHOW);
 	m_SystemParaTab.ShowWindow(SW_HIDE);
 	m_ModBusTab.ShowWindow(SW_HIDE);
 	m_MachineTab.ShowWindow(SW_HIDE);
 	m_Tab_Main.SetCurSel(0);
+	
 }
 
 void CYUFADlg::OnBnClickedBtnSysPara()
@@ -342,6 +340,8 @@ void CYUFADlg::OnBnClickedBtnSysPara()
 	m_MachineTab.ShowWindow(SW_HIDE);
 	//change to select tab
 	m_Tab_Main.SetCurSel(1);
+
+;
 }
 
 void CYUFADlg::OnBnClickedBtnModbus()
@@ -353,6 +353,8 @@ void CYUFADlg::OnBnClickedBtnModbus()
 	m_MachineTab.ShowWindow(SW_HIDE);
 	//change to select tab
 	m_Tab_Main.SetCurSel(2);
+
+	
 }
 
 
@@ -365,6 +367,13 @@ void CYUFADlg::OnBnClickedBtnMachine()
 	m_MachineTab.ShowWindow(SW_SHOW);
 	//change to select tab
 	m_Tab_Main.SetCurSel(3);
+
+	m_MachineTab.OpenModBus();
+
+	// OnTcnSelchangeTabMain
+	// 獲取 Tab Control 的指針
+	//CTabCtrl* pTabCtrl = (CTabCtrl*)GetDlgItem(IDC_TAB_MAIN);
+	
 
 }
 
@@ -399,10 +408,6 @@ void CYUFADlg::OnMouseMove(UINT nFlags, CPoint point)
 
 	CDialogEx::OnMouseMove(nFlags, point);
 }
-
-
-
-
 
 
 void CYUFADlg::OnNMRClickTabMain(NMHDR* pNMHDR, LRESULT* pResult)
@@ -456,9 +461,5 @@ void CYUFADlg::OnTcnSelchangeTabMain(NMHDR* pNMHDR, LRESULT* pResult)
 			break;
 		}
 	}
-
-
-
-
 	*pResult = 0;
 }
