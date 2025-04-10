@@ -619,3 +619,8 @@ int CloseDatabase(sqlite3* db)
 
 	return 0; // Return success
 }
+
+
+//Add a class with Pylon to get the camera information, Grab the image and save the image
+
+

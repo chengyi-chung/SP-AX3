@@ -9,6 +9,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "UAX", "UAX\UAX.vcxproj", "{
 EndProject
 Project("{54435603-DBB4-11D2-8724-00A0C9A8B90C}") = "YUFA Installer", "..\YUFA Installer\YUFA Installer.vdproj", "{3B007855-9D37-4BA9-B735-C77492C29489}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "UAXLib", "UAXLib\UAXLib.vcxproj", "{7885281E-5823-4DEE-9F6D-7D317A42FCDC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -37,6 +39,14 @@ Global
 		{3B007855-9D37-4BA9-B735-C77492C29489}.Debug|x86.ActiveCfg = Debug
 		{3B007855-9D37-4BA9-B735-C77492C29489}.Release|x64.ActiveCfg = Release
 		{3B007855-9D37-4BA9-B735-C77492C29489}.Release|x86.ActiveCfg = Release
+		{7885281E-5823-4DEE-9F6D-7D317A42FCDC}.Debug|x64.ActiveCfg = Debug|x64
+		{7885281E-5823-4DEE-9F6D-7D317A42FCDC}.Debug|x64.Build.0 = Debug|x64
+		{7885281E-5823-4DEE-9F6D-7D317A42FCDC}.Debug|x86.ActiveCfg = Debug|Win32
+		{7885281E-5823-4DEE-9F6D-7D317A42FCDC}.Debug|x86.Build.0 = Debug|Win32
+		{7885281E-5823-4DEE-9F6D-7D317A42FCDC}.Release|x64.ActiveCfg = Release|x64
+		{7885281E-5823-4DEE-9F6D-7D317A42FCDC}.Release|x64.Build.0 = Release|x64
+		{7885281E-5823-4DEE-9F6D-7D317A42FCDC}.Release|x86.ActiveCfg = Release|Win32
+		{7885281E-5823-4DEE-9F6D-7D317A42FCDC}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
