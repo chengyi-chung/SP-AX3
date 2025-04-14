@@ -41,6 +41,7 @@ BEGIN_MESSAGE_MAP(MachineTab, CDialog)
 	ON_BN_CLICKED(IDC_CHECK_RESET, &MachineTab::OnBnClickedCheckReset)
 	ON_BN_CLICKED(IDC_CHECK_AUTO_WORK_START, &MachineTab::OnBnClickedCheckAutoWorkStart)
 	ON_BN_CLICKED(IDC_CHECK_AUTO_WORK_STOP, &MachineTab::OnBnClickedCheckAutoWorkStop)
+	ON_BN_CLICKED(IDC_BTN_MACHINE_SAVE_MOTION, &MachineTab::OnBnClickedBtnMachineSaveMotion)
 END_MESSAGE_MAP()
 
 
@@ -359,6 +360,68 @@ void MachineTab::ClearDiscrete3000(int iStartAdress, int iEndAdress)
 	{
 		CString errorMessage;
 		errorMessage.Format(_T("Failed to write to Modbus register: %S"), modbus_strerror(errno));
+		AfxMessageBox(errorMessage);
+	}
+}
+void MachineTab::OnBnClickedBtnMachineSaveMotion()  
+{  
+// TODO: 在此加入控制項告知處理常式程式碼  
+//20014 : Jog Velocity  
+//20015 : Auto Velocity  
+//20016 : Axis Dec Acceleration  
+//20017 : Axis Inc Acceleration  
+
+uint16_t iValue[4] = { 0 }; // 修正：初始化陣列以避免 NULL 指標錯誤  
+iValue[0] = GetDlgItemInt(IDC_EDIT_JOG_VELOCITY);  
+iValue[1] = GetDlgItemInt(IDC_EDIT_AUTO_VELOCITY);  
+iValue[2] = GetDlgItemInt(IDC_EDIT_AXIS_ACC_DEC);  
+iValue[3] = GetDlgItemInt(IDC_EDIT_AXIS_ACC_INC);  
+
+SetHoldingRegister(20014, 20017, iValue, sizeof(iValue) / sizeof(iValue[0]));  
+}
+
+//Set Holding Register value
+//iStartAdress: Start Address
+//iEndAdress: End Address
+//int iValue[]: Value array to be set
+void MachineTab::SetHoldingRegister(int iStartAdress, int iEndAdress, uint16_t* iValue, int sizeOfArray)
+{
+	int rc = modbus_write_registers(m_ctx, iStartAdress, sizeOfArray, iValue);
+
+	if (rc == -1)
+	{
+		CString errorMessage;
+		errorMessage.Format(_T("Failed to write to Modbus register: %S"), modbus_strerror(errno));
+		AfxMessageBox(errorMessage);
+	}
+}
+//Get Holding Register value
+//iStartAdress: Start Address
+//iEndAdress: End Address
+//int iValue[]: Value array to be get
+void MachineTab::GetHoldingRegister(int iStartAdress, int iEndAdress, uint16_t* iValue)
+{
+	//get size of iValue
+	int sizeOfArray = sizeof(iValue) / sizeof(iValue[0]);
+	//Check if the size of iValue is less than 100
+	if (sizeOfArray > 100)
+	{
+		AfxMessageBox(_T("The size of iValue is too large."));
+		return;
+	}
+	//Check if the size of iValue is less than 0	
+	if (sizeOfArray < 0)
+	{
+		AfxMessageBox(_T("The size of iValue is too small."));
+		return;
+	}
+	//Get Holding Register value
+	int rc = modbus_read_registers(m_ctx, iStartAdress, sizeOfArray, (uint16_t*)iValue);
+	
+	if (rc == -1)
+	{
+		CString errorMessage;
+		errorMessage.Format(_T("Failed to read from Modbus register: %S"), modbus_strerror(errno));
 		AfxMessageBox(errorMessage);
 	}
 }

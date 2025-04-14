@@ -52,6 +52,17 @@ protected:
 	//nID: check or button Control ID
 	void Discrete3000Change(int intType, int BitAdress, int BitValue, int nID);
 
+	//Set Holding Register value
+	//iStartAdress: Start Address
+	//iEndAdress: End Address
+	//int iValue[]: Value array to be set
+	void SetHoldingRegister(int iStartAdress, int iEndAdress, uint16_t* iValue, int SizeOfArray);
+	//Get Holding Register value
+	//iStartAdress: Start Address
+	//iEndAdress: End Address
+	//int iValue[]: Value array to be get
+	void GetHoldingRegister(int iStartAdress, int iEndAdress, uint16_t*  iValue);
+
 	//Clear All Discrete3000
 	//int Start Adress: iStartAdress
 	//int End Adress: iEndAdress
@@ -76,4 +87,5 @@ public:
 	afx_msg void OnBnClickedCheckReset();
 	afx_msg void OnBnClickedCheckAutoWorkStart();
 	afx_msg void OnBnClickedCheckAutoWorkStop();
+	afx_msg void OnBnClickedBtnMachineSaveMotion();
 };
