@@ -591,7 +591,7 @@ int DeleteData(sqlite3* db, const char* db_name, const char* table_name, const c
 	{
 		//std::cerr << "Error: Can't open database: " << sqlite3_errmsg(db) << std::endl;
 		MessageBox(NULL, _T("Error: Can't open database"), _T("Error"), MB_OK);
-		return -1;
+		return -1;                                                             
 	}
 
 	// Delete data from the table
