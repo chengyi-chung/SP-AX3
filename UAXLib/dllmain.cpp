@@ -1,5 +1,6 @@
 ﻿// dllmain.cpp : 定義 DLL 應用程式的進入點。
 #include "pch.h"
+#include "UAXLib.h"
 
 BOOL APIENTRY DllMain( HMODULE hModule,
                        DWORD  ul_reason_for_call,
