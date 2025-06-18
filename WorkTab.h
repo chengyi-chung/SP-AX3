@@ -11,12 +11,6 @@
 // WorkTab 對話方塊
 using namespace Pylon;
 
-
-
-
-
-
-
 class WorkTab : public CDialogEx
 {
 	DECLARE_DYNAMIC(WorkTab)

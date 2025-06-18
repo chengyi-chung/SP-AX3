@@ -31,7 +31,7 @@ void MachineTab::DoDataExchange(CDataExchange* pDX)
 
 BEGIN_MESSAGE_MAP(MachineTab, CDialog)
 	ON_BN_CLICKED(IDC_BTN_JOG_X_PLUS, &MachineTab::OnBnClickedBtnJogXPlus)
-	ON_BN_CLICKED(IDC_BTN_JOG_X_MINUX, &MachineTab::OnBnClickedBtnJogXMinux)
+	ON_BN_CLICKED(IDC_BTN_JOG_X_MINUS, &MachineTab::OnBnClickedBtnJogXMinux)
 	ON_BN_CLICKED(IDC_BTN_JOG_Y_PLUS, &MachineTab::OnBnClickedBtnJogYPlus)
 	ON_BN_CLICKED(IDC_BTN_JOG_Y_MINUS, &MachineTab::OnBnClickedBtnJogYMinus)
 	ON_BN_CLICKED(IDC_BTN_JOG_Z_PLUS, &MachineTab::OnBnClickedBtnJogZPlus)
@@ -42,6 +42,11 @@ BEGIN_MESSAGE_MAP(MachineTab, CDialog)
 	ON_BN_CLICKED(IDC_CHECK_AUTO_WORK_START, &MachineTab::OnBnClickedCheckAutoWorkStart)
 	ON_BN_CLICKED(IDC_CHECK_AUTO_WORK_STOP, &MachineTab::OnBnClickedCheckAutoWorkStop)
 	ON_BN_CLICKED(IDC_BTN_MACHINE_SAVE_MOTION, &MachineTab::OnBnClickedBtnMachineSaveMotion)
+	//Add IDC_BTN_JOG_X_PLUS button control , button down and up event
+	ON_WM_LBUTTONUP()
+
+
+
 END_MESSAGE_MAP()
 
 
@@ -66,6 +71,10 @@ BOOL MachineTab::OnInitDialog()
 
 void MachineTab::OnBnClickedBtnJogXPlus()
 {
+	// X+ 按鈕按下 (Button Down)
+	m_bXPlusPressed = TRUE;
+	m_nActiveButton = IDC_BTN_JOG_X_PLUS;
+	SetCapture();  // 捕捉滑鼠事件
 	// TODO: 在此加入控制項告知處理常式程式碼
 	int bitAdress = 2;
 	int bitValue = 1;
@@ -79,7 +88,7 @@ void MachineTab::OnBnClickedBtnJogXMinux()
 	// TODO: 在此加入控制項告知處理常式程式碼
 	int bitAdress = 3;
 	int bitValue = 1;
-	int nID = IDC_BTN_JOG_X_MINUX;
+	int nID = IDC_BTN_JOG_X_MINUS;
 	ClearDiscrete3000(0, 7);
 	Discrete3000Change(1, bitAdress, bitValue, nID);
 
@@ -424,4 +433,63 @@ void MachineTab::GetHoldingRegister(int iStartAdress, int iEndAdress, uint16_t* 
 		errorMessage.Format(_T("Failed to read from Modbus register: %S"), modbus_strerror(errno));
 		AfxMessageBox(errorMessage);
 	}
+}
+
+void MachineTab::OnLButtonUp(UINT nFlags, CPoint point)  
+{  
+    if (GetCapture() == this)  
+    {  
+        // 判斷哪個按鈕被放開  
+        if (m_bXPlusPressed && m_nActiveButton == IDC_BTN_JOG_X_PLUS)  
+        {  
+            // X+ 按鈕放開 (Button Up)  
+            m_bXPlusPressed = FALSE;  
+            ReleaseCapture();  
+
+            // 檢查滑鼠是否在按鈕範圍內  
+            CWnd* pButton = GetDlgItem(IDC_BTN_JOG_X_PLUS);  
+            if (pButton && IsMouseInButton(pButton, point))  
+            {  
+                AfxMessageBox(_T("JOG X+ 按鈕放開 - 停止正向移動"));  
+
+                // 實際應用範例  
+                // StopMotor();  
+                // KillTimer(TIMER_JOG_X_PLUS);  
+            }  
+        }  
+        else if (m_bXMinusPressed && m_nActiveButton == IDC_BTN_JOG_X_MINUS)
+        {  
+            // X- 按鈕放開 (Button Up)  
+            m_bXMinusPressed = FALSE;  
+            ReleaseCapture();  
+
+            // 檢查滑鼠是否在按鈕範圍內  
+            CWnd* pButton = GetDlgItem(IDC_BTN_JOG_X_MINUS);
+            if (pButton && IsMouseInButton(pButton, point))  
+            {  
+                AfxMessageBox(_T("JOG X- 按鈕放開 - 停止反向移動"));  
+
+                // 實際應用範例  
+                // StopMotor();  
+                // KillTimer(TIMER_JOG_X_MINUS);  
+            }  
+        }  
+
+        // 重置狀態  
+        m_nActiveButton = 0;  
+    }  
+
+    // 修正：使用 CDialog::OnLButtonUp 而非 CDialogEx::OnLButtonUp  
+    CDialog::OnLButtonUp(nFlags, point);  
+}
+
+BOOL MachineTab::IsMouseInButton(CWnd* pButton, CPoint point)
+{
+	if (!pButton) return FALSE;
+
+	CRect rect;
+	pButton->GetWindowRect(&rect);
+	ScreenToClient(&rect);
+
+	return rect.PtInRect(point);
 }

@@ -74,7 +74,13 @@ protected:
 	//0: Manual 1: Auto
 	int m_iMachineMode = 0;
 
+	//
+	BOOL m_bXPlusPressed;   // X+ 按鈕狀態
+	BOOL m_bXMinusPressed;  // X- 按鈕狀態
+	UINT m_nActiveButton;   // 記錄目前按下的按鈕 ID
+
 	DECLARE_MESSAGE_MAP()
+
 public:
 	afx_msg void OnBnClickedBtnJogXPlus();
 	afx_msg void OnBnClickedBtnJogXMinux();
@@ -88,4 +94,9 @@ public:
 	afx_msg void OnBnClickedCheckAutoWorkStart();
 	afx_msg void OnBnClickedCheckAutoWorkStop();
 	afx_msg void OnBnClickedBtnMachineSaveMotion();
+	// 滑鼠放開事件 (Button Up)
+	afx_msg void OnLButtonUp(UINT nFlags, CPoint point);
+	// 輔助函式
+	BOOL IsMouseInButton(CWnd* pButton, CPoint point);
+	
 };

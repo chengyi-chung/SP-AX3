@@ -35,7 +35,7 @@
 #define IDC_IDC_WORK_TOOL_PATH          1019
 #define IDC_BTN_JOG_Y_MINUS             1019
 #define IDC_BTN_SEND_DATA               1019
-#define IDC_BTN_JOG_X_MINUX             1020
+#define IDC_BTN_JOG_X_MINUS             1020
 #define IDC_BTN_JOG_Z_PLUS              1021
 #define IDC_MODBUS_CHK_COIL             1022
 #define IDC_BTN_JOG_Z_MINUS             1022
@@ -65,6 +65,8 @@
 #define IDC_EDIT_AXIS_ACC_INC           1049
 #define IDC_BUTTON3                     1050
 #define IDC_BTN_MACHINE_SAVE_MOTION     1051
+#define IDC_EDIT2                       1052
+#define IDC_EDIT_PITCH                  1052
 #define ID_INDICATOR_TIME               59142
 #define ID_INDICATOR_FILE               59143
 
@@ -74,7 +76,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        138
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1052
+#define _APS_NEXT_CONTROL_VALUE         1053
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

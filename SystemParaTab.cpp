@@ -91,19 +91,22 @@ void SystemParaTab::OnEnChangeTabSysOffsetValue()
 	SetDlgItemText(IDD_TAB_SYS_X_OFFSET, str);
 	SetDlgItemText(IDD_TAB_SYS_Y_OFFSET, str);
 
-// Set iResult to m_SystemPara.OffsetX, m_SystemPara.OffsetY from class WorkTab
-// Get a pointer to the parent property sheet
-// 獲取父對話框
-    CYUFADlg* pParentWnd = (CYUFADlg*)GetParent();
-
-    pParentWnd->m_SystemPara.OffsetX = iResult;
-    pParentWnd->m_SystemPara.OffsetY = iResult;
-
-	//釋放 pParentWnd
-
+// // 檢查父視窗指標有效性
+	CWnd* pWnd = GetParent();
+	if (pWnd && ::IsWindow(pWnd->GetSafeHwnd()))
+	{
+		CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(pWnd);
+		if (pParentWnd)
+		{
+			pParentWnd->m_SystemPara.OffsetX = iResult;
+			pParentWnd->m_SystemPara.OffsetY = iResult;
+		}
+	}
+    
 	
 }
 
 void SystemParaTab::OnOK()
 {
 }
+
