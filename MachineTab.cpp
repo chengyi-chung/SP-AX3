@@ -30,12 +30,12 @@ void MachineTab::DoDataExchange(CDataExchange* pDX)
 
 
 BEGIN_MESSAGE_MAP(MachineTab, CDialog)
-	ON_BN_CLICKED(IDC_BTN_JOG_X_PLUS, &MachineTab::OnBnClickedBtnJogXPlus)
-	ON_BN_CLICKED(IDC_BTN_JOG_X_MINUS, &MachineTab::OnBnClickedBtnJogXMinux)
-	ON_BN_CLICKED(IDC_BTN_JOG_Y_PLUS, &MachineTab::OnBnClickedBtnJogYPlus)
-	ON_BN_CLICKED(IDC_BTN_JOG_Y_MINUS, &MachineTab::OnBnClickedBtnJogYMinus)
-	ON_BN_CLICKED(IDC_BTN_JOG_Z_PLUS, &MachineTab::OnBnClickedBtnJogZPlus)
-	ON_BN_CLICKED(IDC_BTN_JOG_Z_MINUS, &MachineTab::OnBnClickedBtnJogZMinus)
+	//ON_BN_CLICKED(IDC_BTN_JOG_X_PLUS, &MachineTab::OnBnClickedBtnJogXPlus)
+	//ON_BN_CLICKED(IDC_BTN_JOG_X_MINUS, &MachineTab::OnBnClickedBtnJogXMinux)
+	//ON_BN_CLICKED(IDC_BTN_JOG_Y_PLUS, &MachineTab::OnBnClickedBtnJogYPlus)
+	//ON_BN_CLICKED(IDC_BTN_JOG_Y_MINUS, &MachineTab::OnBnClickedBtnJogYMinus)
+	//ON_BN_CLICKED(IDC_BTN_JOG_Z_PLUS, &MachineTab::OnBnClickedBtnJogZPlus)
+	//ON_BN_CLICKED(IDC_BTN_JOG_Z_MINUS, &MachineTab::OnBnClickedBtnJogZMinus)
 	ON_BN_CLICKED(IDC_RADIO_AUTO, &MachineTab::OnBnClickedRadioAuto)
 	ON_BN_CLICKED(IDC_CHECK_HOME, &MachineTab::OnBnClickedCheckHome)
 	ON_BN_CLICKED(IDC_CHECK_RESET, &MachineTab::OnBnClickedCheckReset)
@@ -43,7 +43,7 @@ BEGIN_MESSAGE_MAP(MachineTab, CDialog)
 	ON_BN_CLICKED(IDC_CHECK_AUTO_WORK_STOP, &MachineTab::OnBnClickedCheckAutoWorkStop)
 	ON_BN_CLICKED(IDC_BTN_MACHINE_SAVE_MOTION, &MachineTab::OnBnClickedBtnMachineSaveMotion)
 	//Add IDC_BTN_JOG_X_PLUS button control , button down and up event
-	ON_WM_LBUTTONUP()
+	
 
 
 
@@ -69,6 +69,7 @@ BOOL MachineTab::OnInitDialog()
 	// EXCEPTION: OCX Property Pages should return FALSE
 }
 
+/*
 void MachineTab::OnBnClickedBtnJogXPlus()
 {
 	// X+ 按鈕按下 (Button Down)
@@ -82,6 +83,9 @@ void MachineTab::OnBnClickedBtnJogXPlus()
 	ClearDiscrete3000(0, 7);
 	Discrete3000Change(1,bitAdress, bitValue, nID);
 }
+*/
+
+/*
 
 void MachineTab::OnBnClickedBtnJogXMinux()
 {
@@ -133,6 +137,11 @@ void MachineTab::OnBnClickedBtnJogZMinus()
 	ClearDiscrete3000(0, 7);
 	Discrete3000Change(1, bitAdress, bitValue, nID);
 }
+
+*/
+
+
+
 
 void MachineTab::OnBnClickedRadioAuto()
 {
@@ -435,53 +444,7 @@ void MachineTab::GetHoldingRegister(int iStartAdress, int iEndAdress, uint16_t* 
 	}
 }
 
-void MachineTab::OnLButtonUp(UINT nFlags, CPoint point)  
-{  
-    if (GetCapture() == this)  
-    {  
-        // 判斷哪個按鈕被放開  
-        if (m_bXPlusPressed && m_nActiveButton == IDC_BTN_JOG_X_PLUS)  
-        {  
-            // X+ 按鈕放開 (Button Up)  
-            m_bXPlusPressed = FALSE;  
-            ReleaseCapture();  
 
-            // 檢查滑鼠是否在按鈕範圍內  
-            CWnd* pButton = GetDlgItem(IDC_BTN_JOG_X_PLUS);  
-            if (pButton && IsMouseInButton(pButton, point))  
-            {  
-                AfxMessageBox(_T("JOG X+ 按鈕放開 - 停止正向移動"));  
-
-                // 實際應用範例  
-                // StopMotor();  
-                // KillTimer(TIMER_JOG_X_PLUS);  
-            }  
-        }  
-        else if (m_bXMinusPressed && m_nActiveButton == IDC_BTN_JOG_X_MINUS)
-        {  
-            // X- 按鈕放開 (Button Up)  
-            m_bXMinusPressed = FALSE;  
-            ReleaseCapture();  
-
-            // 檢查滑鼠是否在按鈕範圍內  
-            CWnd* pButton = GetDlgItem(IDC_BTN_JOG_X_MINUS);
-            if (pButton && IsMouseInButton(pButton, point))  
-            {  
-                AfxMessageBox(_T("JOG X- 按鈕放開 - 停止反向移動"));  
-
-                // 實際應用範例  
-                // StopMotor();  
-                // KillTimer(TIMER_JOG_X_MINUS);  
-            }  
-        }  
-
-        // 重置狀態  
-        m_nActiveButton = 0;  
-    }  
-
-    // 修正：使用 CDialog::OnLButtonUp 而非 CDialogEx::OnLButtonUp  
-    CDialog::OnLButtonUp(nFlags, point);  
-}
 
 BOOL MachineTab::IsMouseInButton(CWnd* pButton, CPoint point)
 {
@@ -492,4 +455,86 @@ BOOL MachineTab::IsMouseInButton(CWnd* pButton, CPoint point)
 	ScreenToClient(&rect);
 
 	return rect.PtInRect(point);
+}
+
+BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
+{
+	// 攔截滑鼠左鍵按下或釋放的消息
+	if (pMsg->message == WM_LBUTTONDOWN || pMsg->message == WM_LBUTTONUP)
+	{
+		// 處理 X+ 按鈕
+		CWnd* pBtnXPlus = GetDlgItem(IDC_BTN_JOG_X_PLUS);
+		if (pBtnXPlus && pBtnXPlus->m_hWnd == pMsg->hwnd)
+		{
+			int bitAddress = 2; // X+ 按鈕對應的位址
+			int bitValue = (pMsg->message == WM_LBUTTONDOWN) ? 1 : 0; // 按下設為1，釋放設為0
+			int nID = IDC_BTN_JOG_X_PLUS;
+			ClearDiscrete3000(0, 7);
+			Discrete3000Change(1, bitAddress, bitValue, nID);
+			return CDialog::PreTranslateMessage(pMsg);
+		}
+
+		// 處理 X- 按鈕
+		CWnd* pBtnXMinus = GetDlgItem(IDC_BTN_JOG_X_MINUS);
+		if (pBtnXMinus && pBtnXMinus->m_hWnd == pMsg->hwnd)
+		{
+			int bitAddress = 3; // X- 按鈕對應的位址
+			int bitValue = (pMsg->message == WM_LBUTTONDOWN) ? 1 : 0;
+			int nID = IDC_BTN_JOG_X_MINUS;
+			ClearDiscrete3000(0, 7);
+			Discrete3000Change(1, bitAddress, bitValue, nID);
+			return CDialog::PreTranslateMessage(pMsg);
+		}
+
+		// 處理 Y+ 按鈕
+		CWnd* pBtnYPlus = GetDlgItem(IDC_BTN_JOG_Y_PLUS);
+		if (pBtnYPlus && pBtnYPlus->m_hWnd == pMsg->hwnd)
+		{
+			int bitAddress = 4; // Y+ 按鈕對應的位址
+			int bitValue = (pMsg->message == WM_LBUTTONDOWN) ? 1 : 0;
+			int nID = IDC_BTN_JOG_Y_PLUS;
+			ClearDiscrete3000(0, 7);
+			Discrete3000Change(1, bitAddress, bitValue, nID);
+			return CDialog::PreTranslateMessage(pMsg);
+		}
+
+		// 處理 Y- 按鈕
+		CWnd* pBtnYMinus = GetDlgItem(IDC_BTN_JOG_Y_MINUS);
+		if (pBtnYMinus && pBtnYMinus->m_hWnd == pMsg->hwnd)
+		{
+			int bitAddress = 5; // Y- 按鈕對應的位址
+			int bitValue = (pMsg->message == WM_LBUTTONDOWN) ? 1 : 0;
+			int nID = IDC_BTN_JOG_Y_MINUS;
+			ClearDiscrete3000(0, 7);
+			Discrete3000Change(1, bitAddress, bitValue, nID);
+			return CDialog::PreTranslateMessage(pMsg);
+		}
+
+		// 處理 Z+ 按鈕
+		CWnd* pBtnZPlus = GetDlgItem(IDC_BTN_JOG_Z_PLUS);
+		if (pBtnZPlus && pBtnZPlus->m_hWnd == pMsg->hwnd)
+		{
+			int bitAddress = 6; // Z+ 按鈕對應的位址
+			int bitValue = (pMsg->message == WM_LBUTTONDOWN) ? 1 : 0;
+			int nID = IDC_BTN_JOG_Z_PLUS;
+			ClearDiscrete3000(0, 7);
+			Discrete3000Change(1, bitAddress, bitValue, nID);
+			return CDialog::PreTranslateMessage(pMsg);
+		}
+
+		// 處理 Z- 按鈕
+		CWnd* pBtnZMinus = GetDlgItem(IDC_BTN_JOG_Z_MINUS);
+		if (pBtnZMinus && pBtnZMinus->m_hWnd == pMsg->hwnd)
+		{
+			int bitAddress = 7; // Z- 按鈕對應的位址
+			int bitValue = (pMsg->message == WM_LBUTTONDOWN) ? 1 : 0;
+			int nID = IDC_BTN_JOG_Z_MINUS;
+			ClearDiscrete3000(0, 7);
+			Discrete3000Change(1, bitAddress, bitValue, nID);
+			return CDialog::PreTranslateMessage(pMsg);
+		}
+	}
+
+	// 如果沒有處理任何按鈕事件，則呼叫基類的處理函數
+	return CDialog::PreTranslateMessage(pMsg);
 }

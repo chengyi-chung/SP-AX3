@@ -75,19 +75,19 @@ protected:
 	int m_iMachineMode = 0;
 
 	//
-	BOOL m_bXPlusPressed;   // X+ 按鈕狀態
-	BOOL m_bXMinusPressed;  // X- 按鈕狀態
-	UINT m_nActiveButton;   // 記錄目前按下的按鈕 ID
+	//BOOL m_bXPlusPressed;   // X+ 按鈕狀態
+	//BOOL m_bXMinusPressed;  // X- 按鈕狀態
+	//UINT m_nActiveButton;   // 記錄目前按下的按鈕 ID
 
 	DECLARE_MESSAGE_MAP()
 
 public:
-	afx_msg void OnBnClickedBtnJogXPlus();
-	afx_msg void OnBnClickedBtnJogXMinux();
-	afx_msg void OnBnClickedBtnJogYPlus();
-	afx_msg void OnBnClickedBtnJogYMinus();
-	afx_msg void OnBnClickedBtnJogZPlus();
-	afx_msg void OnBnClickedBtnJogZMinus();
+	//afx_msg void OnBnClickedBtnJogXPlus();
+	//afx_msg void OnBnClickedBtnJogXMinux();
+	//afx_msg void OnBnClickedBtnJogYPlus();
+	//afx_msg void OnBnClickedBtnJogYMinus();
+	//afx_msg void OnBnClickedBtnJogZPlus();
+	//afx_msg void OnBnClickedBtnJogZMinus();
 	afx_msg void OnBnClickedRadioAuto();
 	afx_msg void OnBnClickedCheckHome();
 	afx_msg void OnBnClickedCheckReset();
@@ -95,8 +95,8 @@ public:
 	afx_msg void OnBnClickedCheckAutoWorkStop();
 	afx_msg void OnBnClickedBtnMachineSaveMotion();
 	// 滑鼠放開事件 (Button Up)
-	afx_msg void OnLButtonUp(UINT nFlags, CPoint point);
+	//afx_msg void OnLButtonUp(UINT nFlags, CPoint point);
 	// 輔助函式
 	BOOL IsMouseInButton(CWnd* pButton, CPoint point);
-	
+	virtual BOOL PreTranslateMessage(MSG* pMsg) override;
 };
