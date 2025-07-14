@@ -347,6 +347,25 @@ void MachineTab::Discrete3000Change(int intType, int BitAdress, int BitValue, in
 	m_strReportData = m_strReportData + "\r\n" + "Reg[30000]." + std::to_string(BitAdress) + "  = " + std::to_string(Discrete3000Word) + " " + Discrete3000.to_string();
 	SetDlgItemText(IDC_EDIT_REPORT, CString(m_strReportData.c_str()));
 
+	CEdit* pEdit = (CEdit*)GetDlgItem(IDC_EDIT_REPORT); // 替換為您的編輯控制項 ID
+	if (pEdit)
+	{
+		// 獲取總行數
+		int nLineCount = pEdit->GetLineCount();
+		if (nLineCount > 0)
+		{
+			// 滾動到最後一行
+			pEdit->LineScroll(nLineCount - 1, 0);
+
+			// 可選：將光標設置到文本末尾（如果需要）
+			int nTextLength = pEdit->GetWindowTextLength();
+			pEdit->SetSel(nTextLength, nTextLength);
+		}
+	}
+
+
+
+
 	if (rc == -1)
 	{
 		CString errorMessage;
@@ -396,6 +415,8 @@ iValue[2] = GetDlgItemInt(IDC_EDIT_AXIS_ACC_DEC);
 iValue[3] = GetDlgItemInt(IDC_EDIT_AXIS_ACC_INC);  
 
 SetHoldingRegister(20014, 20017, iValue, sizeof(iValue) / sizeof(iValue[0]));  
+
+
 }
 
 //Set Holding Register value
@@ -445,96 +466,172 @@ void MachineTab::GetHoldingRegister(int iStartAdress, int iEndAdress, uint16_t* 
 }
 
 
-
-BOOL MachineTab::IsMouseInButton(CWnd* pButton, CPoint point)
-{
-	if (!pButton) return FALSE;
-
-	CRect rect;
-	pButton->GetWindowRect(&rect);
-	ScreenToClient(&rect);
-
-	return rect.PtInRect(point);
-}
-
 BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 {
-	// 攔截滑鼠左鍵按下或釋放的消息
+	// 範例：攔截 X+ 按鈕的 Mouse Down/Up
 	if (pMsg->message == WM_LBUTTONDOWN || pMsg->message == WM_LBUTTONUP)
 	{
-		// 處理 X+ 按鈕
 		CWnd* pBtnXPlus = GetDlgItem(IDC_BTN_JOG_X_PLUS);
 		if (pBtnXPlus && pBtnXPlus->m_hWnd == pMsg->hwnd)
 		{
-			int bitAddress = 2; // X+ 按鈕對應的位址
-			int bitValue = (pMsg->message == WM_LBUTTONDOWN) ? 1 : 0; // 按下設為1，釋放設為0
-			int nID = IDC_BTN_JOG_X_PLUS;
-			ClearDiscrete3000(0, 7);
-			Discrete3000Change(1, bitAddress, bitValue, nID);
-			return CDialog::PreTranslateMessage(pMsg);
-		}
+			if (pMsg->message == WM_LBUTTONDOWN)
+			{
+				// 處理 Button Down
+				//AfxMessageBox(_T("X+ Down"));
 
-		// 處理 X- 按鈕
+				// X+ 按鈕按下 (Button Down)
+				//m_bXPlusPressed = TRUE;
+				//m_nActiveButton = IDC_BTN_JOG_X_PLUS;
+				//SetCapture();  // 捕捉滑鼠事件
+				// TODO: 在此加入控制項告知處理常式程式碼
+				int bitAdress = 3;  // Bit address for X+ button
+				int bitValue = 1;    // Bit value for X+ button pressed
+				int nID = IDC_BTN_JOG_X_PLUS;
+				ClearDiscrete3000(0, 8);
+				Discrete3000Change(1, bitAdress, bitValue, nID);
+				
+			}
+			else if (pMsg->message == WM_LBUTTONUP)
+			{
+				// 處理 Button Up
+			   // AfxMessageBox(_T("X+ Up"));
+				int bitAdress = 3;  // Bit address for X+ button
+				int bitValue = 0;    // Bit value for X+ button pressed
+				int nID = IDC_BTN_JOG_X_PLUS;
+				ClearDiscrete3000(0, 8);
+				//Discrete3000Change(1, bitAdress, bitValue, nID);
+				
+			}
+		}
+		//Add similar checks for IDC_BTN_JOG_X_PLUS
 		CWnd* pBtnXMinus = GetDlgItem(IDC_BTN_JOG_X_MINUS);
 		if (pBtnXMinus && pBtnXMinus->m_hWnd == pMsg->hwnd)
 		{
-			int bitAddress = 3; // X- 按鈕對應的位址
-			int bitValue = (pMsg->message == WM_LBUTTONDOWN) ? 1 : 0;
-			int nID = IDC_BTN_JOG_X_MINUS;
-			ClearDiscrete3000(0, 7);
-			Discrete3000Change(1, bitAddress, bitValue, nID);
-			return CDialog::PreTranslateMessage(pMsg);
+			if (pMsg->message == WM_LBUTTONDOWN)
+			{
+				// 處理 Button Down
+				//AfxMessageBox(_T("X- Down"));
+				int bitAdress = 4;
+				int bitValue = 1;
+				int nID = IDC_BTN_JOG_X_MINUS;
+				ClearDiscrete3000(0, 8);
+				Discrete3000Change(1, bitAdress, bitValue, nID);
+			}
+			else if (pMsg->message == WM_LBUTTONUP)
+			{
+				// 處理 Button Up
+				//AfxMessageBox(_T("X- Up"));
+				int bitAdress = 4;
+				int bitValue = 0;
+				int nID = IDC_BTN_JOG_X_MINUS;
+				ClearDiscrete3000(0, 8);
+				//Discrete3000Change(1, bitAdress, bitValue, nID);
+			}
 		}
-
-		// 處理 Y+ 按鈕
+		//攔截 Y + 按鈕的 Mouse Down / Up
 		CWnd* pBtnYPlus = GetDlgItem(IDC_BTN_JOG_Y_PLUS);
 		if (pBtnYPlus && pBtnYPlus->m_hWnd == pMsg->hwnd)
 		{
-			int bitAddress = 4; // Y+ 按鈕對應的位址
-			int bitValue = (pMsg->message == WM_LBUTTONDOWN) ? 1 : 0;
-			int nID = IDC_BTN_JOG_Y_PLUS;
-			ClearDiscrete3000(0, 7);
-			Discrete3000Change(1, bitAddress, bitValue, nID);
-			return CDialog::PreTranslateMessage(pMsg);
+			if (pMsg->message == WM_LBUTTONDOWN)
+			{
+				// 處理 Button Down
+				//AfxMessageBox(_T("Y+ Down"));
+				int bitAdress = 5;
+				int bitValue = 1;
+				int nID = IDC_BTN_JOG_Y_PLUS;
+				ClearDiscrete3000(0, 8);
+				Discrete3000Change(1, bitAdress, bitValue, nID);
+			}
+			else if (pMsg->message == WM_LBUTTONUP)
+			{
+				// 處理 Button Up
+				//AfxMessageBox(_T("Y+ Up"));
+				int bitAdress = 5;
+				int bitValue = 0;
+				int nID = IDC_BTN_JOG_Y_PLUS;
+				ClearDiscrete3000(0, 8);
+				//Discrete3000Change(1, bitAdress, bitValue, nID);
+			}
 		}
 
-		// 處理 Y- 按鈕
+		//攔截 Y - 按鈕的 Mouse Down / Up
 		CWnd* pBtnYMinus = GetDlgItem(IDC_BTN_JOG_Y_MINUS);
 		if (pBtnYMinus && pBtnYMinus->m_hWnd == pMsg->hwnd)
 		{
-			int bitAddress = 5; // Y- 按鈕對應的位址
-			int bitValue = (pMsg->message == WM_LBUTTONDOWN) ? 1 : 0;
-			int nID = IDC_BTN_JOG_Y_MINUS;
-			ClearDiscrete3000(0, 7);
-			Discrete3000Change(1, bitAddress, bitValue, nID);
-			return CDialog::PreTranslateMessage(pMsg);
+			if (pMsg->message == WM_LBUTTONDOWN)
+			{
+				// 處理 Button Down
+				//AfxMessageBox(_T("Y- Down"));
+				int bitAdress = 6;
+				int bitValue = 1;
+				int nID = IDC_BTN_JOG_Y_MINUS;
+				ClearDiscrete3000(0, 8);
+				Discrete3000Change(1, bitAdress, bitValue, nID);
+			}
+			else if (pMsg->message == WM_LBUTTONUP)
+			{
+				// 處理 Button Up
+				//AfxMessageBox(_T("Y- Up"));
+				int bitAdress = 6;
+				int bitValue = 0;
+				int nID = IDC_BTN_JOG_Y_MINUS;
+				ClearDiscrete3000(0, 8);
+				//Discrete3000Change(1, bitAdress, bitValue, nID);
+
+			}
 		}
 
-		// 處理 Z+ 按鈕
+		//攔截 Z + 按鈕的 Mouse Down / Up
 		CWnd* pBtnZPlus = GetDlgItem(IDC_BTN_JOG_Z_PLUS);
 		if (pBtnZPlus && pBtnZPlus->m_hWnd == pMsg->hwnd)
 		{
-			int bitAddress = 6; // Z+ 按鈕對應的位址
-			int bitValue = (pMsg->message == WM_LBUTTONDOWN) ? 1 : 0;
-			int nID = IDC_BTN_JOG_Z_PLUS;
-			ClearDiscrete3000(0, 7);
-			Discrete3000Change(1, bitAddress, bitValue, nID);
-			return CDialog::PreTranslateMessage(pMsg);
+			if (pMsg->message == WM_LBUTTONDOWN)
+			{
+				// 處理 Button Down
+				//AfxMessageBox(_T("Z- Down"));
+				int bitAdress = 7;
+				int bitValue = 1;
+				int nID = IDC_BTN_JOG_Z_PLUS;
+				ClearDiscrete3000(0, 8);
+				Discrete3000Change(1, bitAdress, bitValue, nID);
+			}
+			else if (pMsg->message == WM_LBUTTONUP)
+			{
+				// 處理 Button Up
+				//AfxMessageBox(_T("Z- Up"));
+				int bitAdress = 7;
+				int bitValue = 0;
+				int nID = IDC_BTN_JOG_Z_PLUS;
+				ClearDiscrete3000(0, 8);
+				//Discrete3000Change(1, bitAdress, bitValue, nID);
+			}
 		}
 
-		// 處理 Z- 按鈕
+		//攔截 Z - 按鈕的 Mouse Down / Up
 		CWnd* pBtnZMinus = GetDlgItem(IDC_BTN_JOG_Z_MINUS);
 		if (pBtnZMinus && pBtnZMinus->m_hWnd == pMsg->hwnd)
 		{
-			int bitAddress = 7; // Z- 按鈕對應的位址
-			int bitValue = (pMsg->message == WM_LBUTTONDOWN) ? 1 : 0;
-			int nID = IDC_BTN_JOG_Z_MINUS;
-			ClearDiscrete3000(0, 7);
-			Discrete3000Change(1, bitAddress, bitValue, nID);
-			return CDialog::PreTranslateMessage(pMsg);
+			if (pMsg->message == WM_LBUTTONDOWN)
+			{
+				// 處理 Button Down
+				//AfxMessageBox(_T("Z- Down"));
+				int bitAdress = 8;
+				int bitValue = 1;
+				int nID = IDC_BTN_JOG_Z_MINUS;
+				ClearDiscrete3000(0, 8);
+				Discrete3000Change(1, bitAdress, bitValue, nID);
+			}
+			else if (pMsg->message == WM_LBUTTONUP)
+			{
+				// 處理 Button Up
+				//AfxMessageBox(_T("Z- Up"));
+				int bitAdress = 8;
+				int bitValue = 0;
+				int nID = IDC_BTN_JOG_Z_MINUS;
+				ClearDiscrete3000(0, 8);
+				//Discrete3000Change(1, bitAdress, bitValue, nID);
+			}
 		}
 	}
-
-	// 如果沒有處理任何按鈕事件，則呼叫基類的處理函數
 	return CDialog::PreTranslateMessage(pMsg);
 }

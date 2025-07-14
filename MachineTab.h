@@ -97,6 +97,6 @@ public:
 	// 滑鼠放開事件 (Button Up)
 	//afx_msg void OnLButtonUp(UINT nFlags, CPoint point);
 	// 輔助函式
-	BOOL IsMouseInButton(CWnd* pButton, CPoint point);
+	//BOOL IsMouseInButton(CWnd* pButton, CPoint point);
 	virtual BOOL PreTranslateMessage(MSG* pMsg) override;
 };
