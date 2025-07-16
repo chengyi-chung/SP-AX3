@@ -25,8 +25,6 @@ SystemParaTab::~SystemParaTab()
 	
 }
 
-
-
 void SystemParaTab::DoDataExchange(CDataExchange* pDX)
 {
 	CDialog::DoDataExchange(pDX);

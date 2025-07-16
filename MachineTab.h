@@ -99,4 +99,5 @@ public:
 	// 輔助函式
 	//BOOL IsMouseInButton(CWnd* pButton, CPoint point);
 	virtual BOOL PreTranslateMessage(MSG* pMsg) override;
+	afx_msg void OnBnClickedMfcbtnMachineHome();
 };

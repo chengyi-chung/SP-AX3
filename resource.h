@@ -67,6 +67,12 @@
 #define IDC_BTN_MACHINE_SAVE_MOTION     1051
 #define IDC_EDIT2                       1052
 #define IDC_EDIT_PITCH                  1052
+#define IDC_MFCBTN_MACHINE_HOME         1053
+#define IDC_EDIT3                       1054
+#define IDC_MFCBTN_MACHINE_RESET_SW     1055
+#define IDC_MFCBTN_MACHINE_AUTO_WORK_ST 1056
+#define IDC_MFCBTN_MACHINE_AUTO_WORK_SART 1056
+#define IDC_MFCBTN_MACHINE_AUTO_WORK_STOP 1057
 #define ID_INDICATOR_TIME               59142
 #define ID_INDICATOR_FILE               59143
 
@@ -74,9 +80,9 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        138
+#define _APS_NEXT_RESOURCE_VALUE        139
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1053
+#define _APS_NEXT_CONTROL_VALUE         1056
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

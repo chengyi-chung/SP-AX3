@@ -47,6 +47,7 @@ BEGIN_MESSAGE_MAP(MachineTab, CDialog)
 
 
 
+	ON_BN_CLICKED(IDC_MFCBTN_MACHINE_HOME, &MachineTab::OnBnClickedMfcbtnMachineHome)
 END_MESSAGE_MAP()
 
 
@@ -634,4 +635,8 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 		}
 	}
 	return CDialog::PreTranslateMessage(pMsg);
+}
+void MachineTab::OnBnClickedMfcbtnMachineHome()
+{
+	// TODO: 在此加入控制項告知處理常式程式碼
 }
