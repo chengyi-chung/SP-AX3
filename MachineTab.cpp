@@ -37,17 +37,17 @@ BEGIN_MESSAGE_MAP(MachineTab, CDialog)
 	//ON_BN_CLICKED(IDC_BTN_JOG_Z_PLUS, &MachineTab::OnBnClickedBtnJogZPlus)
 	//ON_BN_CLICKED(IDC_BTN_JOG_Z_MINUS, &MachineTab::OnBnClickedBtnJogZMinus)
 	ON_BN_CLICKED(IDC_RADIO_AUTO, &MachineTab::OnBnClickedRadioAuto)
-	ON_BN_CLICKED(IDC_CHECK_HOME, &MachineTab::OnBnClickedCheckHome)
-	ON_BN_CLICKED(IDC_CHECK_RESET, &MachineTab::OnBnClickedCheckReset)
-	ON_BN_CLICKED(IDC_CHECK_AUTO_WORK_START, &MachineTab::OnBnClickedCheckAutoWorkStart)
-	ON_BN_CLICKED(IDC_CHECK_AUTO_WORK_STOP, &MachineTab::OnBnClickedCheckAutoWorkStop)
+	ON_BN_CLICKED(IDC_RADIO_MANUAL, &MachineTab::OnBnClickedRadioManual)
+	//ON_BN_CLICKED(IDC_CHECK_HOME, &MachineTab::OnBnClickedCheckHome)
+	//ON_BN_CLICKED(IDC_CHECK_RESET, &MachineTab::OnBnClickedCheckReset)
+	//ON_BN_CLICKED(IDC_CHECK_AUTO_WORK_START, &MachineTab::OnBnClickedCheckAutoWorkStart)
+	//ON_BN_CLICKED(IDC_CHECK_AUTO_WORK_STOP, &MachineTab::OnBnClickedCheckAutoWorkStop)
 	ON_BN_CLICKED(IDC_BTN_MACHINE_SAVE_MOTION, &MachineTab::OnBnClickedBtnMachineSaveMotion)
 	//Add IDC_BTN_JOG_X_PLUS button control , button down and up event
-	
-
-
-
 	ON_BN_CLICKED(IDC_MFCBTN_MACHINE_HOME, &MachineTab::OnBnClickedMfcbtnMachineHome)
+	ON_BN_CLICKED(IDC_MFCBTN_MACHINE_AUTO_WORK_SART, &MachineTab::OnBnClickedMfcbtnMachineAutoWorkSart)
+	ON_BN_CLICKED(IDC_MFCBTN_MACHINE_AUTO_WORK_STOP, &MachineTab::OnBnClickedMfcbtnMachineAutoWorkStop)
+	ON_BN_CLICKED(IDC_MFCBTN_MACHINE_RESET_SW, &MachineTab::OnBnClickedMfcbtnMachineResetSw)
 END_MESSAGE_MAP()
 
 
@@ -57,7 +57,7 @@ BOOL MachineTab::OnInitDialog()
 {
 	CDialog::OnInitDialog();
 	//set IDC_RADIO_AUTO check
-	((CButton*)GetDlgItem(IDC_RADIO_AUTO))->SetCheck(1);
+	//((CButton*)GetDlgItem(IDC_RADIO_AUTO))->SetCheck(1);
 	m_iMachineMode = 1;
 
 	//Initial Discrete3000
@@ -142,17 +142,7 @@ void MachineTab::OnBnClickedBtnJogZMinus()
 */
 
 
-
-
-void MachineTab::OnBnClickedRadioAuto()
-{
-	// TODO: 在此加入控制項告知處理常式程式碼
-	int bitAdress = 0;
-	int bitValue = 1;
-	int nID = IDC_RADIO_AUTO;
-	//ClearDiscrete3000(0, 7);
-	Discrete3000Change(0, bitAdress, bitValue, nID);
-}
+/*
 
 void MachineTab::OnBnClickedCheckHome()
 {
@@ -205,8 +195,8 @@ void MachineTab::OnBnClickedCheckAutoWorkStart()
 	Discrete3000Word = Discrete3000.to_ulong();
 	rc = modbus_write_register(m_ctx, 30000, Discrete3000Word);
 
-    //append Discrete3000Word value to IDC_EDIT_REPORT with m_strReportData
-    m_strReportData = m_strReportData + "\r\n" +"Reg[30000]" + " " + " = " + std::to_string(Discrete3000Word) + " " + Discrete3000.to_string();
+	//append Discrete3000Word value to IDC_EDIT_REPORT with m_strReportData
+	m_strReportData = m_strReportData + "\r\n" +"Reg[30000]" + " " + " = " + std::to_string(Discrete3000Word) + " " + Discrete3000.to_string();
 	SetDlgItemText(IDC_EDIT_REPORT, CString(m_strReportData.c_str()));
 
 	if (rc == -1)
@@ -215,13 +205,10 @@ void MachineTab::OnBnClickedCheckAutoWorkStart()
 		errorMessage.Format(_T("Failed to write to Modbus register: %S"), modbus_strerror(errno));
 		AfxMessageBox(errorMessage);
 	}
-	*/
-	
 
+	}
 
-}
-
-void MachineTab::OnBnClickedCheckAutoWorkStop()
+	void MachineTab::OnBnClickedCheckAutoWorkStop()
 {
 	// TODO: 在此加入控制項告知處理常式程式碼
 	int bitAdress = 13;
@@ -231,6 +218,17 @@ void MachineTab::OnBnClickedCheckAutoWorkStop()
 	Discrete3000Change(0, bitAdress, bitValue, nID);
 
 }
+	*/
+
+
+
+//}
+
+
+
+
+
+
 
 //Open Modbus TCP/IP server 
 void MachineTab::OpenModBus()
@@ -262,6 +260,7 @@ void MachineTab::OpenModBus()
 
 	//prinrt the ip address and port on m_strReportData
 	m_strReportData = "IP Address: " + string(ip) + " Port: " + to_string(port) + "\r\n";
+
     SetDlgItemText(IDC_EDIT_REPORT, CString(m_strReportData.c_str()));
 	
 	int ServerId = 1; // pParentWnd->m_SystemPara.StationID;
@@ -319,15 +318,17 @@ void MachineTab::Discrete3000Change(int intType, int BitAdress, int BitValue, in
 		return;
 	}
 	
+	Discrete3000.reset();  // Reset the Discrete3000 bitset
+
 	if (intType == 0)  //Check or Radio Control
 	{
 		if (((CButton*)GetDlgItem(nID))->GetCheck() == 1)
 		{
-			Discrete3000.set(BitAdress, BitValue);
+			Discrete3000.set(BitAdress, BitValue);  // Set the bit to 1 if checked
 		}
 		else
 		{
-			Discrete3000.set(BitAdress, 0);
+			Discrete3000.set(BitAdress, 0);  // Set the bit to 0 if unchecked
 		}
 	}
 	else if (intType == 1) //Button Control
@@ -348,7 +349,8 @@ void MachineTab::Discrete3000Change(int intType, int BitAdress, int BitValue, in
 	m_strReportData = m_strReportData + "\r\n" + "Reg[30000]." + std::to_string(BitAdress) + "  = " + std::to_string(Discrete3000Word) + " " + Discrete3000.to_string();
 	SetDlgItemText(IDC_EDIT_REPORT, CString(m_strReportData.c_str()));
 
-	CEdit* pEdit = (CEdit*)GetDlgItem(IDC_EDIT_REPORT); // 替換為您的編輯控制項 ID
+	/*
+		CEdit* pEdit = (CEdit*)GetDlgItem(IDC_EDIT_REPORT); // 替換為您的編輯控制項 ID
 	if (pEdit)
 	{
 		// 獲取總行數
@@ -363,8 +365,7 @@ void MachineTab::Discrete3000Change(int intType, int BitAdress, int BitValue, in
 			pEdit->SetSel(nTextLength, nTextLength);
 		}
 	}
-
-
+	*/
 
 
 	if (rc == -1)
@@ -636,7 +637,91 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 	}
 	return CDialog::PreTranslateMessage(pMsg);
 }
+
+
+
+void MachineTab::OnBnClickedRadioAuto()
+{
+	// TODO: 在此加入控制項告知處理常式程式碼
+	int bitAdress = 0;
+	int bitValue = 1;
+	int nID = IDC_RADIO_AUTO;
+	//ClearDiscrete3000(0, 7);
+	Discrete3000Change(0, bitAdress, bitValue, nID);
+
+	//Set DlgItemID : IDC_MFCBTN_MACHINE_AUTO_WORK_SART、IDC_MFCBTN_MACHINE_AUTO_WORK_STOP to enable
+	((CButton*)GetDlgItem(IDC_MFCBTN_MACHINE_AUTO_WORK_SART))->EnableWindow(TRUE);
+	((CButton*)GetDlgItem(IDC_MFCBTN_MACHINE_AUTO_WORK_STOP))->EnableWindow(TRUE);
+
+	//Set DlgItemID : IDC_CHECK_HOME、IDC_CHECK_RESET to disable
+	((CButton*)GetDlgItem(IDC_MFCBTN_MACHINE_HOME))->EnableWindow(FALSE);
+	((CButton*)GetDlgItem(IDC_MFCBTN_MACHINE_RESET_SW))->EnableWindow(FALSE);
+}
+
+void MachineTab::OnBnClickedRadioManual()
+{
+	// TODO: 在此加入控制項告知處理常式程式碼
+	//Enable Manual Mode: IDC_MFCBTN_MACHINE_HOME、IDC_MFCBTN_MACHINE_RESET_SW
+	//Disable Auto Mode: IDC_CHECK_AUTO_WORK_START、IDC_CHECK_AUTO_WORK_STOP
+	 
+	//Set DlgItemID : IDC_MFCBTN_MACHINE_HOME、IDC_MFCBTN_MACHINE_RESET_SW to enable
+	((CButton*)GetDlgItem(IDC_MFCBTN_MACHINE_HOME))->EnableWindow(TRUE);
+	((CButton*)GetDlgItem(IDC_MFCBTN_MACHINE_RESET_SW))->EnableWindow(TRUE);
+
+	//Set DlgItemID : IDC_MFCBTN_MACHINE_AUTO_WORK_SART、IDC_MFCBTN_MACHINE_AUTO_WORK_STOP to disable
+	((CButton*)GetDlgItem(IDC_MFCBTN_MACHINE_AUTO_WORK_SART))->EnableWindow(FALSE);
+	((CButton*)GetDlgItem(IDC_MFCBTN_MACHINE_AUTO_WORK_STOP))->EnableWindow(FALSE);
+
+
+	int bitAdress = 0;
+	int bitValue = 2;
+	int nID = IDC_RADIO_AUTO;
+	//ClearDiscrete3000(0, 7);
+	Discrete3000Change(0, bitAdress, bitValue, nID);
+
+
+}
+
+void MachineTab::OnBnClickedMfcbtnMachineAutoWorkSart()
+{
+	// TODO: 在此加入控制項告知處理常式程式碼
+	int bitAdress = 12;
+	int bitValue = 1;
+	int nID = 0;  // IDC_CHECK_AUTO_WORK_START;
+	//ClearDiscrete3000(0, 7);
+	Discrete3000Change(1, bitAdress, bitValue, nID);
+}
+
+void MachineTab::OnBnClickedMfcbtnMachineAutoWorkStop()
+{
+	// TODO: 在此加入控制項告知處理常式程式碼
+
+
+	int bitAdress = 13;
+	int bitValue = 1;
+	int nID = 0;  // IDC_CHECK_AUTO_WORK_STOP;
+	//ClearDiscrete3000(0, 7);
+	Discrete3000Change(1, bitAdress, bitValue, nID);
+
+
+}
+
 void MachineTab::OnBnClickedMfcbtnMachineHome()
 {
 	// TODO: 在此加入控制項告知處理常式程式碼
+	int bitAdress = 10;
+	int bitValue = 1;
+	int nID = 0; // IDC_CHECK_HOME;
+	//ClearDiscrete3000(0, 7);
+	Discrete3000Change(1, bitAdress, bitValue, nID);
+}
+
+void MachineTab::OnBnClickedMfcbtnMachineResetSw()
+{
+	// TODO: 在此加入控制項告知處理常式程式碼
+	int bitAdress = 11;
+	int bitValue = 1;
+	int nID = 0; // IDC_CHECK_RESET;
+	//ClearDiscrete3000(0, 7);
+	Discrete3000Change(1, bitAdress, bitValue, nID);
 }

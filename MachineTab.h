@@ -89,10 +89,11 @@ public:
 	//afx_msg void OnBnClickedBtnJogZPlus();
 	//afx_msg void OnBnClickedBtnJogZMinus();
 	afx_msg void OnBnClickedRadioAuto();
-	afx_msg void OnBnClickedCheckHome();
-	afx_msg void OnBnClickedCheckReset();
-	afx_msg void OnBnClickedCheckAutoWorkStart();
-	afx_msg void OnBnClickedCheckAutoWorkStop();
+	afx_msg void OnBnClickedRadioManual();
+	//afx_msg void OnBnClickedCheckHome();
+	//afx_msg void OnBnClickedCheckReset();
+	//afx_msg void OnBnClickedCheckAutoWorkStart();
+	//afx_msg void OnBnClickedCheckAutoWorkStop();
 	afx_msg void OnBnClickedBtnMachineSaveMotion();
 	// 滑鼠放開事件 (Button Up)
 	//afx_msg void OnLButtonUp(UINT nFlags, CPoint point);
@@ -100,4 +101,8 @@ public:
 	//BOOL IsMouseInButton(CWnd* pButton, CPoint point);
 	virtual BOOL PreTranslateMessage(MSG* pMsg) override;
 	afx_msg void OnBnClickedMfcbtnMachineHome();
+	
+	afx_msg void OnBnClickedMfcbtnMachineAutoWorkSart();
+	afx_msg void OnBnClickedMfcbtnMachineAutoWorkStop();
+	afx_msg void OnBnClickedMfcbtnMachineResetSw();
 };
