@@ -58,12 +58,19 @@ BOOL MachineTab::OnInitDialog()
 	CDialog::OnInitDialog();
 	//set IDC_RADIO_AUTO check
 	//((CButton*)GetDlgItem(IDC_RADIO_AUTO))->SetCheck(1);
+
+	// Set Click Auto Radio Button and launch Radio Button click event
+	((CButton*)GetDlgItem(IDC_RADIO_AUTO))->SetCheck(TRUE);
+	((CButton*)GetDlgItem(IDC_RADIO_MANUAL))->SetCheck(FALSE);
+
+	// Laucvh OnBnClickedRadioAuto
+	OnBnClickedRadioAuto();
+	
 	m_iMachineMode = 1;
 
 	//Initial Discrete3000
 	Discrete3000.reset();
 	//Discrete3000.set(0, 1);
-
 
 
 	return TRUE;  // return TRUE unless you set the focus to a control
