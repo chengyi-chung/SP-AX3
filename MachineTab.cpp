@@ -48,6 +48,8 @@ BEGIN_MESSAGE_MAP(MachineTab, CDialog)
 	ON_BN_CLICKED(IDC_MFCBTN_MACHINE_AUTO_WORK_SART, &MachineTab::OnBnClickedMfcbtnMachineAutoWorkSart)
 	ON_BN_CLICKED(IDC_MFCBTN_MACHINE_AUTO_WORK_STOP, &MachineTab::OnBnClickedMfcbtnMachineAutoWorkStop)
 	ON_BN_CLICKED(IDC_MFCBTN_MACHINE_RESET_SW, &MachineTab::OnBnClickedMfcbtnMachineResetSw)
+	ON_BN_CLICKED(IDC_MFCBTN_MACHINE_GO, &MachineTab::OnBnClickedMfcbtnMachineGo)
+	ON_EN_CHANGE(IDC_EDIT_MANUAL_X, &MachineTab::OnEnChangeEditManualX)
 END_MESSAGE_MAP()
 
 
@@ -642,6 +644,14 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 			}
 		}
 	}
+
+	if (pMsg->message == WM_KEYDOWN && pMsg->wParam == VK_RETURN)
+	{
+		// 攔截 Enter 鍵，不做任何事
+		return TRUE;
+	}
+
+
 	return CDialog::PreTranslateMessage(pMsg);
 }
 
@@ -663,6 +673,14 @@ void MachineTab::OnBnClickedRadioAuto()
 	//Set DlgItemID : IDC_CHECK_HOME、IDC_CHECK_RESET to disable
 	((CButton*)GetDlgItem(IDC_MFCBTN_MACHINE_HOME))->EnableWindow(FALSE);
 	((CButton*)GetDlgItem(IDC_MFCBTN_MACHINE_RESET_SW))->EnableWindow(FALSE);
+	//加上所有 Jog 按鈕的disableWindow
+	((CButton*)GetDlgItem(IDC_BTN_JOG_X_PLUS))->EnableWindow(FALSE);
+	((CButton*)GetDlgItem(IDC_BTN_JOG_X_MINUS))->EnableWindow(FALSE);
+	((CButton*)GetDlgItem(IDC_BTN_JOG_Y_PLUS))->EnableWindow(FALSE);
+	((CButton*)GetDlgItem(IDC_BTN_JOG_Y_MINUS))->EnableWindow(FALSE);
+	((CButton*)GetDlgItem(IDC_BTN_JOG_Z_PLUS))->EnableWindow(FALSE);
+	((CButton*)GetDlgItem(IDC_BTN_JOG_Z_MINUS))->EnableWindow(FALSE);
+	
 }
 
 void MachineTab::OnBnClickedRadioManual()
@@ -674,6 +692,13 @@ void MachineTab::OnBnClickedRadioManual()
 	//Set DlgItemID : IDC_MFCBTN_MACHINE_HOME、IDC_MFCBTN_MACHINE_RESET_SW to enable
 	((CButton*)GetDlgItem(IDC_MFCBTN_MACHINE_HOME))->EnableWindow(TRUE);
 	((CButton*)GetDlgItem(IDC_MFCBTN_MACHINE_RESET_SW))->EnableWindow(TRUE);
+	//Enable all Jog buttons
+	((CButton*)GetDlgItem(IDC_BTN_JOG_X_PLUS))->EnableWindow(TRUE);
+	((CButton*)GetDlgItem(IDC_BTN_JOG_X_MINUS))->EnableWindow(TRUE);
+	((CButton*)GetDlgItem(IDC_BTN_JOG_Y_PLUS))->EnableWindow(TRUE);
+	((CButton*)GetDlgItem(IDC_BTN_JOG_Y_MINUS))->EnableWindow(TRUE);
+	((CButton*)GetDlgItem(IDC_BTN_JOG_Z_PLUS))->EnableWindow(TRUE);
+	((CButton*)GetDlgItem(IDC_BTN_JOG_Z_MINUS))->EnableWindow(TRUE);
 
 	//Set DlgItemID : IDC_MFCBTN_MACHINE_AUTO_WORK_SART、IDC_MFCBTN_MACHINE_AUTO_WORK_STOP to disable
 	((CButton*)GetDlgItem(IDC_MFCBTN_MACHINE_AUTO_WORK_SART))->EnableWindow(FALSE);
@@ -732,3 +757,55 @@ void MachineTab::OnBnClickedMfcbtnMachineResetSw()
 	//ClearDiscrete3000(0, 7);
 	Discrete3000Change(1, bitAdress, bitValue, nID);
 }
+
+void MachineTab::OnBnClickedMfcbtnMachineGo()
+{
+	// TODO: 在此加入控制項告知處理常式程式碼
+	//檢查 // IDC_EDIT_MANUAL_X, IDC_EDIT_MANUAL_Y 的值為float若不是 GO disabled
+	
+
+	// IDC_EDIT_MANUAL_X, IDC_EDIT_MANUAL_Y 的值轉換為float, float fX, fY;
+	float fX = GetDlgItemInt(IDC_EDIT_MANUAL_X);
+	float fY = GetDlgItemInt(IDC_EDIT_MANUAL_Y);
+
+	
+}
+
+//isValidFloat
+bool MachineTab::isValidFloat(const std::string& str, float& outValue)
+{
+	try 
+	{
+		outValue = std::stof(str); // 嘗試轉換為 float
+		return true;
+	}
+	catch (const std::invalid_argument&)
+	{
+		return false; // 非數字格式
+	}
+	catch (const std::out_of_range&) {
+		return false; // 超出 float 範圍
+	}
+
+}
+
+void MachineTab::OnEnChangeEditManualX()
+{
+	// TODO:  如果這是 RICHEDIT 控制項，控制項將不會
+	// 傳送此告知，除非您覆寫 CDialog::OnInitDialog()
+	// 函式和呼叫 CRichEditCtrl().SetEventMask()
+	// 讓具有 ENM_CHANGE 旗標 ORed 加入遮罩。
+
+	
+	// TODO:  在此加入控制項告知處理常式程式碼
+}
+
+void MachineTab::OnOK()
+{
+    // 可在此加入資料驗證、保存等邏輯
+    // 例如：UpdateData(TRUE); // 將 UI 資料同步到變數
+
+    // 若需要呼叫父類別的 OnOK，可加上：
+    CDialog::OnOK();
+}
+

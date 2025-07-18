@@ -68,12 +68,13 @@
 #define IDC_EDIT2                       1052
 #define IDC_EDIT_PITCH                  1052
 #define IDC_MFCBTN_MACHINE_HOME         1053
+#define IDC_EDIT_PITCH2                 1054
+#define IDC_EDIT_TRANSFER_FACTOR        1054
 #define IDC_MFCBTN_MACHINE_RESET_SW     1055
 #define IDC_MFCBTN_MACHINE_AUTO_WORK_SART 1056
 #define IDC_MFCBTN_MACHINE_AUTO_WORK_STOP 1057
 #define IDC_EDIT_MANUAL_X               1058
 #define IDC_EDIT_MANUAL_Y               1059
-#define IDC_MFCBUTTON1                  1060
 #define IDC_MFCBTN_MACHINE_GO           1060
 #define ID_INDICATOR_TIME               59142
 #define ID_INDICATOR_FILE               59143

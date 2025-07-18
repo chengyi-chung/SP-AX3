@@ -81,6 +81,8 @@ protected:
 
 	DECLARE_MESSAGE_MAP()
 
+	bool isValidFloat(const std::string& str, float& outValue);
+
 public:
 	//afx_msg void OnBnClickedBtnJogXPlus();
 	//afx_msg void OnBnClickedBtnJogXMinux();
@@ -105,4 +107,7 @@ public:
 	afx_msg void OnBnClickedMfcbtnMachineAutoWorkSart();
 	afx_msg void OnBnClickedMfcbtnMachineAutoWorkStop();
 	afx_msg void OnBnClickedMfcbtnMachineResetSw();
+	afx_msg void OnBnClickedMfcbtnMachineGo();
+	afx_msg void OnEnChangeEditManualX();
+	virtual void OnOK(); // 新增 OnOK 方法
 };
