@@ -8,7 +8,7 @@
 #include "afxdialogex.h"
 #include "SystemParaTab.h"
 #include "Resource.h"
-
+#include "UAX.h"
 
 // SystemParaTab 對話方塊
 
@@ -68,6 +68,13 @@ BOOL SystemParaTab::OnInitDialog()
 void SystemParaTab::OnBnClickedSystemCreateData()
 {
 	// TODO: 在此加入控制項告知處理常式程式碼
+	//Create a database with sqlite3, Use UAX.dll function to create database
+	sqlite3* db = nullptr;
+	const char* db_name = "SystemConfig.db";
+	
+	int ret = CreateDatabase(db, db_name);
+	
+	
 
 }
 

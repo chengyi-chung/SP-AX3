@@ -447,7 +447,7 @@ int CreateDatabase(sqlite3* db, const char* db_name)
 	}
 
 	// Insert data into the table
-	sql = "INSERT INTO TestTable (ID, Name) VALUES (1, 'Test');";
+	sql = "INSERT INTO MachineTable (ID, Name) VALUES (1, 'Test');";
 	rc = sqlite3_exec(db, sql, NULL, 0, NULL);
 	if (rc != SQLITE_OK)
 	{
@@ -621,6 +621,120 @@ int CloseDatabase(sqlite3* db)
 }
 
 
-//Add a class with Pylon to get the camera information, Grab the image and save the image
+//System Configuration ini
+//Create a new system configuration ini file
+// Write system configuration to ini file
+// Read System Configuration from ini file
+//Update system configuration value from ini file
 
 
+
+// 輔助函數：將配置寫入檔案，減少程式碼重複
+void WriteConfigToFile(const std::string& filename, const SystemConfig& SysConfig)
+{
+	std::ofstream file(filename);
+	if (!file.is_open())
+	{
+		std::cerr << "錯誤：無法開啟檔案 " << filename << " 進行寫入！" << std::endl;
+		throw std::runtime_error("無法開啟配置文件進行寫入");
+	}
+
+	// 寫入系統配置數據到檔案
+	file << "[ModbusTCP]\n";
+	file << "IpAddress=" << SysConfig.IpAddress << "\n";
+	file << "Port=" << SysConfig.Port << "\n";
+	file << "StationID=" << SysConfig.StationID << "\n";
+	file << "[ToolPath]\n";
+	file << "OffsetX=" << SysConfig.OffsetX << "\n";
+	file << "OffsetY=" << SysConfig.OffsetY << "\n";
+	file << "[Camera]\n";
+	file << "CameraID=" << SysConfig.CameraID << "\n";
+	file << "CameraWidth=" << SysConfig.CameraWidth << "\n";
+	file << "CameraHeight=" << SysConfig.CameraHeight << "\n";
+	file << "TransferFactor=" << SysConfig.TransferFactor << "\n";
+	file << "[Machine]\n";
+	file << "MachineType=" << SysConfig.MachineType << "\n";
+	file << "JogVelocity=" << SysConfig.JogVelocity << "\n";
+	file << "AutoVelocity=" << SysConfig.AutoVelocity << "\n";
+	file << "DecAcceleration=" << SysConfig.DecAcceleration << "\n";
+	file << "IncAcceleration=" << SysConfig.IncAcceleration << "\n";
+	file << "Pitch=" << SysConfig.Pitch << "\n";
+
+	file.close(); // 關閉檔案
+}
+
+// 初始化系統配置檔案
+void InitialConfig(const std::string& filename, SystemConfig SysConfig)
+{
+	WriteConfigToFile(filename, SysConfig);
+}
+
+// 從 INI 檔案讀取系統配置，如果檔案不存在則執行初始化
+SystemConfig ReadSystemConfig(const std::string& filename)
+{
+	SystemConfig SysConfig;
+	std::ifstream file(filename);
+	if (!file.is_open())
+	{
+		// 如果檔案不存在，初始化配置
+		InitialConfig(filename, SysConfig);
+		return SysConfig; // 返回默認配置
+	}
+
+	// 讀取系統配置數據
+	std::string line;
+	while (std::getline(file, line))
+	{
+		// 忽略空行或不包含 '=' 的行
+		if (line.empty() || line.find('=') == std::string::npos)
+			continue;
+
+		try
+		{
+			if (line.find("IpAddress=") == 0)
+				SysConfig.IpAddress = line.substr(10);
+			else if (line.find("Port=") == 0)
+				SysConfig.Port = std::stoi(line.substr(5));
+			else if (line.find("StationID=") == 0)
+				SysConfig.StationID = std::stoi(line.substr(10));
+			else if (line.find("OffsetX=") == 0)
+				SysConfig.OffsetX = std::stof(line.substr(8));
+			else if (line.find("OffsetY=") == 0)
+				SysConfig.OffsetY = std::stof(line.substr(8));
+			else if (line.find("CameraID=") == 0)
+				SysConfig.CameraID = std::stoi(line.substr(9));
+			else if (line.find("CameraWidth=") == 0)
+				SysConfig.CameraWidth = std::stoi(line.substr(12));
+			else if (line.find("CameraHeight=") == 0)
+				SysConfig.CameraHeight = std::stoi(line.substr(13));
+			else if (line.find("TransferFactor=") == 0)
+				SysConfig.TransferFactor = std::stof(line.substr(15));
+			else if (line.find("MachineType=") == 0)
+				SysConfig.MachineType = line.substr(12);
+			else if (line.find("JogVelocity=") == 0)
+				SysConfig.JogVelocity = std::stoi(line.substr(12));
+			else if (line.find("AutoVelocity=") == 0)
+				SysConfig.AutoVelocity = std::stoi(line.substr(14));
+			else if (line.find("DecAcceleration=") == 0)
+				SysConfig.DecAcceleration = std::stoi(line.substr(16));
+			else if (line.find("IncAcceleration=") == 0)
+				SysConfig.IncAcceleration = std::stoi(line.substr(16));
+			else if (line.find("Pitch=") == 0)
+				SysConfig.Pitch = std::stof(line.substr(6));
+		}
+		catch (const std::exception& e)
+		{
+			std::cerr << "解析配置項錯誤: " << line << ", 錯誤訊息: " << e.what() << std::endl;
+			// 繼續處理其他配置項，不中斷程序
+		}
+	}
+
+	file.close(); // 關閉檔案
+	return SysConfig; // 返回系統配置
+}
+
+// 更新系統配置到 INI 檔案
+void UpdateSystemConfig(const std::string& filename, const SystemConfig& SysConfig)
+{
+	WriteConfigToFile(filename, SysConfig);
+}

@@ -21,8 +21,21 @@
 #include "opencv2/features2d.hpp"
 //#include "opencv2/xfeatures2d.hpp"
 
-
+//SQLite3
 #include <sqlite3.h>
+
+
+//#include <boost/property_tree/ptree.hpp>
+//#include <boost/property_tree/ini_parser.hpp>
+
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <stdexcept>
+
+
+
+
 
 using namespace cv;
 using namespace std;
@@ -154,4 +167,58 @@ extern "C" UAX_API int DeleteData(sqlite3* db, const char* db_name, const char* 
 
 //Close the database
 extern "C" UAX_API int CloseDatabase(sqlite3* db);
+
+
+//System Configuration ini
+//Create a new system configuration ini file
+// Write system configuration to ini file
+// Read System Configuration from ini file
+//Update system configuration value from ini file
+// Initialize the system configuration ini file
+// <Modbus TCP >
+// IP Address
+// Port Number
+// Station ID
+// <Tool Path>
+// Tool Path Offset X
+// Tool Path Offset Y
+//<Camera>
+// Camera ID
+// Camera Resolution Width
+// Camera Resolution Height
+// Transfer Factor
+// <Machine>
+// Machine Type
+//Jog Velocity
+//Auto Velocity
+//Axis ACC Decress
+//Axis ACC Incress
+//Pitch
+
+struct SystemConfig
+{
+    std::string IpAddress;
+    int Port;
+    int StationID;
+    float OffsetX;
+    float OffsetY;
+    int CameraID;
+    int CameraWidth;
+    int CameraHeight;
+    float TransferFactor;
+    std::string MachineType;
+    int JogVelocity;
+    int AutoVelocity;
+    int DecAcceleration;
+    int IncAcceleration;
+    float Pitch;
+};
+
+// Write system configuration to ini file
+extern "C" UAX_API void WriteConfigToFile(const std::string& filename, const SystemConfig& SysConfig);
+// Read System Configuration from ini file
+extern "C" UAX_API SystemConfig ReadSystemConfig(const std::string& filename);
+// Initialize the system configuration ini file
+//extern "C" UAX_API void InitialConfig(const std::string& filename, const SystemConfig& SysConfig);
+
 
