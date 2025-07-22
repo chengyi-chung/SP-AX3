@@ -4,6 +4,7 @@
 //
 
 #pragma once
+#include "UAX.h"
 #include "afxwin.h"
 #include "afxcmn.h"
 #include "SystemParaTab.h"
@@ -20,7 +21,8 @@ class CYUFADlg : public CDialogEx
 public:
 	CYUFADlg(CWnd* pParent = nullptr);	// 標準建構函式
 
-    struct SystemPara
+	/*
+	 struct SystemPara
     {
         int iStart; //Coil Start flag : 0:stop 1:start 
         float OffsetX;  //Tool Path Offset X
@@ -39,8 +41,11 @@ public:
 		int IncAcceleration; //Axis Inc Acceleration
 	
     };
+	*/
+	
 
-	SystemPara m_SystemPara;
+	//SystemPara m_SystemPara;
+	SystemConfig m_SystemPara; // System Configuration
 	
 // 對話方塊資料
 #ifdef AFX_DESIGN_TIME

@@ -3,6 +3,7 @@
 
 #include "pch.h"
 #include "framework.h"
+#include "UAX.h"
 #include "YUFA.h"
 #include "YUFADlg.h"
 #include "afxdialogex.h"
@@ -185,7 +186,7 @@ BOOL CYUFADlg::OnInitDialog()
 
 
 	//Initial m_SystemPara
-	m_SystemPara.iStart = 0;
+	//m_SystemPara.iStart = 0;
 	m_SystemPara.OffsetX = 0.0;
 	m_SystemPara.OffsetY = 0.0;
 	//Assign 192.168.0.11 to m_SystemPara.IpAddress

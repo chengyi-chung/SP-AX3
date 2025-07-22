@@ -47,6 +47,7 @@
 #define IDC_EDIT1                       1029
 #define IDC_EDIT_SERVER_ID              1029
 #define IDC_EDIT_REPORT                 1029
+#define IDC_EDIT_SYSTEM_DATA            1029
 #define IDC_IDC_WORK_LOAD_IMG           1033
 #define IDC_IDC_WORK_GO                 1035
 #define IDD_TAB_SYS_OFFSET_VALUE        1036
@@ -68,7 +69,6 @@
 #define IDC_EDIT2                       1052
 #define IDC_EDIT_PITCH                  1052
 #define IDC_MFCBTN_MACHINE_HOME         1053
-#define IDC_EDIT_PITCH2                 1054
 #define IDC_EDIT_TRANSFER_FACTOR        1054
 #define IDC_MFCBTN_MACHINE_RESET_SW     1055
 #define IDC_MFCBTN_MACHINE_AUTO_WORK_SART 1056
@@ -76,6 +76,8 @@
 #define IDC_EDIT_MANUAL_X               1058
 #define IDC_EDIT_MANUAL_Y               1059
 #define IDC_MFCBTN_MACHINE_GO           1060
+#define IDC_MFCBUTTON1                  1061
+#define IDC_MFCBTN_SAVE_SYSTEM          1061
 #define ID_INDICATOR_TIME               59142
 #define ID_INDICATOR_FILE               59143
 
@@ -83,9 +85,9 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        139
+#define _APS_NEXT_RESOURCE_VALUE        140
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1061
+#define _APS_NEXT_CONTROL_VALUE         1062
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

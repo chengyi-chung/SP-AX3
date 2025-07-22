@@ -404,14 +404,12 @@ void UModBus::OnEnKillfocusEditIpAddress()
 		GetDlgItemText(IDC_EDIT_IP_ADDRESS, str);
 		// 將 CString 轉換為 char 陣列並賦值給 pParentWnd->m_SystemPara.IpAddress 
 
-		strncpy_s(pParentWnd->m_SystemPara.IpAddress, CT2A(str), sizeof(pParentWnd->m_SystemPara.IpAddress) - 1); 
-		pParentWnd->m_SystemPara.IpAddress[sizeof(pParentWnd->m_SystemPara.IpAddress) - 1] = '\0'; // 確保字串以 null 結尾
+		//strncpy_s(pParentWnd->m_SystemPara.IpAddress, CT2A(str), sizeof(pParentWnd->m_SystemPara.IpAddress) - 1); 
+		
+		//pParentWnd->m_SystemPara.IpAddress[sizeof(pParentWnd->m_SystemPara.IpAddress) - 1] = '\0'; // 確保字串以 null 結尾
 
 		// 釋放 CString 的緩衝區
 		str.ReleaseBuffer();
-
-
-
 	}
 	else
 	{

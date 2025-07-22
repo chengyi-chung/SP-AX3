@@ -34,6 +34,7 @@ void SystemParaTab::DoDataExchange(CDataExchange* pDX)
 BEGIN_MESSAGE_MAP(SystemParaTab, CDialog)
 	ON_BN_CLICKED(IDC_SYSTEM_CREATE_DATA, &SystemParaTab::OnBnClickedSystemCreateData)
 	ON_EN_CHANGE(IDD_TAB_SYS_OFFSET_VALUE, &SystemParaTab::OnEnChangeTabSysOffsetValue)
+	ON_BN_CLICKED(IDC_MFCBTN_SAVE_SYSTEM, &SystemParaTab::OnBnClickedMfcbtnSaveSystem)
 END_MESSAGE_MAP()
 
 
@@ -115,3 +116,28 @@ void SystemParaTab::OnOK()
 {
 }
 
+
+void SystemParaTab::OnBnClickedMfcbtnSaveSystem()
+{
+	// TODO: 在此加入控制項告知處理常式程式碼
+
+	//YUFADlg 的 m_SystemPara 資料成員寫入到系統配置檔案
+
+
+	CYUFADlg* pParentWnd = (CYUFADlg*)GetParent();
+	if (pParentWnd != nullptr)
+	{
+		// 將 m_SystemPara 的值寫入到系統配置檔案
+		WriteConfigToFile("SystemConfig.ini", pParentWnd->m_SystemPara);
+		AfxMessageBox(_T("System configuration saved successfully!"));
+	}
+	else
+	{
+		AfxMessageBox(_T("Failed to get parent window."));
+	}
+	
+
+
+
+
+}

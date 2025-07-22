@@ -244,13 +244,29 @@ void MachineTab::OpenModBus()
 {
 	//Initial Modbus TCP/IP
 	//get ip address from m_SystemPara of parrent dialog
+	std::string ip;
 
 	CYUFADlg* pParentWnd = (CYUFADlg*)GetParent();
-	char* ip = pParentWnd->m_SystemPara.IpAddress;
+	// Check m_SystemPara.IpAddress is not null or empty
+	if (pParentWnd == NULL || pParentWnd->m_SystemPara.IpAddress.empty())
+	{
+		AfxMessageBox(_T("IP Address is not set in System Parameters."));
+		// You can also set a default IP address here if needed
+		ip = "192.168.0.11";
+	}
+	else
+	{
+		// Check if the IP address is valid
+	     ip = pParentWnd->m_SystemPara.IpAddress;
+	}
+	
+
 	int rc;
-    
+
+	// convert string ip to const char*
+	const char* ip_cstr = ip.c_str();
 	int port = 502;
-	m_ctx = modbus_new_tcp(ip, port);
+	m_ctx = modbus_new_tcp(ip_cstr, port);
 
 	//check if the context is created
 	if (m_ctx == NULL)
@@ -426,7 +442,14 @@ iValue[2] = GetDlgItemInt(IDC_EDIT_AXIS_ACC_DEC);
 iValue[3] = GetDlgItemInt(IDC_EDIT_AXIS_ACC_INC);  
 
 SetHoldingRegister(20014, 20017, iValue, sizeof(iValue) / sizeof(iValue[0]));  
-
+//將iValue陣列的值寫入 YUDADlg 的 m_SystemPara
+	CYUFADlg* pParentWnd = (CYUFADlg*)GetParent();
+	pParentWnd->m_SystemPara.JogVelocity = iValue[0];
+	pParentWnd->m_SystemPara.AutoVelocity = iValue[1];
+	pParentWnd->m_SystemPara.DecAcceleration = iValue[2];
+	pParentWnd->m_SystemPara.IncAcceleration = iValue[3];
+	//顯示成功訊息
+	//AfxMessageBox(_T("Motion parameters saved successfully."));
 
 }
 
