@@ -14,7 +14,7 @@ public:
 
 	virtual void OnOK();
 
-	//CYUFADlg *pParentWnd = (CYUFADlg*)GetParent();
+	void UpdateControl();
 
 // 對話方塊資料
 #ifdef AFX_DESIGN_TIME

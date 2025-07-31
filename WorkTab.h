@@ -6,6 +6,7 @@
 
 //add UAX.h
 #include "UAX.h"
+#include "Calibration.h"
 
 
 // WorkTab 對話方塊
@@ -181,4 +182,7 @@ public:
 	afx_msg void OnBnClickedIdcWorkLoadImg();
 	afx_msg void OnBnClickedIdcWorkSaveImg();
 	afx_msg void OnBnClickedIdcWorkGo();
+
+	//Add Calibration Dialog
+	afx_msg void OnBnClickedIdcWorkCalibration();
 };

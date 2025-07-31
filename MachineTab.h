@@ -31,6 +31,11 @@ public:
 	//define Report Data on  IDC_EDIT_REPORT
 	string m_strReportData;
 
+	//Update data in Edit control with SystemConfig m_SystemPara
+	void UpdateControl();
+
+	
+
 protected:
 	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV 支援
 

@@ -360,67 +360,27 @@ int MatchTemplate(cv::Mat& ImageSrc, cv::Mat& ImageTemp, cv::Mat& ImageDst, int 
 	return 0; // Return success
 }
 
-/*
-//feature match template with FLANN
-// cv::Mat& ImageSrc: Source image
-// cv::Mat& ImageTemp: template image
-// cv::Mat& ImageDst: output image
-// match_method: method to match the template
-// Location: output location of the template in the image
-// Offset: output offset of the template in the image
-int MatchTemplateFLANN(cv::Mat& ImageSrc, cv::Mat& ImageTemp, cv::Mat& ImageDst, int match_method, ImageLocation& Location, cv::Point2d Offset)
+std::string GetAppPath()
 {
-	//-- Step 1: Detect the keypoints using SURF Detector, compute the descriptors
-	int minHessian = 400;
-	// Detect ORB keypoints and descriptors in both images
-	Ptr<SURF> detector = cv::SURF::create();
-	std::vector<cv::KeyPoint> keypointsSrc, keypointsTemp;
-	cv::Mat descriptorsSrc, descriptorsTemp;
+	wchar_t path[MAX_PATH];
+	GetModuleFileNameW(NULL, path, MAX_PATH);
 
-	orb->detectAndCompute(ImageSrc, cv::noArray(), keypointsSrc, descriptorsSrc);
-	orb->detectAndCompute(ImageTemp, cv::noArray(), keypointsTemp, descriptorsTemp);
+	// Convert wchar_t array to std::wstring, then to std::string (UTF-8 encoding)
+	std::wstring wfullPath = path;
+	int size_needed = WideCharToMultiByte(CP_UTF8, 0, wfullPath.c_str(), (int)wfullPath.size(), NULL, 0, NULL, NULL);
+	std::string fullPath(size_needed, 0);
+	WideCharToMultiByte(CP_UTF8, 0, wfullPath.c_str(), (int)wfullPath.size(), &fullPath[0], size_needed, NULL, NULL);
 
-	// Match descriptors using FLANN
-	cv::FlannBasedMatcher matcher;
-	std::vector<cv::DMatch> matches;
-	matcher.match(descriptorsTemp, descriptorsSrc, matches);
+	// Find the last backslash to remove the filename, keeping only the directory path
+	size_t lastSlash = fullPath.find_last_of("\\");
 
-	if (matches.empty())
+	if (lastSlash != std::string::npos)
 	{
-		std::cerr << "No matches found!" << std::endl;
-		return -1;
+		return fullPath.substr(0, lastSlash);
 	}
 
-	// Extract location of good matches
-	std::vector<cv::Point2f> pointsTemp, pointsSrc;
-	for (size_t i = 0; i < matches.size(); i++)
-	{
-		pointsTemp.push_back(keypointsTemp[matches[i].queryIdx].pt);
-		pointsSrc.push_back(keypointsSrc[matches[i].trainIdx].pt);
-	}
-
-	// Find homography
-	cv::Mat H = cv::findHomography(pointsTemp, pointsSrc, cv::RANSAC);
-
-	// Get the corners from the template image
-	std::vector<cv::Point2f> cornersTemp(4);
-	cornersTemp[0] = cv::Point2f(0, 0);
-	cornersTemp[1] = cv::Point2f(static_cast<float>(ImageTemp.cols), 0);
-	cornersTemp[2] = cv::Point2f(static_cast<float>(ImageTemp.cols), static_cast<float>(ImageTemp.rows));
-	cornersTemp[3] = cv::Point2f(0, static_cast<float>(ImageTemp.rows));
-
-	// Transform the corners to the source image
-	std::vector<cv::Point2f> cornersSrc(4);
-	cv::perspectiveTransform(cornersTemp, cornersSrc, H);
-
-	// Calculate the bounding box
-	cv::Rect boundingBox = cv::boundingRect(cornersSrc);
-	Location.Rect = boundingBox;
-
-	// Calculate the center position
-	Location.Position = cv;
+	return fullPath;
 }
-*/
 
 
 //Create a database with sqlite3
@@ -629,112 +589,122 @@ int CloseDatabase(sqlite3* db)
 
 
 
-// 輔助函數：將配置寫入檔案，減少程式碼重複
-void WriteConfigToFile(const std::string& filename, const SystemConfig& SysConfig)
+// Helper function to write configuration to file
+void WriteConfigToFile(const std::string& filename, SystemConfig &SysConfig)
 {
+	
 	std::ofstream file(filename);
-	if (!file.is_open())
-	{
-		std::cerr << "錯誤：無法開啟檔案 " << filename << " 進行寫入！" << std::endl;
-		throw std::runtime_error("無法開啟配置文件進行寫入");
+	if (!file.is_open()) {
+		std::cerr << "Error: Unable to open file " << filename << " for writing!" << std::endl;
+		throw std::runtime_error("Unable to open configuration file for writing");
 	}
 
-	// 寫入系統配置數據到檔案
+	// Write system configuration data with consistent formatting
 	file << "[ModbusTCP]\n";
 	file << "IpAddress=" << SysConfig.IpAddress << "\n";
 	file << "Port=" << SysConfig.Port << "\n";
 	file << "StationID=" << SysConfig.StationID << "\n";
 	file << "[ToolPath]\n";
-	file << "OffsetX=" << SysConfig.OffsetX << "\n";
-	file << "OffsetY=" << SysConfig.OffsetY << "\n";
+	file << "OffsetX=" << std::fixed << std::setprecision(2) << SysConfig.OffsetX << "\n";
+	file << "OffsetY=" << std::fixed << std::setprecision(2) << SysConfig.OffsetY << "\n";
 	file << "[Camera]\n";
 	file << "CameraID=" << SysConfig.CameraID << "\n";
 	file << "CameraWidth=" << SysConfig.CameraWidth << "\n";
 	file << "CameraHeight=" << SysConfig.CameraHeight << "\n";
-	file << "TransferFactor=" << SysConfig.TransferFactor << "\n";
+	file << "TransferFactor=" << std::fixed << std::setprecision(2) << SysConfig.TransferFactor << "\n";
 	file << "[Machine]\n";
 	file << "MachineType=" << SysConfig.MachineType << "\n";
 	file << "JogVelocity=" << SysConfig.JogVelocity << "\n";
 	file << "AutoVelocity=" << SysConfig.AutoVelocity << "\n";
 	file << "DecAcceleration=" << SysConfig.DecAcceleration << "\n";
 	file << "IncAcceleration=" << SysConfig.IncAcceleration << "\n";
-	file << "Pitch=" << SysConfig.Pitch << "\n";
-
-	file.close(); // 關閉檔案
+	file << "Pitch=" << std::fixed << std::setprecision(2) << SysConfig.Pitch << "\n";
 }
 
-// 初始化系統配置檔案
-void InitialConfig(const std::string& filename, SystemConfig SysConfig)
+// Initialize system configuration file
+void InitialConfig(const std::string& filename, SystemConfig &SysConfig)
 {
+	
 	WriteConfigToFile(filename, SysConfig);
 }
 
-// 從 INI 檔案讀取系統配置，如果檔案不存在則執行初始化
-SystemConfig ReadSystemConfig(const std::string& filename)
+// Read system configuration from INI file; initialize if file doesn't exist
+int ReadSystemConfig(const std::string& filename, SystemConfig &SysConfig)
 {
-	SystemConfig SysConfig;
+	
 	std::ifstream file(filename);
-	if (!file.is_open())
-	{
-		// 如果檔案不存在，初始化配置
+	if (!file.is_open()) {
+		// If file doesn't exist, initialize with default configuration
 		InitialConfig(filename, SysConfig);
-		return SysConfig; // 返回默認配置
+		return -1; // Indicate default configuration was used
 	}
 
-	// 讀取系統配置數據
 	std::string line;
-	while (std::getline(file, line))
-	{
-		// 忽略空行或不包含 '=' 的行
-		if (line.empty() || line.find('=') == std::string::npos)
+	while (std::getline(file, line)) {
+		// Skip empty lines or lines without '='
+		if (line.empty() || line.find('=') == std::string::npos) {
 			continue;
-
-		try
-		{
-			if (line.find("IpAddress=") == 0)
-				SysConfig.IpAddress = line.substr(10);
-			else if (line.find("Port=") == 0)
-				SysConfig.Port = std::stoi(line.substr(5));
-			else if (line.find("StationID=") == 0)
-				SysConfig.StationID = std::stoi(line.substr(10));
-			else if (line.find("OffsetX=") == 0)
-				SysConfig.OffsetX = std::stof(line.substr(8));
-			else if (line.find("OffsetY=") == 0)
-				SysConfig.OffsetY = std::stof(line.substr(8));
-			else if (line.find("CameraID=") == 0)
-				SysConfig.CameraID = std::stoi(line.substr(9));
-			else if (line.find("CameraWidth=") == 0)
-				SysConfig.CameraWidth = std::stoi(line.substr(12));
-			else if (line.find("CameraHeight=") == 0)
-				SysConfig.CameraHeight = std::stoi(line.substr(13));
-			else if (line.find("TransferFactor=") == 0)
-				SysConfig.TransferFactor = std::stof(line.substr(15));
-			else if (line.find("MachineType=") == 0)
-				SysConfig.MachineType = line.substr(12);
-			else if (line.find("JogVelocity=") == 0)
-				SysConfig.JogVelocity = std::stoi(line.substr(12));
-			else if (line.find("AutoVelocity=") == 0)
-				SysConfig.AutoVelocity = std::stoi(line.substr(14));
-			else if (line.find("DecAcceleration=") == 0)
-				SysConfig.DecAcceleration = std::stoi(line.substr(16));
-			else if (line.find("IncAcceleration=") == 0)
-				SysConfig.IncAcceleration = std::stoi(line.substr(16));
-			else if (line.find("Pitch=") == 0)
-				SysConfig.Pitch = std::stof(line.substr(6));
 		}
-		catch (const std::exception& e)
-		{
-			std::cerr << "解析配置項錯誤: " << line << ", 錯誤訊息: " << e.what() << std::endl;
-			// 繼續處理其他配置項，不中斷程序
+
+		try {
+			if (line.find("IpAddress=") == 0) {
+				SysConfig.IpAddress = line.length() > 10 ? line.substr(10) : "";
+			}
+			else if (line.find("Port=") == 0) {
+				SysConfig.Port = line.length() > 5 ? std::stoi(line.substr(5)) : 0;
+			}
+			else if (line.find("StationID=") == 0) {
+				SysConfig.StationID = line.length() > 10 ? std::stoi(line.substr(10)) : 0;
+			}
+			else if (line.find("OffsetX=") == 0) {
+				SysConfig.OffsetX = line.length() > 8 ? std::stof(line.substr(8)) : 0.0f;
+			}
+			else if (line.find("OffsetY=") == 0) {
+				SysConfig.OffsetY = line.length() > 8 ? std::stof(line.substr(8)) : 0.0f;
+			}
+			else if (line.find("CameraID=") == 0) {
+				SysConfig.CameraID = line.length() > 9 ? std::stoi(line.substr(9)) : 0;
+			}
+			else if (line.find("CameraWidth=") == 0) {
+				SysConfig.CameraWidth = line.length() > 12 ? std::stoi(line.substr(12)) : 0;
+			}
+			else if (line.find("CameraHeight=") == 0) {
+				SysConfig.CameraHeight = line.length() > 13 ? std::stoi(line.substr(13)) : 0;
+			}
+			else if (line.find("TransferFactor=") == 0) {
+				SysConfig.TransferFactor = line.length() > 15 ? std::stof(line.substr(15)) : 0.0f;
+			}
+			else if (line.find("MachineType=") == 0) {
+				SysConfig.MachineType = line.length() > 12 ? line.substr(12) : "";
+			}
+			else if (line.find("JogVelocity=") == 0) {
+				SysConfig.JogVelocity = line.length() > 12 ? std::stoi(line.substr(12)) : 0;
+			}
+			else if (line.find("AutoVelocity=") == 0) {
+				SysConfig.AutoVelocity = line.length() > 13 ? std::stoi(line.substr(13)) : 0;
+			}
+			else if (line.find("DecAcceleration=") == 0) {
+				SysConfig.DecAcceleration = line.length() > 16 ? std::stoi(line.substr(16)) : 0;
+			}
+			else if (line.find("IncAcceleration=") == 0) {
+				SysConfig.IncAcceleration = line.length() > 16 ? std::stoi(line.substr(16)) : 0;
+			}
+			else if (line.find("Pitch=") == 0) {
+				SysConfig.Pitch = line.length() > 6 ? std::stof(line.substr(6)) : 0.0f;
+			}
+		}
+		catch (const std::exception& e) {
+			std::cerr << "Error parsing config line: " << line << ", Error: " << e.what() << std::endl;
+			// Continue processing other lines
 		}
 	}
 
-	file.close(); // 關閉檔案
-	return SysConfig; // 返回系統配置
+	return 0; // Indicate successful read
 }
 
 // 更新系統配置到 INI 檔案
-void UpdateSystemConfig(const std::string& filename, const SystemConfig& SysConfig)
+void UpdateSystemConfig(const std::string& filename,  SystemConfig &SysConfig)
 {
-	WriteConfigToFile(filename, SysConfig);
+    // 將 const SystemConfig* 轉為 SystemConfig*，以符合 WriteConfigToFile 的參數型別
+    WriteConfigToFile(filename, SysConfig);
 }

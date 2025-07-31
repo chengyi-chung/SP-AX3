@@ -120,24 +120,88 @@ void SystemParaTab::OnOK()
 void SystemParaTab::OnBnClickedMfcbtnSaveSystem()
 {
 	// TODO: 在此加入控制項告知處理常式程式碼
+	std::string appPath;
+	// Get the application path
+	appPath = GetAppPath();
+
+	//Set System configuration file name add app path
+	CString strConfigFile = _T("SystemConfig.ini");
+	// 修正 appPath 與 strConfigFile 的串接方式
+	strConfigFile = CString(appPath.c_str()) + _T("\\") + strConfigFile;
 
 	//YUFADlg 的 m_SystemPara 資料成員寫入到系統配置檔案
+	CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
 
+	// CString 轉 std::string
+	CT2A pszConverted(strConfigFile);
+	std::string stdConfigFile(pszConverted);
 
-	CYUFADlg* pParentWnd = (CYUFADlg*)GetParent();
+	//Call UAX :  SystemConfig WriteConfigToFile(const std::string& filename,  SystemConfig &SysConfig)
+	WriteConfigToFile(stdConfigFile, pParentWnd->m_SystemPara);
+}
+
+//Update data in Edit control with SystemConfig m_SystemPara
+void SystemParaTab::UpdateControl()
+{
+	CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
 	if (pParentWnd != nullptr)
 	{
-		// 將 m_SystemPara 的值寫入到系統配置檔案
-		WriteConfigToFile("SystemConfig.ini", pParentWnd->m_SystemPara);
-		AfxMessageBox(_T("System configuration saved successfully!"));
+		CString str;
+		
+		str.Format(_T("%0.3f"), pParentWnd->m_SystemPara.OffsetX);
+		SetDlgItemText(IDD_TAB_SYS_X_OFFSET, str);
+		str.Format(_T("%0.3f"), pParentWnd->m_SystemPara.OffsetY);
+		SetDlgItemText(IDD_TAB_SYS_Y_OFFSET, str);
+
+		//OffsetX and OffsetY compound value, set to IDD_TAB_SYS_OFFSET_VALUE
+		//Square root of (OffsetX^2 + OffsetY^2)
+		double offsetX = pParentWnd->m_SystemPara.OffsetX;
+		double offsetY = pParentWnd->m_SystemPara.OffsetY;
+		double offsetValue = sqrt(offsetX * offsetX + offsetY * offsetY);
+		str.Format(_T("%0.3f"), offsetValue);
+		SetDlgItemText(IDD_TAB_SYS_OFFSET_VALUE, str);
+
+		//Fill in struct SystemConfig components to IDC_EDIT_SYSTEM_DATA
+		// 格式化資料以顯示在 IDC_EDIT_SYSTEM_DATA 控制項中
+		CString displayText;
+		displayText.Format(_T("Modbus TCP 配置:\r\n")
+			_T("IP 地址: %s\r\n")
+			_T("端口: %d\r\n")
+			_T("站點 ID: %d\r\n\r\n")
+			_T("工具路徑配置:\r\n")
+			_T("偏移 X: %.2f\r\n")
+			_T("偏移 Y: %.2f\r\n\r\n")
+			_T("相機配置:\r\n")
+			_T("相機 ID: %d\r\n")
+			_T("相機寬度: %d\r\n")
+			_T("相機高度: %d\r\n")
+			_T("轉換因子: %.2f\r\n\r\n")
+			_T("機器配置:\r\n")
+			_T("機器類型: %s\r\n")
+			_T("點動速度: %d\r\n")
+			_T("自動速度: %d\r\n")
+			_T("減速加速度: %d\r\n")
+			_T("加速加速度: %d\r\n")
+			_T("螺距: %.2f"),
+			CString(pParentWnd->m_SystemPara.IpAddress.c_str()),
+			pParentWnd->m_SystemPara.Port,
+			pParentWnd->m_SystemPara.StationID,
+			pParentWnd->m_SystemPara.OffsetX,
+			pParentWnd->m_SystemPara.OffsetY,
+			pParentWnd->m_SystemPara.CameraID,
+			pParentWnd->m_SystemPara.CameraWidth,
+			pParentWnd->m_SystemPara.CameraHeight,
+			pParentWnd->m_SystemPara.TransferFactor,
+			CString(pParentWnd->m_SystemPara.MachineType.c_str()),
+			pParentWnd->m_SystemPara.JogVelocity,
+			pParentWnd->m_SystemPara.AutoVelocity,
+			pParentWnd->m_SystemPara.DecAcceleration,
+			pParentWnd->m_SystemPara.IncAcceleration,
+			pParentWnd->m_SystemPara.Pitch);
+
+		// 將格式化後的文字設定到 IDC_EDIT_SYSTEM_DATA 控制項中
+		SetDlgItemText(IDC_EDIT_SYSTEM_DATA, displayText);
+
 	}
-	else
-	{
-		AfxMessageBox(_T("Failed to get parent window."));
-	}
-	
-
-
-
-
 }
+

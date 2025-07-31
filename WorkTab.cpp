@@ -144,6 +144,7 @@ BEGIN_MESSAGE_MAP(WorkTab, CDialogEx)
     ON_BN_CLICKED(IDC_IDC_WORK_LOAD_IMG, &WorkTab::OnBnClickedIdcWorkLoadImg)
     ON_BN_CLICKED(IDC_IDC_WORK_SAVE_IMG, &WorkTab::OnBnClickedIdcWorkSaveImg)
     ON_BN_CLICKED(IDC_IDC_WORK_GO, &WorkTab::OnBnClickedIdcWorkGo)
+	ON_BN_CLICKED(IDC_BTN_CALIBRATION, &WorkTab::OnBnClickedIdcWorkCalibration)
 END_MESSAGE_MAP()
 
 
@@ -1096,4 +1097,26 @@ void WorkTab::SendToolPathDataA(uint16_t* m_ToolPathData, int sizeOfArray, int s
 	}
 	modbus_close(ctx);
 	modbus_free(ctx);
+}
+
+//Add Calibration Dialog
+void WorkTab::OnBnClickedIdcWorkCalibration()
+{
+	//Call Calibration Dialog
+    Calibration dlg;
+    if (dlg.DoModal() == IDOK)
+    {
+        //Get the calibration data from the dialog
+        //CalibrationData calibrationData = dlg.GetCalibrationData();
+        //Do something with the calibration data
+        //For example, save it to a file or use it in the application
+        
+        //Show Calibration Dialog
+		dlg.DoModal();
+
+    }
+    else
+    {
+        //User cancelled the dialog
+	}
 }

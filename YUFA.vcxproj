@@ -189,6 +189,7 @@
     </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="Calibration.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="MachineTab.h" />
     <ClInclude Include="modbus.h" />
@@ -202,6 +203,7 @@
     <ClInclude Include="YUFADlg.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Calibration.cpp" />
     <ClCompile Include="MachineTab.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>

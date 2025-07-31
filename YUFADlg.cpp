@@ -56,8 +56,13 @@ END_MESSAGE_MAP()
 
 CYUFADlg::CYUFADlg(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_YUFA_DIALOG, pParent)
+	, m_SystemPara() // 呼叫 SystemConfig 預設建構子
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
+
+	// Read System Parameters from config file
+	//ReadSystemParametersFromConfigFile();
+
 }
 
 void CYUFADlg::DoDataExchange(CDataExchange* pDX)
@@ -119,7 +124,11 @@ BOOL CYUFADlg::OnInitDialog()
     // Get Client Rect
 	CRect rect;
 	GetClientRect(&rect);
+
 	
+	// Read System Parameters from config file
+	ReadSystemParametersFromConfigFile();
+
 	//define indicators
 	UINT indicators[] = { ID_INDICATOR_TIME, ID_INDICATOR_FILE };
 
@@ -183,19 +192,7 @@ BOOL CYUFADlg::OnInitDialog()
 	m_MachineTab.MoveWindow(&rect);
 	m_MachineTab.ShowWindow(SW_HIDE);
 
-
-
-	//Initial m_SystemPara
-	//m_SystemPara.iStart = 0;
-	m_SystemPara.OffsetX = 0.0;
-	m_SystemPara.OffsetY = 0.0;
-	//Assign 192.168.0.11 to m_SystemPara.IpAddress
-   
-    m_SystemPara.IpAddress, _T("192.168.0.11");
-	//m_SystemPara.IpAddress = _T("168.95.192.1");
-	m_SystemPara.StationID = 1;
-
-
+	
 	return TRUE;  // 傳回 TRUE，除非您對控制項設定焦點
 }
 
@@ -341,7 +338,7 @@ void CYUFADlg::OnBnClickedBtnSysPara()
 	m_MachineTab.ShowWindow(SW_HIDE);
 	//change to select tab
 	m_Tab_Main.SetCurSel(1);
-
+	m_SystemParaTab.UpdateControl();
 ;
 }
 
@@ -368,7 +365,7 @@ void CYUFADlg::OnBnClickedBtnMachine()
 	m_MachineTab.ShowWindow(SW_SHOW);
 	//change to select tab
 	m_Tab_Main.SetCurSel(3);
-
+	m_MachineTab.UpdateControl();
 	m_MachineTab.OpenModBus();
 
 	// OnTcnSelchangeTabMain
@@ -445,6 +442,7 @@ void CYUFADlg::OnTcnSelchangeTabMain(NMHDR* pNMHDR, LRESULT* pResult)
 		case 1: //System Parameter
 			// 通知第二個子頁面
 			m_MachineTab.CloseModBus();
+			//m_SystemParaTab.UpdateControl();
 			OnBnClickedBtnSysPara();
 			//m_WorkTab.OnTabSelected();
 			break;
@@ -455,6 +453,7 @@ void CYUFADlg::OnTcnSelchangeTabMain(NMHDR* pNMHDR, LRESULT* pResult)
 			break;
 		case 3://Machine
 			m_MachineTab.OpenModBus();
+			//m_MachineTab.UpdateControl();
 			OnBnClickedBtnMachine();
 			
 			break;
@@ -463,4 +462,23 @@ void CYUFADlg::OnTcnSelchangeTabMain(NMHDR* pNMHDR, LRESULT* pResult)
 		}
 	}
 	*pResult = 0;
+}
+
+//Read System Parameters from config file
+void CYUFADlg::ReadSystemParametersFromConfigFile()
+{
+	std::string appPath;
+	// Get the application path
+	appPath = GetAppPath();
+
+	//Set System configuration file name add app path
+	CString strConfigFile = _T("SystemConfig.ini");
+    // 修正 appPath 與 strConfigFile 的串接方式
+    strConfigFile = CString(appPath.c_str()) + _T("\\") + strConfigFile;
+
+	//Call UAX :  SystemConfig ReadSystemConfig(const std::string& filename)
+	int rt = ReadSystemConfig(std::string(CT2A(strConfigFile)), m_SystemPara);
+	IpAddress = m_SystemPara.IpAddress;
+	Port = m_SystemPara.Port;
+
 }

@@ -48,6 +48,9 @@
     <ClInclude Include="MachineTab.h">
       <Filter>標頭檔</Filter>
     </ClInclude>
+    <ClInclude Include="Calibration.h">
+      <Filter>標頭檔</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="YUFA.cpp">
@@ -69,6 +72,9 @@
       <Filter>來源檔案</Filter>
     </ClCompile>
     <ClCompile Include="MachineTab.cpp">
+      <Filter>來源檔案</Filter>
+    </ClCompile>
+    <ClCompile Include="Calibration.cpp">
       <Filter>來源檔案</Filter>
     </ClCompile>
   </ItemGroup>

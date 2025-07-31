@@ -33,10 +33,6 @@
 #include <string>
 #include <stdexcept>
 
-
-
-
-
 using namespace cv;
 using namespace std;
 
@@ -168,32 +164,8 @@ extern "C" UAX_API int DeleteData(sqlite3* db, const char* db_name, const char* 
 //Close the database
 extern "C" UAX_API int CloseDatabase(sqlite3* db);
 
-
-//System Configuration ini
-//Create a new system configuration ini file
-// Write system configuration to ini file
-// Read System Configuration from ini file
-//Update system configuration value from ini file
-// Initialize the system configuration ini file
-// <Modbus TCP >
-// IP Address
-// Port Number
-// Station ID
-// <Tool Path>
-// Tool Path Offset X
-// Tool Path Offset Y
-//<Camera>
-// Camera ID
-// Camera Resolution Width
-// Camera Resolution Height
-// Transfer Factor
-// <Machine>
-// Machine Type
-//Jog Velocity
-//Auto Velocity
-//Axis ACC Decress
-//Axis ACC Incress
-//Pitch
+//Get Application Path
+extern "C" UAX_API std::string GetAppPath();
 
 struct SystemConfig
 {
@@ -215,9 +187,9 @@ struct SystemConfig
 };
 
 // Write system configuration to ini file
-extern "C" UAX_API void WriteConfigToFile(const std::string& filename, const SystemConfig& SysConfig);
+extern "C" UAX_API void WriteConfigToFile(const std::string& filename,  SystemConfig &SysConfig);
 // Read System Configuration from ini file
-extern "C" UAX_API SystemConfig ReadSystemConfig(const std::string& filename);
+extern "C" UAX_API int ReadSystemConfig(const std::string& filename, SystemConfig &SysConfig);
 // Initialize the system configuration ini file
 //extern "C" UAX_API void InitialConfig(const std::string& filename, const SystemConfig& SysConfig);
 

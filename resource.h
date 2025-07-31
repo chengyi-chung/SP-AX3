@@ -12,6 +12,7 @@
 #define IDR_MAINFRAME                   128
 #define IDD_TAB_MODBUS                  134
 #define IDD_TAB_MACHINE                 136
+#define IDD_DLG_CALIBRATION             140
 #define IDC_BTN_QUIT                    1000
 #define IDC_BTN_WORKING                 1003
 #define IDC_BTN_SYS_PARA                1004
@@ -29,12 +30,14 @@
 #define IDC_SYSTEM_CREATE_DATA          1017
 #define IDC_BTN_MACHINE                 1017
 #define IDC_BTN_JOG_Y_PLUS              1017
+#define IDC_BTN_CAL_LENS                1017
 #define IDC_WORK_MATCH_TEMP             1018
 #define IDC_BTN_JOG_X_PLUS              1018
 #define IDC_BUTTON2                     1019
 #define IDC_IDC_WORK_TOOL_PATH          1019
 #define IDC_BTN_JOG_Y_MINUS             1019
 #define IDC_BTN_SEND_DATA               1019
+#define IDC_BTN_CAL_Camera              1019
 #define IDC_BTN_JOG_X_MINUS             1020
 #define IDC_BTN_JOG_Z_PLUS              1021
 #define IDC_MODBUS_CHK_COIL             1022
@@ -65,6 +68,7 @@
 #define IDC_EDIT_AXIS_ACC_DEC           1048
 #define IDC_EDIT_AXIS_ACC_INC           1049
 #define IDC_BUTTON3                     1050
+#define IDC_BTN_CALIBRATION             1050
 #define IDC_BTN_MACHINE_SAVE_MOTION     1051
 #define IDC_EDIT2                       1052
 #define IDC_EDIT_PITCH                  1052
@@ -76,8 +80,9 @@
 #define IDC_EDIT_MANUAL_X               1058
 #define IDC_EDIT_MANUAL_Y               1059
 #define IDC_MFCBTN_MACHINE_GO           1060
-#define IDC_MFCBUTTON1                  1061
 #define IDC_MFCBTN_SAVE_SYSTEM          1061
+#define IDC_LIST_                       1062
+#define IDC_LIST_IMAGE_FILES            1062
 #define ID_INDICATOR_TIME               59142
 #define ID_INDICATOR_FILE               59143
 
@@ -85,9 +90,9 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        140
+#define _APS_NEXT_RESOURCE_VALUE        142
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1062
+#define _APS_NEXT_CONTROL_VALUE         1063
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

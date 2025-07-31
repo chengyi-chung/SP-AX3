@@ -1,8 +1,5 @@
-﻿
-
-// YUFADlg.h: 標頭檔
+﻿// YUFADlg.h: 標頭檔
 //
-
 #pragma once
 #include "UAX.h"
 #include "afxwin.h"
@@ -12,8 +9,6 @@
 #include "UModBus.h"
 #include "MachineTab.h"
 
-
-
 // CYUFADlg 對話方塊
 class CYUFADlg : public CDialogEx
 {
@@ -21,42 +16,24 @@ class CYUFADlg : public CDialogEx
 public:
 	CYUFADlg(CWnd* pParent = nullptr);	// 標準建構函式
 
-	/*
-	 struct SystemPara
-    {
-        int iStart; //Coil Start flag : 0:stop 1:start 
-        float OffsetX;  //Tool Path Offset X
-        float OffsetY;  //Tool Path Offset Y
-        //wchar_t IpAddress[16]; //Modbus TCP/IP IP Address
-		char IpAddress[16]; //Modbus TCP/IP IP Address
-        int StationID; //Modbus TCP/IP Station ID
-		float Pitch; //Pitch of Axis
-		//20014 : Jog Velocity  
-        //20015 : Auto Velocity  
-        //20016 : Axis Dec Acceleration  
-        //20017 : Axis Inc Acceleration  
-		int JogVelocity; //Jog Velocity
-		int AutoVelocity; //Auto Velocity
-		int DecAcceleration; //Axis Dec Acceleration
-		int IncAcceleration; //Axis Inc Acceleration
-	
-    };
-	*/
-	
-
+	//System Configuration file name constant at application path
+	const std::string SystemConfigFileName = "SystemConfig.ini";
 	//SystemPara m_SystemPara;
 	SystemConfig m_SystemPara; // System Configuration
+
+
+	//Read System Parameters from config file
+	void ReadSystemParametersFromConfigFile();
+	std::string IpAddress;
+	int Port;
 	
 // 對話方塊資料
 #ifdef AFX_DESIGN_TIME
 	enum { IDD = IDD_YUFA_DIALOG };
 #endif
 
-
-
-	protected:
+protected:
 	virtual void DoDataExchange(CDataExchange* pDX);	// DDX/DDV 支援
-
 
 // 程式碼實作
 protected:
@@ -110,3 +87,5 @@ public:
 
 	
 };
+
+
