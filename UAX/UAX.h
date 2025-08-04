@@ -167,6 +167,7 @@ extern "C" UAX_API int CloseDatabase(sqlite3* db);
 //Get Application Path
 extern "C" UAX_API std::string GetAppPath();
 
+
 struct SystemConfig
 {
     std::string IpAddress;
