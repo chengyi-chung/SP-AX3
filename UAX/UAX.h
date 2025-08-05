@@ -121,6 +121,15 @@ extern "C" UAX_API int MatchTemplate(cv::Mat& src, cv::Mat& templ, cv::Mat& dst,
 
 extern "C" UAX_API int MatchTemplateFLANN(cv::Mat& src, cv::Mat& templ, cv::Mat& dst, int match_method, ImageLocation& Location, cv::Point2d Offset);
 
+//Lens calibration function with  Mutiple images for huge FOV
+// Use the images in the folder to calibrate the lens
+// // src: the input image
+// // templ: the template image
+// // dst: the output image
+// // match_method: the method to match the template
+// // Location: the output location of the template in the image
+extern "C" UAX_API int LensCalibration(cv::Mat& src, cv::Mat& templ, cv::Mat& dst, int match_method, ImageLocation& Location, cv::Point2d Offset);
+
 // Get Tool Path
 // Use Erosiong find the tool path
 // ImgSrc: the input image
