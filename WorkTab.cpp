@@ -180,6 +180,8 @@ BOOL WorkTab::OnInitDialog()
 
     float ret = Add(1.1f, 2.2f);
 
+	flgCenter = false;
+
     PylonInitialize();
 
 
@@ -397,7 +399,7 @@ void WorkTab::OnPaint()
 
         //Display m_mat with cv::imshow 
 
-        ShowImageOnPictureControl();
+		ShowImageOnPictureControl(flgCenter, cv::Scalar(0, 0, 255, 255), 1, CrossStyle::Solid);
 
 
 		//以下只在 debug 模式下執行
@@ -451,6 +453,7 @@ void WorkTab::MatConvertCimg(cv::Mat mat, CImage* CImg, int Width, int Height)
 }
 
 // 实际上在Picture Control上显示图像的函数实现。
+/*
 void WorkTab::ShowImageOnPictureControl()
 {
     if (m_mat.empty()) return;
@@ -487,6 +490,10 @@ void WorkTab::ShowImageOnPictureControl()
 
     //ReleaseDC(pDC);
 }
+
+*/
+
+
 
 
 void WorkTab::ShowImageOnPictureControlWithCImage()
@@ -658,6 +665,79 @@ void WorkTab::ShowImageOnPictureCtl()
 
 }
 
+void WorkTab::ShowImageOnPictureControl(bool flgCenter, cv::Scalar crossColor, int lineThickness, CrossStyle style)
+{
+    if (m_mat.empty()) return;
+
+    CRect rect;
+    pWnd->GetClientRect(&rect);
+
+    cv::Mat resizedImage;
+    cv::resize(m_mat, resizedImage, cv::Size(rect.Width(), rect.Height()));
+
+    cv::Mat imageToShow;
+    cv::cvtColor(resizedImage, imageToShow, cv::COLOR_BGR2BGRA);
+
+    if (flgCenter)
+    {
+        int centerX = imageToShow.cols / 2;
+        int centerY = imageToShow.rows / 2;
+
+        auto drawDashedLine = [&](cv::Point start, cv::Point end, int dashLength)
+            {
+                double totalLength = cv::norm(end - start);
+                cv::Point2f dir = (end - start) / static_cast<float>(totalLength);
+
+                for (double d = 0; d < totalLength; d += dashLength * 2)
+                {
+                    cv::Point2f p1f = cv::Point2f(start) + dir * static_cast<float>(d);
+                    cv::Point2f p2f = cv::Point2f(start) + dir * static_cast<float>(std::min(d + dashLength, totalLength));
+
+                    cv::line(imageToShow, cv::Point(cvRound(p1f.x), cvRound(p1f.y)),
+                        cv::Point(cvRound(p2f.x), cvRound(p2f.y)),
+                        crossColor, lineThickness);
+                }
+            };
+
+        if (style == CrossStyle::Solid)
+        {
+            cv::line(imageToShow, cv::Point(0, centerY),
+                cv::Point(imageToShow.cols - 1, centerY),
+                crossColor, lineThickness);
+
+            cv::line(imageToShow, cv::Point(centerX, 0),
+                cv::Point(centerX, imageToShow.rows - 1),
+                crossColor, lineThickness);
+        }
+        else if (style == CrossStyle::Dashed)
+        {
+            int dashLength = 10; // 可調整虛線段長度
+            drawDashedLine(cv::Point(0, centerY),
+                cv::Point(imageToShow.cols - 1, centerY), dashLength);
+            drawDashedLine(cv::Point(centerX, 0),
+                cv::Point(centerX, imageToShow.rows - 1), dashLength);
+        }
+    }
+
+    BITMAPINFO bitmapInfo;
+    memset(&bitmapInfo, 0, sizeof(bitmapInfo));
+    bitmapInfo.bmiHeader.biBitCount = 32;
+    bitmapInfo.bmiHeader.biWidth = imageToShow.cols;
+    bitmapInfo.bmiHeader.biHeight = -imageToShow.rows;
+    bitmapInfo.bmiHeader.biPlanes = 1;
+    bitmapInfo.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    bitmapInfo.bmiHeader.biCompression = BI_RGB;
+
+    ::StretchDIBits(
+        pDC->GetSafeHdc(),
+        0, 0, rect.Width(), rect.Height(),
+        0, 0, imageToShow.cols, imageToShow.rows,
+        imageToShow.data,
+        &bitmapInfo,
+        DIB_RGB_COLORS,
+        SRCCOPY
+    );
+}
 
 void WorkTab::OnBnClickedWorkStopGrab()
 {
@@ -871,10 +951,11 @@ void WorkTab::OnBnClickedIdcWorkLoadImg()
 		// Load the image
 		m_mat = cv::imread(strPathA, cv::IMREAD_GRAYSCALE);
 		// Display the image
-		ShowImageOnPictureControl();
+		//ShowImageOnPictureControl();
+        // 紅色實線
+        ShowImageOnPictureControl(true, cv::Scalar(0, 0, 255, 255), 2, CrossStyle::Solid);
+
 	}
-
-
 }
 
 
@@ -1103,7 +1184,8 @@ void WorkTab::SendToolPathDataA(uint16_t* m_ToolPathData, int sizeOfArray, int s
 void WorkTab::OnBnClickedIdcWorkCalibration()
 {
 	//Call Calibration Dialog
-    Calibration dlg;
+    /*
+     Calibration dlg;
     if (dlg.DoModal() == IDOK)
     {
         //Get the calibration data from the dialog
@@ -1119,4 +1201,17 @@ void WorkTab::OnBnClickedIdcWorkCalibration()
     {
         //User cancelled the dialog
 	}
+    
+    */
+	//switch flgCenter to true if false, to false if true
+    if (flgCenter)
+    {
+        flgCenter = false;
+    }
+    else
+    {
+        flgCenter = true;
+    }
+   
+  
 }

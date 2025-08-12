@@ -81,10 +81,19 @@
 #define IDC_EDIT_MANUAL_Y               1059
 #define IDC_MFCBTN_MACHINE_GO           1060
 #define IDC_MFCBTN_SAVE_SYSTEM          1061
-#define IDC_LIST_                       1062
 #define IDC_LIST_IMAGE_FILES            1062
+//#define IDC_EDIT_MACHINE_X              1063
+// 新增 MachineTab 機台座標顯示用的 Edit Control ID
+#define IDC_EDIT_MACHINE_X      11001
+#define IDC_EDIT_MACHINE_Y      11002
+#define IDC_EDIT_MACHINE_Z      11003
+//#define IDC_EDIT_MACHINE_Y              1064
+//#define IDC_EDIT5                       1065
+//#define IDC_EDIT_MACHINE_Z              1065
 #define ID_INDICATOR_TIME               59142
 #define ID_INDICATOR_FILE               59143
+
+#define WM_UPDATE_COORDINATES (WM_USER + 100)
 
 // Next default values for new objects
 // 
@@ -92,7 +101,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        142
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1063
+#define _APS_NEXT_CONTROL_VALUE         1066
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

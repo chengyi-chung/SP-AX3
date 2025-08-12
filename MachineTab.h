@@ -34,6 +34,11 @@ public:
 	//Update data in Edit control with SystemConfig m_SystemPara
 	void UpdateControl();
 
+	// 執行緒相關
+	static UINT ReadCoordinatesThread(LPVOID pParam); // 執行緒函數
+	void StartCoordinateThread(); // 啟動執行緒
+	void StopCoordinateThread();  // 停止執行緒
+
 	
 
 protected:
@@ -115,4 +120,18 @@ public:
 	afx_msg void OnBnClickedMfcbtnMachineGo();
 	afx_msg void OnEnChangeEditManualX();
 	virtual void OnOK(); // 新增 OnOK 方法
+
+
+	// 新增的消息處理函數，用於更新 UI
+	afx_msg LRESULT OnUpdateCoordinates(WPARAM wParam, LPARAM lParam);
+
+
+	protected:
+		// 執行緒控制
+		CWinThread* m_pCoordinateThread; // 執行緒指針
+		volatile BOOL m_bThreadRunning;  // 執行緒運行標誌
+		HANDLE m_hStopThreadEvent;       // 停止執行緒的事件
+		
 };
+// 自定義消息，用於執行緒通知 UI 更新
+//#define WM_UPDATE_COORDINATES (WM_USER + 100)

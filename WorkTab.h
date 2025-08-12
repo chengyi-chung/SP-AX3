@@ -12,6 +12,12 @@
 // WorkTab 對話方塊
 using namespace Pylon;
 
+enum class CrossStyle
+{
+	Solid,
+	Dashed
+};
+
 class WorkTab : public CDialogEx
 {
 	DECLARE_DYNAMIC(WorkTab)
@@ -49,6 +55,9 @@ public:
 	//index 0~9999: x
 	//index 10000~19999: y
 	uint16_t m_ToolPathData[20000];
+
+	//flag of center cross line the image
+	bool flgCenter;
 
 
 
@@ -104,7 +113,12 @@ protected:
 
 	void ShowImageOnPictureCtl(); // 在Picture Control上直接显示图像的函数。
 
-	void ShowImageOnPictureControl(); // 在Picture Control上显示图像的函数。
+	//void ShowImageOnPictureControl(); // 在Picture Control上显示图像的函数。
+
+	void ShowImageOnPictureControl(bool flgCenter = false,
+	                                                    	cv::Scalar crossColor = cv::Scalar(0, 0, 255, 255),
+		                                                    int lineThickness = 1,
+		                                                    CrossStyle style = CrossStyle::Solid);
 
 	void ShowImageOnPictureControlWithCImage();
 

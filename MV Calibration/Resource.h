@@ -12,6 +12,8 @@
 #define IDC_BUTTON1                     1002
 #define IDC_BTN_CAL_LENS                1002
 
+
+
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED

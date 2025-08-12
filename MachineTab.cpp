@@ -15,12 +15,24 @@ IMPLEMENT_DYNAMIC(MachineTab, CDialog)
 
 MachineTab::MachineTab(CWnd* pParent /*=nullptr*/)
 	: CDialog(IDD_TAB_MACHINE, pParent)
+	, m_ctx(nullptr)
+	, Discrete3000Word(0)
+	, m_pCoordinateThread(nullptr)
+	, m_bThreadRunning(FALSE)
+	, m_hStopThreadEvent(nullptr)
 {
 
 }
 
 MachineTab::~MachineTab()
 {
+	StopCoordinateThread();
+	if (m_hStopThreadEvent)
+	{
+		CloseHandle(m_hStopThreadEvent);
+	}
+
+
 }
 
 void MachineTab::DoDataExchange(CDataExchange* pDX)
@@ -50,6 +62,10 @@ BEGIN_MESSAGE_MAP(MachineTab, CDialog)
 	ON_BN_CLICKED(IDC_MFCBTN_MACHINE_RESET_SW, &MachineTab::OnBnClickedMfcbtnMachineResetSw)
 	ON_BN_CLICKED(IDC_MFCBTN_MACHINE_GO, &MachineTab::OnBnClickedMfcbtnMachineGo)
 	ON_EN_CHANGE(IDC_EDIT_MANUAL_X, &MachineTab::OnEnChangeEditManualX)
+
+	// ... 現有消息映射 ...
+	ON_MESSAGE(WM_UPDATE_COORDINATES, &MachineTab::OnUpdateCoordinates)
+
 END_MESSAGE_MAP()
 
 
@@ -83,9 +99,6 @@ BOOL MachineTab::OnInitDialog()
 //Open Modbus TCP/IP server 
 void MachineTab::OpenModBus()
 {
-	//Initial Modbus TCP/IP
-	//get ip address from m_SystemPara of parrent dialog
-	
 	CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
 	if (!pParentWnd)
 	{
@@ -93,63 +106,53 @@ void MachineTab::OpenModBus()
 		return;
 	}
 
-	// Access m_SystemPara
 	if (pParentWnd->m_SystemPara.IpAddress.empty())
 	{
 		AfxMessageBox(_T("IP Address is not set in System Parameters."));
 		return;
 	}
+
 	std::string ip = pParentWnd->m_SystemPara.IpAddress;
-
-	int rc;
-
-	// convert string ip to const char*
-	const char* ip_cstr = ip.c_str();
 	int port = 502;
-	m_ctx = modbus_new_tcp(ip_cstr, port);
+	m_ctx = modbus_new_tcp(ip.c_str(), port);
 
-	//check if the context is created
 	if (m_ctx == NULL)
 	{
 		AfxMessageBox(_T("Failed to create the libmodbus context."));
+		return;
 	}
-	else
+
+	int rc = modbus_connect(m_ctx);
+	if (rc == -1)
 	{
-		//Connect to the Modbus TCP/IP server
-		rc = modbus_connect(m_ctx);
-		if (rc == -1)
-		{
-			AfxMessageBox(_T("Failed to connect to the Modbus server."));
-		}
+		AfxMessageBox(_T("Failed to connect to the Modbus server."));
+		modbus_free(m_ctx);
+		m_ctx = nullptr;
+		return;
 	}
 
-	//prinrt the ip address and port on m_strReportData
-	m_strReportData = "IP Address: " + string(ip) + " Port: " + to_string(port) + "\r\n";
-
-    SetDlgItemText(IDC_EDIT_REPORT, CString(m_strReportData.c_str()));
-	
 	int ServerId = 1; // pParentWnd->m_SystemPara.StationID;
-	rc = modbus_set_slave(m_ctx, ServerId);  // 設置為設備 ID 1
-	
-	if (m_ctx == NULL)
+	rc = modbus_set_slave(m_ctx, ServerId);
+	if (rc == -1)
 	{
-		AfxMessageBox(_T("Failed to create the libmodbus context."));
-	}
-	else
-	{
-		uint16_t tab_reg[60000] = { 0 };
-		// Read 64 holding registers starting from address 0
-		rc = modbus_read_registers(m_ctx, 100, 100, tab_reg);
-		rc = modbus_write_register(m_ctx, 30001, 1);
+		AfxMessageBox(_T("Failed to set Modbus slave ID."));
+		modbus_free(m_ctx);
+		m_ctx = nullptr;
+		return;
 	}
 
+	m_strReportData = "IP Address: " + ip + " Port: " + std::to_string(port) + "\r\n";
+	SetDlgItemText(IDC_EDIT_REPORT, CString(m_strReportData.c_str()));
 
-
+	// 啟動座標讀取執行緒
+	StartCoordinateThread();
 }
-
 //Close Modbus TCP/IP server
 void MachineTab::CloseModBus()
 {
+	// 先停止執行緒
+	StopCoordinateThread();
+
 	if (m_ctx == nullptr)
 	{
 		m_strReportData += "\r\nModbus context is already null.";
@@ -800,3 +803,96 @@ void MachineTab::UpdateControl()
 	SetDlgItemText(IDC_EDIT_TRANSFER_FACTOR, cStr);
 }
 
+LRESULT MachineTab::OnUpdateCoordinates(WPARAM wParam, LPARAM lParam)
+{
+	float* coordinates = reinterpret_cast<float*>(lParam);
+
+	if (coordinates)
+	{
+		// 更新 UI 控制項
+		CString strX, strY, strZ;
+		strX.Format(_T("%.2f"), coordinates[0]);
+		strY.Format(_T("%.2f"), coordinates[1]);
+		strZ.Format(_T("%.2f"), coordinates[2]);
+
+		SetDlgItemText(IDC_EDIT_MACHINE_X, strX);
+		SetDlgItemText(IDC_EDIT_MACHINE_Y, strY);
+		SetDlgItemText(IDC_EDIT_MACHINE_Z, strZ);
+
+		// 釋放記憶體
+		delete[] coordinates;
+	}
+	return 0;
+}
+
+UINT MachineTab::ReadCoordinatesThread(LPVOID pParam)
+{
+	MachineTab* pThis = static_cast<MachineTab*>(pParam);
+	uint16_t registers[3] = { 0 }; // 用於儲存 X, Y, Z 座標
+	const int startAddress = 20011;
+	const int numRegisters = 3;
+
+	while (pThis->m_bThreadRunning)
+	{
+		// 檢查停止事件
+		if (WaitForSingleObject(pThis->m_hStopThreadEvent, 0) == WAIT_OBJECT_0)
+		{
+			break; // 停止執行緒
+		}
+
+		// 確保 Modbus 上下文有效
+		if (pThis->m_ctx != nullptr)
+		{
+			int rc = modbus_read_registers(pThis->m_ctx, startAddress, numRegisters, registers);
+			if (rc != -1)
+			{
+				// 成功讀取，發送消息到 UI 更新
+				float coordinates[3] = {
+					static_cast<float>(registers[0]), // X
+					static_cast<float>(registers[1]), // Y
+					static_cast<float>(registers[2])  // Z
+				};
+				pThis->PostMessage(WM_UPDATE_COORDINATES, 0, reinterpret_cast<LPARAM>(new float[3] {coordinates[0], coordinates[1], coordinates[2]}));
+			}
+			else
+			{
+				// 記錄錯誤
+				CString errorMessage;
+				errorMessage.Format(_T("Failed to read coordinates: %S"), modbus_strerror(errno));
+				pThis->m_strReportData += "\r\n" + std::string(CT2A(errorMessage));
+				//pThis->PostMessage(WM_SETITEMTEXT, IDC_EDIT_REPORT, reinterpret_cast<LPARAM>(new CString(pThis->m_strReportData.c_str())));
+			}
+		}
+
+		// 每 500 毫秒讀取一次
+		Sleep(500);
+	}
+
+	return 0;
+}
+
+void MachineTab::StartCoordinateThread()
+{
+	if (!m_bThreadRunning)
+	{
+		m_bThreadRunning = TRUE;
+		ResetEvent(m_hStopThreadEvent); // 重置停止事件
+		m_pCoordinateThread = AfxBeginThread(ReadCoordinatesThread, this, THREAD_PRIORITY_NORMAL);
+		if (m_pCoordinateThread == nullptr)
+		{
+			AfxMessageBox(_T("Failed to start coordinate reading thread."));
+			m_bThreadRunning = FALSE;
+		}
+	}
+}
+
+void MachineTab::StopCoordinateThread()
+{
+	if (m_bThreadRunning && m_pCoordinateThread)
+	{
+		m_bThreadRunning = FALSE;
+		SetEvent(m_hStopThreadEvent); // 觸發停止事件
+		WaitForSingleObject(m_pCoordinateThread->m_hThread, INFINITE); // 等待執行緒結束
+		m_pCoordinateThread = nullptr;
+	}
+}
