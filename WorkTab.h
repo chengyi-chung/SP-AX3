@@ -168,7 +168,8 @@ protected:
 	//Create a function to convert cv:mat to CImage
 	void MatConvertCimg(cv::Mat mat, CImage *CImg, int Width, int Height);
 
-
+	//Add PreTranslateMessage
+	virtual BOOL PreTranslateMessage(MSG* pMsg);
 
 protected:
 	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV 支援

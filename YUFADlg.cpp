@@ -322,11 +322,12 @@ void CYUFADlg::OnBnClickedBtnWorking()
 	// TODO: 在此加入控制項告知處理常式程式碼
 
 	m_WorkTab.ShowWindow(SW_SHOW);
+	
 	m_SystemParaTab.ShowWindow(SW_HIDE);
 	m_ModBusTab.ShowWindow(SW_HIDE);
 	m_MachineTab.ShowWindow(SW_HIDE);
 	m_Tab_Main.SetCurSel(0);
-	
+	m_WorkTab.SetFocus();
 }
 
 void CYUFADlg::OnBnClickedBtnSysPara()
@@ -436,6 +437,7 @@ void CYUFADlg::OnTcnSelchangeTabMain(NMHDR* pNMHDR, LRESULT* pResult)
 		case 0: //CCD working
 			// 通知第一個子頁面
 			m_MachineTab.CloseModBus();
+			// focus on WorkTab
 			OnBnClickedBtnWorking();
 			//m_SystemParaTab.OnTabSelected();
 			break;

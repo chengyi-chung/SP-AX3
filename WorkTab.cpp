@@ -1215,3 +1215,76 @@ void WorkTab::OnBnClickedIdcWorkCalibration()
    
   
 }
+
+BOOL WorkTab::PreTranslateMessage(MSG* pMsg)
+{
+    if (pMsg->message == WM_KEYDOWN)
+    {
+        int bitAddress = -1;
+        int bitValue = 1;
+        int nID = -1;
+
+        switch (pMsg->wParam)
+        {
+        case VK_LEFT:  // 左方向鍵，模擬 X- 按鈕
+            bitAddress = 4;
+            nID = IDC_BTN_JOG_X_MINUS;
+            break;
+        case VK_RIGHT:  // 右方向鍵，模擬 X+ 按鈕
+            bitAddress = 3;
+            nID = IDC_BTN_JOG_X_PLUS;
+            break;
+        case VK_UP:  // 上方向鍵，模擬 Y+ 按鈕
+            bitAddress = 5;
+            nID = IDC_BTN_JOG_Y_PLUS;
+            break;
+        case VK_DOWN:  // 下方向鍵，模擬 Y- 按鈕
+            bitAddress = 6;
+            nID = IDC_BTN_JOG_Y_MINUS;
+            break;
+        }
+
+        if (bitAddress != -1)
+        {
+            //ClearDiscrete3000(0, 8);
+            //Discrete3000Change(1, bitAddress, bitValue, nID);
+            return TRUE;  // 處理完鍵盤事件，不再繼續傳遞訊息
+        }
+    }
+    else if (pMsg->message == WM_KEYUP)
+    {
+        int bitAddress = -1;
+        int bitValue = 0;
+        int nID = -1;
+
+        switch (pMsg->wParam)
+        {
+        case VK_LEFT:  // 左方向鍵釋放，模擬 X- 按鈕釋放
+            bitAddress = 4;
+            nID = IDC_BTN_JOG_X_MINUS;
+            break;
+        case VK_RIGHT:  // 右方向鍵釋放，模擬 X+ 按鈕釋放
+            bitAddress = 3;
+            nID = IDC_BTN_JOG_X_PLUS;
+            break;
+        case VK_UP:  // 上方向鍵釋放，模擬 Y+ 按鈕釋放
+            bitAddress = 5;
+            nID = IDC_BTN_JOG_Y_PLUS;
+            break;
+        case VK_DOWN:  // 下方向鍵釋放，模擬 Y- 按鈕釋放
+            bitAddress = 6;
+            nID = IDC_BTN_JOG_Y_MINUS;
+            break;
+        }
+
+        if (bitAddress != -1)
+        {
+            //ClearDiscrete3000(0, 8);
+            // 註釋掉 Discrete3000Change 以避免在釋放時更新狀態
+            // Discrete3000Change(1, bitAddress, bitValue, nID);
+            return TRUE;  // 處理完鍵盤事件，不再繼續傳遞訊息
+        }
+    }
+
+    return CDialogEx::PreTranslateMessage(pMsg);
+}
