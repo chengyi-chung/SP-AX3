@@ -846,13 +846,18 @@ UINT MachineTab::ReadCoordinatesThread(LPVOID pParam)
 			int rc = modbus_read_registers(pThis->m_ctx, startAddress, numRegisters, registers);
 			if (rc != -1)
 			{
-				// 成功讀取，發送消息到 UI 更新
+				// 成功讀取，將 uint16_t 轉換為 int16_t 以處理負值，然後轉為 float
 				float coordinates[3] = {
-					static_cast<float>(registers[0]), // X
-					static_cast<float>(registers[1]), // Y
-					static_cast<float>(registers[2])  // Z
+					static_cast<float>(static_cast<int16_t>(registers[0])), // X
+					static_cast<float>(static_cast<int16_t>(registers[1])), // Y
+					static_cast<float>(static_cast<int16_t>(registers[2]))  // Z
 				};
-				pThis->PostMessage(WM_UPDATE_COORDINATES, 0, reinterpret_cast<LPARAM>(new float[3] {coordinates[0], coordinates[1], coordinates[2]}));
+				// 動態分配記憶體並發送消息到 UI 更新
+				float* coordPtr = new float[3];
+				coordPtr[0] = coordinates[0];
+				coordPtr[1] = coordinates[1];
+				coordPtr[2] = coordinates[2];
+				pThis->PostMessage(WM_UPDATE_COORDINATES, 0, reinterpret_cast<LPARAM>(coordPtr));
 			}
 			else
 			{
@@ -864,8 +869,8 @@ UINT MachineTab::ReadCoordinatesThread(LPVOID pParam)
 			}
 		}
 
-		// 每 500 毫秒讀取一次
-		Sleep(500);
+		// 每 200 毫秒讀取一次
+		Sleep(200);
 	}
 
 	return 0;
