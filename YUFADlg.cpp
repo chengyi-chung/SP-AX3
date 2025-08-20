@@ -250,7 +250,7 @@ HCURSOR CYUFADlg::OnQueryDragIcon()
 
 
 
-void CYUFADlg::OnClose()
+void CYUFADlg::OnClose() 
 {
 	// TODO: 在此加入您的訊息處理常式程式碼和 (或) 呼叫預設值
 

@@ -869,8 +869,8 @@ UINT MachineTab::ReadCoordinatesThread(LPVOID pParam)
 			}
 		}
 
-		// 每 200 毫秒讀取一次
-		Sleep(200);
+		// 每 50 毫秒讀取一次
+		Sleep(50);
 	}
 
 	return 0;

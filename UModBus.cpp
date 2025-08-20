@@ -19,7 +19,7 @@ UModBus::UModBus(CWnd* pParent /*=nullptr*/)
 {
 	// make related check box member variables to identify nunber of check boxes
 
-	//delclare the member variables of check boxes
+	//delcare the member variables of check boxes
 
 	m_chk_coil = FALSE;
 	m_chk_discrete = FALSE;
@@ -66,7 +66,7 @@ void UModBus::OnEnChangeEditIpAddress()
 	// 傳送此告知，除非您覆寫 CDialog::OnInitDialog()
 	// 函式和呼叫 CRichEditCtrl().SetEventMask()
 	// 讓具有 ENM_CHANGE 旗標 ORed 加入遮罩。
-
+	//SetDlgParam();
 	// TODO:  在此加入控制項告知處理常式程式碼
 }
 
@@ -264,9 +264,29 @@ BOOL UModBus::OnInitDialog()
 	CDialog::OnInitDialog();
 
 	// TODO:  在此加入額外的初始化
-	SetDlgItemText(IDC_EDIT_IP_ADDRESS, L"192.168.0.11");
 
-	SetDlgItemText(IDC_EDIT_SERVER_ID, L"1");
+	//從父窗口獲取指針 m_SystemPara，取得 IP 地址和 Server ID
+	//CYUFADlg* pParentWnd = (CYUFADlg*)GetParent();
+	CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
+	if (pParentWnd != nullptr)
+	{
+		//Get the IP address from m_SystemPara
+        CString ipAddress(pParentWnd->m_SystemPara.IpAddress.c_str());
+		SetDlgItemText(IDC_EDIT_IP_ADDRESS, ipAddress);
+		//Get the Station ID from m_SystemPara to serverId
+		int serverId = pParentWnd->m_SystemPara.StationID;
+		CString serverIdStr;
+		serverIdStr.Format(L"%d", serverId);
+		SetDlgItemText(IDC_EDIT_SERVER_ID, serverIdStr);
+	}
+	else
+	{
+		// Handle the error appropriately
+	}
+
+	//SetDlgItemText(IDC_EDIT_IP_ADDRESS, L"192.168.0.11");
+
+	//SetDlgItemText(IDC_EDIT_SERVER_ID, L"1");
 
 	// 初始化 Checkbox 控制項指針
 	m_chk_coil = (CButton*)GetDlgItem(IDC_MODBUS_CHK_COIL);
@@ -359,6 +379,9 @@ void UModBus::OnBnClickedIdcWorkGo()
 
 }
 
+
+
+/*
 //Set the dialog parameters
 //m_SystemPara
 //m_SystemPara.IpAddress
@@ -367,28 +390,32 @@ void UModBus::SetDlgParam()
 {
 	//Get the IP address to the edit box
 	CString str;
-	CYUFADlg* pParentWnd = (CYUFADlg*)GetParent();
+	//CYUFADlg* pParentWnd = (CYUFADlg*)GetParent();
+	CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
 
-	
 	if (pParentWnd != nullptr)
 	{
 		//Assign str to pParentWnd->m_SystemPara.StationID
+		// 將 CString 轉換為 std::string 再賦值
 		GetDlgItemText(IDC_EDIT_IP_ADDRESS, str);
-		//pParentWnd->m_SystemPara.IpAddress = str.GetBuffer();
-
+		pParentWnd->m_SystemPara.IpAddress = CT2A(str);
 		//Get the server id from the edit box
 		GetDlgItemText(IDC_EDIT_SERVER_ID, str);
 		pParentWnd->m_SystemPara.StationID = _ttoi(str);
-		
+
 	}
 	else
 	{
 		// Handle the error appropriately
 	}
 
-	
+
 
 }
+
+
+
+*/
 
 
 void UModBus::OnEnKillfocusEditIpAddress()
@@ -396,17 +423,19 @@ void UModBus::OnEnKillfocusEditIpAddress()
 	// TODO: 在此加入控制項告知處理常式程式碼
 	//Get the IP address to the edit box
 	CString str;
-	CYUFADlg* pParentWnd = (CYUFADlg*)GetParent();
-
+	//CYUFADlg* pParentWnd = (CYUFADlg*)GetParent();
+	CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
 	if (pParentWnd != nullptr)
 	{
 		//Assign str to pParentWnd->m_SystemPara.StationID
 		GetDlgItemText(IDC_EDIT_IP_ADDRESS, str);
 		// 將 CString 轉換為 char 陣列並賦值給 pParentWnd->m_SystemPara.IpAddress 
+		// 使用 CT2A 進行 CString 到 std::string 的轉換
+		pParentWnd->m_SystemPara.IpAddress = CT2A(str);
+		//Get the server id from the edit box
+		//GetDlgItemText(IDC_EDIT_SERVER_ID, str);
+		//pParentWnd->m_SystemPara.StationID = _ttoi(str);
 
-		//strncpy_s(pParentWnd->m_SystemPara.IpAddress, CT2A(str), sizeof(pParentWnd->m_SystemPara.IpAddress) - 1); 
-		
-		//pParentWnd->m_SystemPara.IpAddress[sizeof(pParentWnd->m_SystemPara.IpAddress) - 1] = '\0'; // 確保字串以 null 結尾
 
 		// 釋放 CString 的緩衝區
 		str.ReleaseBuffer();
@@ -424,6 +453,24 @@ void UModBus::OnEnKillfocusEditServerId()
 {
 	// TODO: 在此加入控制項告知處理常式程式碼
 	//SetDlgParam();
+	CString str;
+	//CYUFADlg* pParentWnd = (CYUFADlg*)GetParent();
+	CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
+	if (pParentWnd != nullptr)
+	{
+	
+		//Get the server id from the edit box
+		GetDlgItemText(IDC_EDIT_SERVER_ID, str);
+		pParentWnd->m_SystemPara.StationID = _ttoi(str);
+		// 釋放 CString 的緩衝區
+		str.ReleaseBuffer();
+	}
+	else
+	{
+		// 適當地處理錯誤
+		// 例如：顯示錯誤訊息或記錄日誌
+		AfxMessageBox(_T("Failed to get parent window."));
+	}
 }
 
 

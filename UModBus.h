@@ -35,7 +35,7 @@ public:
 
 	int ModbusTcpIpTest(const char* ip_address);
 
-	void SetDlgParam();
+	//void SetDlgParam();
 
 // 對話方塊資料
 #ifdef AFX_DESIGN_TIME
