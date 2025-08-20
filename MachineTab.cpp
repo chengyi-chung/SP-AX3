@@ -453,7 +453,7 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 				int bitAdress = 3;  // Bit address for X+ button
 				int bitValue = 1;    // Bit value for X+ button pressed
 				int nID = IDC_BTN_JOG_X_PLUS;
-				ClearDiscrete3000(0, 8);
+				this->ClearDiscrete3000(0, 8);
 				Discrete3000Change(1, bitAdress, bitValue, nID);
 				
 			}
@@ -865,12 +865,15 @@ UINT MachineTab::ReadCoordinatesThread(LPVOID pParam)
 				CString errorMessage;
 				errorMessage.Format(_T("Failed to read coordinates: %S"), modbus_strerror(errno));
 				pThis->m_strReportData += "\r\n" + std::string(CT2A(errorMessage));
+
+				pThis->ClearDiscrete3000(0, 8); // 清除 Discrete3000 狀態
+				
 				//pThis->PostMessage(WM_SETITEMTEXT, IDC_EDIT_REPORT, reinterpret_cast<LPARAM>(new CString(pThis->m_strReportData.c_str())));
 			}
 		}
 
-		// 每 50 毫秒讀取一次
-		Sleep(50);
+		// 每 800 毫秒讀取一次
+		Sleep(800);
 	}
 
 	return 0;
