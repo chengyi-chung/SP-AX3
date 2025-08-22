@@ -151,6 +151,9 @@ extern "C" UAX_API void ContourToToolPath(cv::Mat& src, ToolPath& toolpath);
 
 
 
+//***********************************************************************
+//     SQLite Database functions
+//***********************************************************************
 //SQlite Database
 //Create a database
 extern "C" UAX_API int CreateDatabase(sqlite3* db, const char* db_name);

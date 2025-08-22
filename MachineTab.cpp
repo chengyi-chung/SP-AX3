@@ -811,9 +811,9 @@ LRESULT MachineTab::OnUpdateCoordinates(WPARAM wParam, LPARAM lParam)
 	{
 		// 更新 UI 控制項
 		CString strX, strY, strZ;
-		strX.Format(_T("%.2f"), coordinates[0]);
-		strY.Format(_T("%.2f"), coordinates[1]);
-		strZ.Format(_T("%.2f"), coordinates[2]);
+		strX.Format(_T("%.2f"), coordinates[0]/100);
+		strY.Format(_T("%.2f"), coordinates[1]/100);
+		strZ.Format(_T("%.2f"), coordinates[2]/100);
 
 		SetDlgItemText(IDC_EDIT_MACHINE_X, strX);
 		SetDlgItemText(IDC_EDIT_MACHINE_Y, strY);
@@ -853,6 +853,7 @@ UINT MachineTab::ReadCoordinatesThread(LPVOID pParam)
 					static_cast<float>(static_cast<int16_t>(registers[2]))  // Z
 				};
 				// 動態分配記憶體並發送消息到 UI 更新
+			
 				float* coordPtr = new float[3];
 				coordPtr[0] = coordinates[0];
 				coordPtr[1] = coordinates[1];

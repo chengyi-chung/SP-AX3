@@ -4,6 +4,7 @@
 #include "UAX.h"
 #include "afxwin.h"
 #include "afxcmn.h"
+#include "afxbutton.h"  // 加入 MFC Button 標頭檔
 #include "SystemParaTab.h"
 #include "WorkTab.h"
 #include "UModBus.h"
@@ -15,12 +16,12 @@ class CYUFADlg : public CDialogEx
 // 建構
 public:
 	CYUFADlg(CWnd* pParent = nullptr);	// 標準建構函式
+	virtual ~CYUFADlg();                // <--- 加入這一行
 
 	//System Configuration file name constant at application path
 	const std::string SystemConfigFileName = "SystemConfig.ini";
 	//SystemPara m_SystemPara;
 	SystemConfig m_SystemPara; // System Configuration
-
 
 	//Read System Parameters from config file
 	void ReadSystemParametersFromConfigFile();
@@ -40,9 +41,8 @@ protected:
 	HICON m_hIcon;
 
 
-
 	//CStatic m_StatusBar;
-	//Add CTime m_Time, for display time
+	//Add CTime m_Time,for display time
 	CTime m_Time;
 	
 	// Tab Control
@@ -59,7 +59,18 @@ protected:
 	//Add CStatusBar m_Status_Bar
 	CStatusBar m_Status_Bar;
 
+	// MFC Button 控制項
+	CMFCButton m_BtnQuit;       // 退出按鈕
+	CMFCButton m_BtnWorking;    // 工作按鈕
+	CMFCButton m_BtnSysPara;    // 系統參數按鈕
+	CMFCButton m_BtnModbus;     // Modbus 按鈕
+	CMFCButton m_BtnMachine;    // 機器按鈕
 	
+protected:
+    CFont m_ButtonFont;          // 按鈕字體
+    CBrush m_ButtonBrush;        // 按鈕背景筆刷
+    COLORREF m_ButtonTextColor;  // 按鈕文字顏色
+    COLORREF m_ButtonBkColor;    // 按鈕背景顏色
 
 
 	// 產生的訊息對應函式
@@ -85,7 +96,35 @@ public:
 	afx_msg void OnNMRClickTabMain(NMHDR* pNMHDR, LRESULT* pResult);
 	afx_msg void OnTcnSelchangeTabMain(NMHDR* pNMHDR, LRESULT* pResult);
 
-	
+protected:
+    afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
+
+public:
+    void InitButtonStyle();   // 初始化按鈕樣式
+    void ApplyButtonStyle();  // 套用按鈕樣式
 };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 

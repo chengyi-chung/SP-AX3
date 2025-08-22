@@ -69,6 +69,13 @@ void CYUFADlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
 	DDX_Control(pDX, IDC_TAB_MAIN, m_Tab_Main);
+	
+	// 加入 MFC Button 控制項的 DDX
+	DDX_Control(pDX, IDC_BTN_QUIT, m_BtnQuit);
+	DDX_Control(pDX, IDC_BTN_WORKING, m_BtnWorking);
+	DDX_Control(pDX, IDC_BTN_SYS_PARA, m_BtnSysPara);
+	DDX_Control(pDX, IDC_BTN_MODBUS, m_BtnModbus);
+	DDX_Control(pDX, IDC_BTN_MACHINE, m_BtnMachine);
 }
 
 BEGIN_MESSAGE_MAP(CYUFADlg, CDialogEx)
@@ -86,6 +93,7 @@ BEGIN_MESSAGE_MAP(CYUFADlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BTN_MACHINE, &CYUFADlg::OnBnClickedBtnMachine)
 	ON_NOTIFY(NM_RCLICK, IDC_TAB_MAIN, &CYUFADlg::OnNMRClickTabMain)
 	ON_NOTIFY(TCN_SELCHANGE, IDC_TAB_MAIN, &CYUFADlg::OnTcnSelchangeTabMain)
+	ON_WM_CTLCOLOR()
 END_MESSAGE_MAP()
 
 
@@ -192,6 +200,8 @@ BOOL CYUFADlg::OnInitDialog()
 	m_MachineTab.MoveWindow(&rect);
 	m_MachineTab.ShowWindow(SW_HIDE);
 
+	// 修改初始化按鈕樣式的函式
+	InitButtonStyle();
 	
 	return TRUE;  // 傳回 TRUE，除非您對控制項設定焦點
 }
@@ -242,7 +252,7 @@ void CYUFADlg::OnPaint()
 }
 
 // 當使用者拖曳最小化視窗時，
-// 系統呼叫這個功能取得游標顯示。
+// 系統呼叫這個功能取得遊標顯示。
 HCURSOR CYUFADlg::OnQueryDragIcon()
 {
 	return static_cast<HCURSOR>(m_hIcon);
@@ -252,7 +262,7 @@ HCURSOR CYUFADlg::OnQueryDragIcon()
 
 void CYUFADlg::OnClose() 
 {
-	// TODO: 在此加入您的訊息處理常式程式碼和 (或) 呼叫預設值
+	// TODO: 在此加入您的訊息處理常式程式碼
 
 
 	//CDialogEx::OnClose();
@@ -483,4 +493,83 @@ void CYUFADlg::ReadSystemParametersFromConfigFile()
 	IpAddress = m_SystemPara.IpAddress;
 	Port = m_SystemPara.Port;
 
+}
+
+// 修改初始化按鈕樣式的函式
+void CYUFADlg::InitButtonStyle()
+{
+    // 建立自訂字體
+    m_ButtonFont.CreateFont(
+        16,                        // 字體高度
+        0,                         // 字體寬度
+        0,                         // 文字角度
+        0,                         // 基線角度
+        FW_BOLD,                   // 字體粗細 (FW_NORMAL, FW_BOLD)
+        FALSE,                     // 斜體
+        FALSE,                     // 底線
+        FALSE,                     // 刪除線
+        DEFAULT_CHARSET,           // 字元集
+        OUT_DEFAULT_PRECIS,        // 輸出精度
+        CLIP_DEFAULT_PRECIS,       // 裁剪精度
+        DEFAULT_QUALITY,           // 品質
+        DEFAULT_PITCH | FF_SWISS,  // 間距與字型系列
+        _T("Microsoft JhengHei")   // 字型名稱
+    );
+    
+    // 設定 MFC Button 的樣式
+    // 退出按鈕 - 紅色
+    m_BtnQuit.SetFaceColor(RGB(220, 53, 69));      // 紅色背景
+    m_BtnQuit.SetTextColor(RGB(255, 255, 255));    // 白色文字
+    m_BtnQuit.SetFont(&m_ButtonFont);
+    m_BtnQuit.EnableWindowsTheming(FALSE);         // 停用 Windows 主題
+    
+    // 工作按鈕 - 綠色
+    m_BtnWorking.SetFaceColor(RGB(40, 167, 69));   // 綠色背景
+    m_BtnWorking.SetTextColor(RGB(255, 255, 255)); // 白色文字
+    m_BtnWorking.SetFont(&m_ButtonFont);
+    m_BtnWorking.EnableWindowsTheming(FALSE);
+    
+    // 系統參數按鈕 - 藍色
+    m_BtnSysPara.SetFaceColor(RGB(0, 122, 204));   // 藍色背景
+    m_BtnSysPara.SetTextColor(RGB(255, 255, 255)); // 白色文字
+    m_BtnSysPara.SetFont(&m_ButtonFont);
+    m_BtnSysPara.EnableWindowsTheming(FALSE);
+    
+    // Modbus 按鈕 - 橙色
+    m_BtnModbus.SetFaceColor(RGB(255, 193, 7));    // 橙色背景
+    m_BtnModbus.SetTextColor(RGB(0, 0, 0));        // 黑色文字
+    m_BtnModbus.SetFont(&m_ButtonFont);
+    m_BtnModbus.EnableWindowsTheming(FALSE);
+    
+    // 機器按鈕 - 紫色
+    m_BtnMachine.SetFaceColor(RGB(108, 117, 125));  // 灰色背景
+    m_BtnMachine.SetTextColor(RGB(255, 255, 255));  // 白色文字
+    m_BtnMachine.SetFont(&m_ButtonFont);
+    m_BtnMachine.EnableWindowsTheming(FALSE);
+}
+
+void CYUFADlg::ApplyButtonStyle()
+{
+    // 這個函式現在不需要了，因為 MFC Button 有自己的樣式設定方法
+    // 保留函式以免破壞現有的呼叫，但內容可以清空或移除
+}
+
+HBRUSH CYUFADlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
+{
+    HBRUSH hbr = CDialogEx::OnCtlColor(pDC, pWnd, nCtlColor);
+    
+    // 由於使用 MFC Button，不再需要手動處理按鈕顏色
+    // MFC Button 會自動處理顏色
+    
+    return hbr;
+}
+
+CYUFADlg::~CYUFADlg()
+{
+    // 清理字體和筆刷資源
+    if (m_ButtonFont.GetSafeHandle())
+        m_ButtonFont.DeleteObject();
+    
+    if (m_ButtonBrush.GetSafeHandle())
+        m_ButtonBrush.DeleteObject();
 }
