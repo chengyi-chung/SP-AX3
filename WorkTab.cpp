@@ -326,11 +326,6 @@ UINT WorkTab::GrabThread(LPVOID pParam)
                     cv::flip(pWorkTab->m_mat, pWorkTab->m_mat, -1);
 				}
 
-
-
-
-
-
                 /*
  #ifdef PYLON_WIN_BUILD 
                 // Display the grabbed image.

@@ -465,6 +465,8 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 				int bitAdress = 3;  // Bit address for X+ button
 				int bitValue = 1;    // Bit value for X+ button pressed
 				int nID = IDC_BTN_JOG_X_PLUS;
+
+				flgGetCoord = FALSE;
 				this->ClearDiscrete3000(0, 8);
 				Discrete3000Change(1, bitAdress, bitValue, nID);
 				
@@ -478,7 +480,7 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 				int nID = IDC_BTN_JOG_X_PLUS;
 				ClearDiscrete3000(0, 8);
 				//Discrete3000Change(1, bitAdress, bitValue, nID);
-				
+				flgGetCoord = TRUE;
 			}
 		}
 		//Add similar checks for IDC_BTN_JOG_X_PLUS
@@ -492,6 +494,7 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 				int bitAdress = 4;
 				int bitValue = 1;
 				int nID = IDC_BTN_JOG_X_MINUS;
+				flgGetCoord = FALSE;
 				ClearDiscrete3000(0, 8);
 				Discrete3000Change(1, bitAdress, bitValue, nID);
 			}
@@ -504,6 +507,7 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 				int nID = IDC_BTN_JOG_X_MINUS;
 				ClearDiscrete3000(0, 8);
 				//Discrete3000Change(1, bitAdress, bitValue, nID);
+				flgGetCoord = TRUE;
 			}
 		}
 		//攔截 Y + 按鈕的 Mouse Down / Up
@@ -517,6 +521,8 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 				int bitAdress = 5;
 				int bitValue = 1;
 				int nID = IDC_BTN_JOG_Y_PLUS;
+
+				flgGetCoord = FALSE;
 				ClearDiscrete3000(0, 8);
 				Discrete3000Change(1, bitAdress, bitValue, nID);
 			}
@@ -529,6 +535,7 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 				int nID = IDC_BTN_JOG_Y_PLUS;
 				ClearDiscrete3000(0, 8);
 				//Discrete3000Change(1, bitAdress, bitValue, nID);
+				flgGetCoord = TRUE;
 			}
 		}
 
@@ -543,6 +550,8 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 				int bitAdress = 6;
 				int bitValue = 1;
 				int nID = IDC_BTN_JOG_Y_MINUS;
+
+				flgGetCoord = FALSE;
 				ClearDiscrete3000(0, 8);
 				Discrete3000Change(1, bitAdress, bitValue, nID);
 			}
@@ -555,6 +564,7 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 				int nID = IDC_BTN_JOG_Y_MINUS;
 				ClearDiscrete3000(0, 8);
 				//Discrete3000Change(1, bitAdress, bitValue, nID);
+				flgGetCoord = TRUE;
 
 			}
 		}
@@ -570,6 +580,8 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 				int bitAdress = 7;
 				int bitValue = 1;
 				int nID = IDC_BTN_JOG_Z_PLUS;
+
+				flgGetCoord = FALSE;
 				ClearDiscrete3000(0, 8);
 				Discrete3000Change(1, bitAdress, bitValue, nID);
 			}
@@ -582,6 +594,7 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 				int nID = IDC_BTN_JOG_Z_PLUS;
 				ClearDiscrete3000(0, 8);
 				//Discrete3000Change(1, bitAdress, bitValue, nID);
+				flgGetCoord = TRUE;
 			}
 		}
 
@@ -596,6 +609,8 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 				int bitAdress = 8;
 				int bitValue = 1;
 				int nID = IDC_BTN_JOG_Z_MINUS;
+
+				flgGetCoord = FALSE;
 				ClearDiscrete3000(0, 8);
 				Discrete3000Change(1, bitAdress, bitValue, nID);
 			}
@@ -608,6 +623,7 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 				int nID = IDC_BTN_JOG_Z_MINUS;
 				ClearDiscrete3000(0, 8);
 				//Discrete3000Change(1, bitAdress, bitValue, nID);
+				flgGetCoord = TRUE;
 			}
 		}
 	}
@@ -618,7 +634,7 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 		return TRUE;
 	}
 
-
+	flgGetCoord = TRUE;
 	return CDialog::PreTranslateMessage(pMsg);
 }
 
@@ -855,6 +871,13 @@ UINT MachineTab::ReadCoordinatesThread(LPVOID pParam)
 		// 確保 Modbus 上下文有效
 		if (pThis->m_ctx != nullptr)
 		{
+
+			// if flgGetCoord is TRUE, read coordinates
+			if (!pThis->flgGetCoord)
+			{
+				Sleep(10); // 等待 100 毫秒
+				continue; // 跳過此次迴圈
+			}
 			int rc = modbus_read_registers(pThis->m_ctx, startAddress, numRegisters, registers);
 			if (rc != -1)
 			{

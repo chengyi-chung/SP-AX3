@@ -84,6 +84,9 @@ protected:
 	//0: Manual 1: Auto
 	int m_iMachineMode = 0;
 
+	//flgGetCoord : TRUE: get coordinate FALSE: not get coordinate
+	BOOL flgGetCoord = FALSE;
+
 	//
 	//BOOL m_bXPlusPressed;   // X+ 按鈕狀態
 	//BOOL m_bXMinusPressed;  // X- 按鈕狀態
