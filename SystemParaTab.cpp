@@ -161,6 +161,10 @@ void SystemParaTab::UpdateControl()
 		str.Format(_T("%0.3f"), offsetValue);
 		SetDlgItemText(IDD_TAB_SYS_OFFSET_VALUE, str);
 
+		// MACKey / GoldenKey 為 char[17]，轉為 CString 顯示
+		CString macKey(pParentWnd->m_SystemPara.MACKey);
+		CString goldenKey(pParentWnd->m_SystemPara.GoldenKey);
+
 		//Fill in struct SystemConfig components to IDC_EDIT_SYSTEM_DATA
 		// 格式化資料以顯示在 IDC_EDIT_SYSTEM_DATA 控制項中
 		CString displayText;
@@ -177,8 +181,8 @@ void SystemParaTab::UpdateControl()
 			_T("解密金鑰: %s\r\n")
 			_T("相機寬度: %d\r\n")
 			_T("相機高度: %d\r\n")
-			_T("轉換因子: %.4f\r\n\r\n")
-			_T("影像方向 :%d\r\n\r\n")
+			_T("轉換因子: %.4f\r\n")
+			_T("影像方向: %d\r\n\r\n")
 			_T("機器配置:\r\n")
 			_T("機器類型: %s\r\n")
 			_T("點動速度: %d\r\n")
@@ -192,8 +196,8 @@ void SystemParaTab::UpdateControl()
 			pParentWnd->m_SystemPara.OffsetX,
 			pParentWnd->m_SystemPara.OffsetY,
 			pParentWnd->m_SystemPara.CameraID,
-
-			
+			macKey,
+			goldenKey,
 			pParentWnd->m_SystemPara.CameraWidth,
 			pParentWnd->m_SystemPara.CameraHeight,
 			pParentWnd->m_SystemPara.TransferFactor,
@@ -207,7 +211,6 @@ void SystemParaTab::UpdateControl()
 
 		// 將格式化後的文字設定到 IDC_EDIT_SYSTEM_DATA 控制項中
 		SetDlgItemText(IDC_EDIT_SYSTEM_DATA, displayText);
-
 	}
 }
 

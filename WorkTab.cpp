@@ -184,6 +184,9 @@ BOOL WorkTab::OnInitDialog()
 
     PylonInitialize();
 
+    CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
+
+	imgFlip = pParentWnd->m_SystemPara.ImageFlip;
 
     return 0;
 
@@ -306,6 +309,27 @@ UINT WorkTab::GrabThread(LPVOID pParam)
                 
                 // 使用 ShowImageOnPictureControl使用下式
 				pWorkTab->m_mat = cv::Mat(ptrGrabResult->GetHeight(), ptrGrabResult->GetWidth(), CV_8UC1, (void*)pWorkTab->pImageBuffer).clone();
+
+                // 根據 imgFlip 的值翻轉影像
+                // 0: 垂直翻轉, 1: 水平翻轉, -1: 水平並垂直翻轉
+				//flip image pWorkTab->m_mat
+                if (pWorkTab->imgFlip == 0)
+                {
+                    cv::flip(pWorkTab->m_mat, pWorkTab->m_mat, 0);
+                }
+                else if (pWorkTab->imgFlip == 1)
+                {
+                    cv::flip(pWorkTab->m_mat, pWorkTab->m_mat, 1);
+                }
+                else if (pWorkTab->imgFlip == -1)
+                {
+                    cv::flip(pWorkTab->m_mat, pWorkTab->m_mat, -1);
+				}
+
+
+
+
+
 
                 /*
  #ifdef PYLON_WIN_BUILD 

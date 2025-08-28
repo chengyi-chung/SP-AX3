@@ -98,6 +98,9 @@ protected:
 	int oriImageWidth;
 	int oriImageHeight;
 
+	//image flip variable
+	int imgFlip;
+
 	//structure of system parameter for YUFA system
 
 

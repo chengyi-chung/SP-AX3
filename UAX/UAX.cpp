@@ -614,7 +614,7 @@ void WriteConfigToFile(const std::string& filename, SystemConfig &SysConfig)
 	file << "CameraWidth=" << SysConfig.CameraWidth << "\n";
 	file << "CameraHeight=" << SysConfig.CameraHeight << "\n";
 	file << "TransferFactor=" << std::fixed << std::setprecision(2) << SysConfig.TransferFactor << "\n";
-	file << "FOVDir=" << SysConfig.ImageFlip << "\n";
+	file << "ImageFlip=" << SysConfig.ImageFlip << "\n";
 	file << "[Machine]\n";
 	file << "MachineType=" << SysConfig.MachineType << "\n";
 	file << "JogVelocity=" << SysConfig.JogVelocity << "\n";
@@ -669,7 +669,7 @@ int ReadSystemConfig(const std::string& filename, SystemConfig &SysConfig)
 				SysConfig.CameraID = line.length() > 9 ? std::stoi(line.substr(9)) : 0;
 			}
 			else if (line.find("ImageFlip=") == 0) {
-				SysConfig.ImageFlip = line.length() > 7 ? std::stoi(line.substr(7)) : 0;
+				SysConfig.ImageFlip = line.length() > 10 ? std::stoi(line.substr(10)) : 0;
 			}
 			else if (line.find("MACKey=") == 0) {
 				std::string key = line.length() > 7 ? line.substr(7) : "";
