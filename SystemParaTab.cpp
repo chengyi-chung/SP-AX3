@@ -173,9 +173,12 @@ void SystemParaTab::UpdateControl()
 			_T("偏移 Y: %.2f\r\n\r\n")
 			_T("相機配置:\r\n")
 			_T("相機 ID: %d\r\n")
+			_T("MAC 位址: %s\r\n")
+			_T("解密金鑰: %s\r\n")
 			_T("相機寬度: %d\r\n")
 			_T("相機高度: %d\r\n")
-			_T("轉換因子: %.2f\r\n\r\n")
+			_T("轉換因子: %.4f\r\n\r\n")
+			_T("影像方向 :%d\r\n\r\n")
 			_T("機器配置:\r\n")
 			_T("機器類型: %s\r\n")
 			_T("點動速度: %d\r\n")
@@ -189,9 +192,12 @@ void SystemParaTab::UpdateControl()
 			pParentWnd->m_SystemPara.OffsetX,
 			pParentWnd->m_SystemPara.OffsetY,
 			pParentWnd->m_SystemPara.CameraID,
+
+			
 			pParentWnd->m_SystemPara.CameraWidth,
 			pParentWnd->m_SystemPara.CameraHeight,
 			pParentWnd->m_SystemPara.TransferFactor,
+			pParentWnd->m_SystemPara.ImageFlip,
 			CString(pParentWnd->m_SystemPara.MachineType.c_str()),
 			pParentWnd->m_SystemPara.JogVelocity,
 			pParentWnd->m_SystemPara.AutoVelocity,

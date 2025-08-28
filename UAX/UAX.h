@@ -188,9 +188,12 @@ struct SystemConfig
     float OffsetX;
     float OffsetY;
     int CameraID;
+    char MACKey[17];    // 128 bit key
+	char GoldenKey[17]; // 128 bit key
     int CameraWidth;
     int CameraHeight;
     float TransferFactor;
+    int ImageFlip;
     std::string MachineType;
     int JogVelocity;
     int AutoVelocity;

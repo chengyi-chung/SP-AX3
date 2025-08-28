@@ -323,67 +323,79 @@ void MachineTab::ClearDiscrete3000(int iStartAdress, int iEndAdress)
 }
 
 
-void MachineTab::OnBnClickedBtnMachineSaveMotion()  
-{  
-// TODO: 在此加入控制項告知處理常式程式碼  
-//20014 : Jog Velocity  
-//20015 : Auto Velocity  
-//20016 : Axis Dec Acceleration  
-//20017 : Axis Inc Acceleration  
-
-uint16_t iValue[4] = { 0 }; // 修正：初始化陣列以避免 NULL 指標錯誤  
-iValue[0] = GetDlgItemInt(IDC_EDIT_JOG_VELOCITY);  
-iValue[1] = GetDlgItemInt(IDC_EDIT_AUTO_VELOCITY);  
-iValue[2] = GetDlgItemInt(IDC_EDIT_AXIS_ACC_DEC);  
-iValue[3] = GetDlgItemInt(IDC_EDIT_AXIS_ACC_INC);  
-
-SetHoldingRegister(20014, 20017, iValue, sizeof(iValue) / sizeof(iValue[0]));  
-//將iValue陣列的值寫入 YUDADlg 的 m_SystemPara
-CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
-if (!pParentWnd)
+void MachineTab::OnBnClickedBtnMachineSaveMotion()
 {
-	AfxMessageBox(_T("Failed to get CYUFADlg parent window."));
-	return;
-}
+	// TODO: 在此加入控制項告知處理常式程式碼  
+	// 20014 : Jog Velocity  
+	// 20015 : Auto Velocity  
+	// 20016 : Axis Dec Acceleration  
+	// 20017 : Axis Inc Acceleration  
 
-// Access m_SystemPara
-if (pParentWnd->m_SystemPara.IpAddress.empty())
-{
-	AfxMessageBox(_T("IP Address is not set in System Parameters."));
-	return;
-}
+	int16_t iValueSigned[4] = { 0 }; // 用於儲存帶符號的值
+	uint16_t iValueUnsigned[4] = { 0 }; // 用於傳遞給 SetHoldingRegister
 
-	pParentWnd->m_SystemPara.JogVelocity = iValue[0];
-	pParentWnd->m_SystemPara.AutoVelocity = iValue[1];
-	pParentWnd->m_SystemPara.DecAcceleration = iValue[2];
-	pParentWnd->m_SystemPara.IncAcceleration = iValue[3];
-	//Assign the values to pParentWnd->m_SystemPara IDC_EDIT_PITCH、IDC_EDIT_TRANSFER_FACTOR
+	// 獲取 UI 輸入值，並儲存為帶符號的值
+	iValueSigned[0] = static_cast<int16_t>(GetDlgItemInt(IDC_EDIT_JOG_VELOCITY));
+	iValueSigned[1] = static_cast<int16_t>(GetDlgItemInt(IDC_EDIT_AUTO_VELOCITY));
+	iValueSigned[2] = static_cast<int16_t>(GetDlgItemInt(IDC_EDIT_AXIS_ACC_DEC));
+	iValueSigned[3] = static_cast<int16_t>(GetDlgItemInt(IDC_EDIT_AXIS_ACC_INC));
+
+	// 將 int16_t 的補碼值直接賦值給 uint16_t，不改變二進位表示
+	for (int i = 0; i < 4; i++)
+	{
+		// 使用 reinterpret_cast 或直接賦值，確保二進位數據不變
+		iValueUnsigned[i] = *reinterpret_cast<uint16_t*>(&iValueSigned[i]);
+	}
+
+	// 調用 SetHoldingRegister，傳遞 uint16_t 類型的陣列
+	SetHoldingRegister(20014, 20017, iValueUnsigned, sizeof(iValueUnsigned) / sizeof(iValueUnsigned[0]));
+
+	// 將 iValueSigned 陣列的值寫入 YUDADlg 的 m_SystemPara
+	CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
+	if (!pParentWnd)
+	{
+		AfxMessageBox(_T("無法取得 CYUFADlg 父視窗。"));
+		return;
+	}
+
+	// 存取 m_SystemPara
+	if (pParentWnd->m_SystemPara.IpAddress.empty())
+	{
+		AfxMessageBox(_T("系統參數中未設定 IP 位址。"));
+		return;
+	}
+
+	// 使用帶符號的值儲存到 m_SystemPara 中，以便保留負值資訊
+	pParentWnd->m_SystemPara.JogVelocity = iValueSigned[0];
+	pParentWnd->m_SystemPara.AutoVelocity = iValueSigned[1];
+	pParentWnd->m_SystemPara.DecAcceleration = iValueSigned[2];
+	pParentWnd->m_SystemPara.IncAcceleration = iValueSigned[3];
+
+	// 將 IDC_EDIT_PITCH、IDC_EDIT_TRANSFER_FACTOR 的值賦予 pParentWnd->m_SystemPara
 	CString strPitch, strTransferFactor;
 	GetDlgItemText(IDC_EDIT_PITCH, strPitch);
 	GetDlgItemText(IDC_EDIT_TRANSFER_FACTOR, strTransferFactor);
-	//將strPitch和strTransferFactor轉換為double
+
+	// 將 strPitch 和 strTransferFactor 轉換為 double
 	double pitch = _ttof(strPitch);
 	double transferFactor = _ttof(strTransferFactor);
-	
+
 	pParentWnd->m_SystemPara.Pitch = pitch;
 	pParentWnd->m_SystemPara.TransferFactor = transferFactor;
 
-
 	std::string appPath;
-	// Get the application path
+	// 取得應用程式路徑
 	appPath = GetAppPath();
 
-	//Set System configuration file name add app path
+	// 設定系統設定檔名稱並加入應用程式路徑
 	CString strConfigFile = _T("SystemConfig.ini");
-	// 修正 appPath 與 strConfigFile 的串接方式
 	strConfigFile = CString(appPath.c_str()) + _T("\\") + strConfigFile;
 
-	//Call UAX :  SystemConfig ReadSystemConfig(const std::string& filename)
-	 WriteConfigToFile(std::string(CT2A(strConfigFile)), pParentWnd->m_SystemPara);
-	//顯示成功訊息
-	//AfxMessageBox(_T("Motion parameters saved successfully."));
-
+	// 呼叫 UAX: SystemConfig ReadSystemConfig(const std::string& filename)
+	WriteConfigToFile(std::string(CT2A(strConfigFile)), pParentWnd->m_SystemPara);
 }
+
+
 
 //Set Holding Register value
 //iStartAdress: Start Address

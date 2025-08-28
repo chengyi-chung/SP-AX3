@@ -609,9 +609,12 @@ void WriteConfigToFile(const std::string& filename, SystemConfig &SysConfig)
 	file << "OffsetY=" << std::fixed << std::setprecision(2) << SysConfig.OffsetY << "\n";
 	file << "[Camera]\n";
 	file << "CameraID=" << SysConfig.CameraID << "\n";
+	file << "MACKey=" << SysConfig.MACKey << "\n";
+	file << "GoldenKey=" << SysConfig.GoldenKey << "\n";
 	file << "CameraWidth=" << SysConfig.CameraWidth << "\n";
 	file << "CameraHeight=" << SysConfig.CameraHeight << "\n";
 	file << "TransferFactor=" << std::fixed << std::setprecision(2) << SysConfig.TransferFactor << "\n";
+	file << "FOVDir=" << SysConfig.ImageFlip << "\n";
 	file << "[Machine]\n";
 	file << "MachineType=" << SysConfig.MachineType << "\n";
 	file << "JogVelocity=" << SysConfig.JogVelocity << "\n";
@@ -664,6 +667,18 @@ int ReadSystemConfig(const std::string& filename, SystemConfig &SysConfig)
 			}
 			else if (line.find("CameraID=") == 0) {
 				SysConfig.CameraID = line.length() > 9 ? std::stoi(line.substr(9)) : 0;
+			}
+			else if (line.find("ImageFlip=") == 0) {
+				SysConfig.ImageFlip = line.length() > 7 ? std::stoi(line.substr(7)) : 0;
+			}
+			else if (line.find("MACKey=") == 0) {
+				std::string key = line.length() > 7 ? line.substr(7) : "";
+				strncpy_s(SysConfig.MACKey, sizeof(SysConfig.MACKey), key.c_str(), _TRUNCATE);
+			}	
+			else if (line.find("GoldenKey=") == 0) {
+				std::string key = line.length() > 10 ? line.substr(10) : "";
+				strncpy_s(SysConfig.GoldenKey, key.c_str(), sizeof(SysConfig.GoldenKey) - 1);
+				SysConfig.GoldenKey[sizeof(SysConfig.GoldenKey) - 1] = '\0'; // Ensure null-termination
 			}
 			else if (line.find("CameraWidth=") == 0) {
 				SysConfig.CameraWidth = line.length() > 12 ? std::stoi(line.substr(12)) : 0;
