@@ -382,6 +382,82 @@ std::string GetAppPath()
 	return fullPath;
 }
 
+//Get mac address
+void GetMacAddress(char* macAddress)
+{
+	//Get the MAC address of the computer, Get the first if exit
+	IP_ADAPTER_ADDRESSES* pAddresses = NULL;
+	ULONG outBufLen = 0;
+	DWORD dwRetVal = 0;
+	// Call GetAdaptersAddresses to get the size needed
+	dwRetVal = GetAdaptersAddresses(AF_UNSPEC, 0, NULL, pAddresses, &outBufLen);
+	if (dwRetVal == ERROR_BUFFER_OVERFLOW)
+	{
+		pAddresses = (IP_ADAPTER_ADDRESSES*)malloc(outBufLen);
+		if (pAddresses == NULL)
+		{
+			//std::cerr << "Error: Memory allocation failed for IP_ADAPTER_ADDRESSES struct" << std::endl;
+			MessageBox(NULL, _T("Error: Memory allocation failed for IP_ADAPTER_ADDRESSES struct"), _T("Error"), MB_OK);
+			return;
+		}
+	}
+	dwRetVal = GetAdaptersAddresses(AF_UNSPEC, 0, NULL, pAddresses, &outBufLen);
+	if (dwRetVal == NO_ERROR)
+	{
+		IP_ADAPTER_ADDRESSES* pCurrAddresses = pAddresses;
+		while (pCurrAddresses)
+		{
+			if (pCurrAddresses->PhysicalAddressLength != 0)
+			{
+				// Format the MAC address
+				sprintf_s(macAddress, 18, "%02X-%02X-%02X-%02X-%02X-%02X",
+					pCurrAddresses->PhysicalAddress[0],
+					pCurrAddresses->PhysicalAddress[1],
+					pCurrAddresses->PhysicalAddress[2],
+					pCurrAddresses->PhysicalAddress[3],
+					pCurrAddresses->PhysicalAddress[4],
+					pCurrAddresses->PhysicalAddress[5]);
+				break; // Get the first MAC address and exit
+			}
+			pCurrAddresses = pCurrAddresses->Next;
+		}
+	}
+	else
+	{
+		//std::cerr << "Error: GetAdaptersAddresses failed with error: " << dwRetVal << std::endl;
+		MessageBox(NULL, _T("Error: GetAdaptersAddresses failed"), _T("Error"), MB_OK);
+	}
+	if (pAddresses)
+	{
+		free(pAddresses);
+	}
+	return;
+
+}
+
+
+
+
+//Data Tools
+
+// Double Word split to Hight Word and Low Word
+// DW2W(int32 dw, int16* hw, int16* lw)
+
+// 函數：將 Double Word 拆分為 High Word 和 Low Word
+void splitDoubleWord(uint32_t doubleWord, uint16_t& highWord, uint16_t& lowWord)
+{
+	highWord = (doubleWord >> 16) & 0xFFFF; // 提取高 16 位
+	lowWord = doubleWord & 0xFFFF;          // 提取低 16 位
+}
+
+/*
+uint16_t tab_reg[2];
+uint32_t value = 0x12345678;
+splitDoubleWord(value, tab_reg[0], tab_reg[1]); // 拆分為 High Word 和 Low Word
+modbus_write_registers(ctx, 0, 2, tab_reg);     // 寫入 PLC
+*/
+
+
 
 //Create a database with sqlite3
 //void CreateDatabase()
@@ -615,6 +691,8 @@ void WriteConfigToFile(const std::string& filename, SystemConfig &SysConfig)
 	file << "CameraHeight=" << SysConfig.CameraHeight << "\n";
 	file << "TransferFactor=" << std::fixed << std::setprecision(2) << SysConfig.TransferFactor << "\n";
 	file << "ImageFlip=" << SysConfig.ImageFlip << "\n";
+	file << "CenterX=" << std::fixed << std::setprecision(2) << SysConfig.CenterX << "\n";
+	file << "CenterY=" << std::fixed << std::setprecision(2) << SysConfig.CenterY << "\n";
 	file << "[Machine]\n";
 	file << "MachineType=" << SysConfig.MachineType << "\n";
 	file << "JogVelocity=" << SysConfig.JogVelocity << "\n";
@@ -677,8 +755,7 @@ int ReadSystemConfig(const std::string& filename, SystemConfig &SysConfig)
 			}	
 			else if (line.find("GoldenKey=") == 0) {
 				std::string key = line.length() > 10 ? line.substr(10) : "";
-				strncpy_s(SysConfig.GoldenKey, key.c_str(), sizeof(SysConfig.GoldenKey) - 1);
-				SysConfig.GoldenKey[sizeof(SysConfig.GoldenKey) - 1] = '\0'; // Ensure null-termination
+				strncpy_s(SysConfig.GoldenKey, sizeof(SysConfig.GoldenKey), key.c_str(), _TRUNCATE);
 			}
 			else if (line.find("CameraWidth=") == 0) {
 				SysConfig.CameraWidth = line.length() > 12 ? std::stoi(line.substr(12)) : 0;
@@ -688,6 +765,12 @@ int ReadSystemConfig(const std::string& filename, SystemConfig &SysConfig)
 			}
 			else if (line.find("TransferFactor=") == 0) {
 				SysConfig.TransferFactor = line.length() > 15 ? std::stof(line.substr(15)) : 0.0f;
+			}
+			else if (line.find("CenterX=") == 0) {
+				SysConfig.CenterX = line.length() > 8 ? std::stof(line.substr(8)) : 0.0f;
+			}
+			else if (line.find("CenterY=") == 0) {
+				SysConfig.CenterY = line.length() > 8 ? std::stof(line.substr(8)) : 0.0f;
 			}
 			else if (line.find("MachineType=") == 0) {
 				SysConfig.MachineType = line.length() > 12 ? line.substr(12) : "";

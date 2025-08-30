@@ -72,7 +72,10 @@
 #define IDC_BTN_MACHINE_SAVE_MOTION     1051
 #define IDC_EDIT2                       1052
 #define IDC_EDIT_PITCH                  1052
+#define IDC_EDIT_CCD_CENTER_X           1052
 #define IDC_MFCBTN_MACHINE_HOME         1053
+#define IDC_EDIT_CCD_CENTER_X2          1053
+#define IDC_EDIT_CCD_CENTER_Y           1053
 #define IDC_EDIT_TRANSFER_FACTOR        1054
 #define IDC_MFCBTN_MACHINE_RESET_SW     1055
 #define IDC_MFCBTN_MACHINE_AUTO_WORK_SART 1056
@@ -82,18 +85,14 @@
 #define IDC_MFCBTN_MACHINE_GO           1060
 #define IDC_MFCBTN_SAVE_SYSTEM          1061
 #define IDC_LIST_IMAGE_FILES            1062
-//#define IDC_EDIT_MACHINE_X              1063
-// 新增 MachineTab 機台座標顯示用的 Edit Control ID
-#define IDC_EDIT_MACHINE_X      11001
-#define IDC_EDIT_MACHINE_Y      11002
-#define IDC_EDIT_MACHINE_Z      11003
-//#define IDC_EDIT_MACHINE_Y              1064
-//#define IDC_EDIT5                       1065
-//#define IDC_EDIT_MACHINE_Z              1065
+#define IDC_EDIT_MACHINE_X              11001
+#define IDC_EDIT_MACHINE_Y              11002
+#define IDC_EDIT_MACHINE_Z              11003
 #define ID_INDICATOR_TIME               59142
 #define ID_INDICATOR_FILE               59143
 
-#define WM_UPDATE_COORDINATES (WM_USER + 100)
+
+#define WM_UPDATE_COORDINATES    (WM_USER + 100)
 
 // Next default values for new objects
 // 

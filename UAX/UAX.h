@@ -133,7 +133,7 @@ extern "C" UAX_API int LensCalibration(cv::Mat& src, cv::Mat& templ, cv::Mat& ds
 // Get Tool Path
 // Use Erosiong find the tool path
 // ImgSrc: the input image
-// Offset: the offse value of the tool path
+// Offset: the offse value of the tool path(Pixel)
 // ToolPath: the output tool path
 extern "C" UAX_API void GetToolPath(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpath);
 
@@ -180,6 +180,30 @@ extern "C" UAX_API int CloseDatabase(sqlite3* db);
 extern "C" UAX_API std::string GetAppPath();
 
 
+//Data Tools
+
+// Double Word split to Hight Word and Low Word
+// DW2W(int32 dw, int16* hw, int16* lw)
+
+// 函數：將 Double Word 拆分為 High Word 和 Low Word
+extern "C" UAX_API void splitDoubleWord(uint32_t doubleWord, uint16_t& highWord, uint16_t& lowWord);
+
+
+
+//***********************************************************************
+//    Security and System Configuration functions
+//***********************************************************************
+
+//Get mac address
+extern "C" UAX_API void GetMacAddress(char* macAddress);
+
+
+
+//
+//  SystemConfig
+//
+
+
 struct SystemConfig
 {
     std::string IpAddress;
@@ -194,6 +218,8 @@ struct SystemConfig
     int CameraHeight;
     float TransferFactor;
     int ImageFlip;
+    float CenterX;
+    float CenterY;
     std::string MachineType;
     int JogVelocity;
     int AutoVelocity;

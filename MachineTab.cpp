@@ -875,7 +875,7 @@ UINT MachineTab::ReadCoordinatesThread(LPVOID pParam)
 			// if flgGetCoord is TRUE, read coordinates
 			if (!pThis->flgGetCoord)
 			{
-				Sleep(10); // 等待 100 毫秒
+				Sleep(100); // 等待 100 毫秒
 				continue; // 跳過此次迴圈
 			}
 			int rc = modbus_read_registers(pThis->m_ctx, startAddress, numRegisters, registers);

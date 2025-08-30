@@ -33,13 +33,13 @@ D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(101,3): warning C4297: 'GetTool
       D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(101,3):
       已在函式指定 __declspec(nothrow)、throw()、noexcept(true) 或 noexcept
   
-D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(599,3): warning C4297: 'WriteConfigToFile': 函式預設並不會擲回例外狀況，但卻擲回例外狀況
-      D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(599,3):
+D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(675,3): warning C4297: 'WriteConfigToFile': 函式預設並不會擲回例外狀況，但卻擲回例外狀況
+      D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(675,3):
       已在函式指定 __declspec(nothrow)、throw()、noexcept(true) 或 noexcept
   
      正在建立程式庫 D:\Git Repository\chengyi-chung\YUFA\x64\Release\UAX.lib 和物件 D:\Git Repository\chengyi-chung\YUFA\x64\Release\UAX.exp
   正在產生程式碼
   Previous IPDB not found, fall back to full compilation.
-  All 663 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+  All 667 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
   已完成程式碼產生
   UAX.vcxproj -> D:\Git Repository\chengyi-chung\YUFA\x64\Release\UAX.dll
