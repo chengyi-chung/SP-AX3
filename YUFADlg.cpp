@@ -137,6 +137,9 @@ BOOL CYUFADlg::OnInitDialog()
 	// Read System Parameters from config file
 	ReadSystemParametersFromConfigFile();
 
+	// 使用現有的 GetMacAddress 函式取得 MAC 位址
+	GetMacAddress(m_SystemPara.MACKey);
+
 	//define indicators
 	UINT indicators[] = { ID_INDICATOR_TIME, ID_INDICATOR_FILE };
 
@@ -202,8 +205,10 @@ BOOL CYUFADlg::OnInitDialog()
 
 	// 修改初始化按鈕樣式的函式
 	InitButtonStyle();
-	
-	return TRUE;  // 傳回 TRUE，除非您對控制項設定焦點
+
+	//Get Mac ID assign to m_SystemPara with UAX: GetMacAddress
+
+	return TRUE;  // return TRUE unless you set the focus to a control
 }
 
 void CYUFADlg::OnSysCommand(UINT nID, LPARAM lParam)

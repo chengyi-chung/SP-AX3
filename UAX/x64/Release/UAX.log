@@ -1,5 +1,4 @@
-﻿  dllmain.cpp
-  UAX.cpp
+﻿  UAX.cpp
 C:\opencv\build\include\opencv2\core.hpp(1747,1): warning C4819: 檔案含有無法在目前字碼頁 (950) 中表示的字元。請以 Unicode 格式儲存檔案以防止資料遺失
   (編譯來源檔案 'UAX.cpp')
   
@@ -33,13 +32,14 @@ D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(101,3): warning C4297: 'GetTool
       D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(101,3):
       已在函式指定 __declspec(nothrow)、throw()、noexcept(true) 或 noexcept
   
-D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(675,3): warning C4297: 'WriteConfigToFile': 函式預設並不會擲回例外狀況，但卻擲回例外狀況
-      D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(675,3):
+D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(698,3): warning C4297: 'WriteConfigToFile': 函式預設並不會擲回例外狀況，但卻擲回例外狀況
+      D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(698,3):
       已在函式指定 __declspec(nothrow)、throw()、noexcept(true) 或 noexcept
   
      正在建立程式庫 D:\Git Repository\chengyi-chung\YUFA\x64\Release\UAX.lib 和物件 D:\Git Repository\chengyi-chung\YUFA\x64\Release\UAX.exp
   正在產生程式碼
-  Previous IPDB not found, fall back to full compilation.
-  All 667 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+  42 of 707 functions ( 5.9%) were compiled, the rest were copied from previous compilation.
+    40 functions were new in current compilation
+    46 functions had inline decision re-evaluated but remain unchanged
   已完成程式碼產生
   UAX.vcxproj -> D:\Git Repository\chengyi-chung\YUFA\x64\Release\UAX.dll

@@ -949,7 +949,14 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
 	cv::Mat ImgSrc = m_mat.clone();
 	cv::Point2d Offset;
 	//ToolPath toolpath;
+	//Get m_ToolPathData from Parrent Window
+	//CYUFADlg* pParentWnd = (CYUFADlg*)GetParent();
+    CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
 
+    Offset.x = pParentWnd->m_SystemPara.OffsetX;
+	Offset.y = pParentWnd->m_SystemPara.OffsetY;
+
+   
 
     GetToolPathData(ImgSrc, Offset, toolPath);
 
@@ -1002,15 +1009,6 @@ void WorkTab::GetToolPathData(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& too
 	//ImgSrc: Source Image
 	//Offset: Offset of the tool path
 	//toolpath: Tool Path
-
-    CYUFADlg* pParentWnd = (CYUFADlg*)GetParent();
-	if (pParentWnd == NULL)
-	{
-		AfxMessageBox(_T("Parent window is NULL."));
-		return;
-	}
-	Offset.x = pParentWnd -> m_SystemPara.OffsetX;
-	Offset.y = pParentWnd -> m_SystemPara.OffsetY;
 
     //Offset.x = 5;
 	//Offset.y = 5;

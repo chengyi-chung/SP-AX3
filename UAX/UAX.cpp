@@ -382,6 +382,7 @@ std::string GetAppPath()
 	return fullPath;
 }
 
+//System Tools
 //Get mac address
 void GetMacAddress(char* macAddress)
 {
@@ -435,6 +436,47 @@ void GetMacAddress(char* macAddress)
 
 }
 
+void InitTransformer(float* imagePts, float* worldPts, int count)
+{
+	std::vector<cv::Point2f> img, world;
+    // 在檔案開頭（全域區域）宣告 affineMatrix 變數
+    cv::Mat affineMatrix;
+	for (int i = 0; i < count; ++i) {
+		img.emplace_back(imagePts[i * 2], imagePts[i * 2 + 1]);
+		world.emplace_back(worldPts[i * 2], worldPts[i * 2 + 1]);
+	}
+	affineMatrix = cv::estimateAffine2D(img, world);
+}
+
+bool TransformPixel(float x, float y, float* outX, float* outY) 
+{
+	cv::Mat affineMatrix;
+	if (affineMatrix.empty()) return false;
+
+	cv::Mat pt = (cv::Mat_<double>(3, 1) << x, y, 1.0);
+	cv::Mat result = affineMatrix * pt;
+
+	*outX = static_cast<float>(result.at<double>(0, 0));
+	*outY = static_cast<float>(result.at<double>(1, 0));
+	return true;
+}
+
+/*  以上 InitTransformer、TransformPixel 使用範例
+int main() 
+{
+	float imagePts[] = {1097,1063, 1373,1063, 1371,945};
+	float worldPts[] = {34.79f,205.19f, 187.19f,205.19f, 187.19f,141.79f};
+
+	InitTransformer(imagePts, worldPts, 3);
+
+	float x_mm, y_mm;
+	if (TransformPixel(1200, 1000, &x_mm, &y_mm)) {
+		std::cout << "World Coord: (" << x_mm << ", " << y_mm << ") mm\n";
+	} else {
+		std::cerr << "Transform failed.\n";
+	}                                                                                                       
+}
+*/
 
 
 

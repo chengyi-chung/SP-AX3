@@ -179,6 +179,9 @@ extern "C" UAX_API int CloseDatabase(sqlite3* db);
 //Get Application Path
 extern "C" UAX_API std::string GetAppPath();
 
+//Get mac address
+extern "C" UAX_API void GetMacAddress(char* macAddress);
+
 
 //Data Tools
 
@@ -187,15 +190,6 @@ extern "C" UAX_API std::string GetAppPath();
 
 // 函數：將 Double Word 拆分為 High Word 和 Low Word
 extern "C" UAX_API void splitDoubleWord(uint32_t doubleWord, uint16_t& highWord, uint16_t& lowWord);
-
-
-
-//***********************************************************************
-//    Security and System Configuration functions
-//***********************************************************************
-
-//Get mac address
-extern "C" UAX_API void GetMacAddress(char* macAddress);
 
 
 
@@ -212,8 +206,8 @@ struct SystemConfig
     float OffsetX;
     float OffsetY;
     int CameraID;
-    char MACKey[17];    // 128 bit key
-	char GoldenKey[17]; // 128 bit key
+    char MACKey[18];    // 128 bit key
+	char GoldenKey[18]; // 128 bit key
     int CameraWidth;
     int CameraHeight;
     float TransferFactor;

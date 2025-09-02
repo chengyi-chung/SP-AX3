@@ -98,16 +98,15 @@ void SystemParaTab::OnEnChangeTabSysOffsetValue()
 	SetDlgItemText(IDD_TAB_SYS_Y_OFFSET, str);
 
 // // 檢查父視窗指標有效性
-	CWnd* pWnd = GetParent();
-	if (pWnd && ::IsWindow(pWnd->GetSafeHwnd()))
-	{
-		CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(pWnd);
+	//CWnd* pWnd = GetParent();
+	CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
+	
 		if (pParentWnd)
 		{
 			pParentWnd->m_SystemPara.OffsetX = iResult;
 			pParentWnd->m_SystemPara.OffsetY = iResult;
 		}
-	}
+	
     
 	
 }
