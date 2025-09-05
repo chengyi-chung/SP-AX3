@@ -67,10 +67,10 @@
 #define IDC_EDIT_AUTO_VELOCITY          1047
 #define IDC_EDIT_AXIS_ACC_DEC           1048
 #define IDC_EDIT_AXIS_ACC_INC           1049
-#define IDC_BUTTON3                     1050
+//#define IDC_BUTTON3                     1050
 #define IDC_BTN_CALIBRATION             1050
 #define IDC_BTN_MACHINE_SAVE_MOTION     1051
-#define IDC_EDIT2                       1052
+//#define IDC_EDIT2                       1052
 #define IDC_EDIT_PITCH                  1052
 #define IDC_EDIT_CCD_CENTER_X           1052
 #define IDC_MFCBTN_MACHINE_HOME         1053

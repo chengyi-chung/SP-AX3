@@ -147,8 +147,10 @@ protected:
 	//Display MyImage in the dialog IDC_PICCTL_DISPLAY
 	CStatic m_PicCtl_Display;
 	//Add a button IDC_WORK_GRAB
-	CButton m_Work_Grab;
-	//Add a button IDC_WORK_STOP
+	CMFCButton m_Work_Grab;           // 改為 MFC Button Control
+	//Add a button IDC_WORK_STOP_GRAB
+	CMFCButton m_Work_StopGrab;       // 新增 MFC Button Control
+
 	void DrawPicToHDC(cv::Mat cvImg, UINT ID, bool bOnPaint);
 
 

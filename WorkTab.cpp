@@ -125,9 +125,10 @@ WorkTab::~WorkTab()
 void WorkTab::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
+    DDX_Control(pDX, IDC_WORK_GRAB, m_Work_Grab);           // 綁定 MFC Button
+    DDX_Control(pDX, IDC_WORK_STOP_GRAB, m_Work_StopGrab);  // 綁定 Stop Grab MFC Button
 }
-
-          
+         
 BEGIN_MESSAGE_MAP(WorkTab, CDialogEx)
 	ON_BN_CLICKED(IDC_WORK_GRAB, &WorkTab::OnBnClickedWorkGrab)
     ON_WM_CTLCOLOR()
