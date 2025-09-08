@@ -125,8 +125,15 @@ WorkTab::~WorkTab()
 void WorkTab::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
-    DDX_Control(pDX, IDC_WORK_GRAB, m_Work_Grab);           // 綁定 MFC Button
-    DDX_Control(pDX, IDC_WORK_STOP_GRAB, m_Work_StopGrab);  // 綁定 Stop Grab MFC Button
+	DDX_Control(pDX, IDC_WORK_GRAB, m_Work_Grab);
+	DDX_Control(pDX, IDC_WORK_STOP_GRAB, m_Work_StopGrab);
+	DDX_Control(pDX, IDC_WORK_TEMP_IMG, m_Work_TempImg);
+	DDX_Control(pDX, IDC_WORK_MATCH_TEMP, m_Work_MatchTemp);
+	DDX_Control(pDX, IDC_IDC_WORK_TOOL_PATH, m_Work_ToolPath);
+	DDX_Control(pDX, IDC_IDC_WORK_LOAD_IMG, m_Work_LoadImg);
+	DDX_Control(pDX, IDC_IDC_WORK_SAVE_IMG, m_Work_SaveImg);
+	DDX_Control(pDX, IDC_IDC_WORK_GO, m_Work_Go);
+	DDX_Control(pDX, IDC_BTN_CALIBRATION, m_Btn_Calibration);
 }
          
 BEGIN_MESSAGE_MAP(WorkTab, CDialogEx)
