@@ -195,6 +195,46 @@ BOOL WorkTab::OnInitDialog()
 
 	imgFlip = pParentWnd->m_SystemPara.ImageFlip;
 
+
+    // 設定按鈕底色與文字顏色
+	//宣告RGB顏色變
+
+	//Grab按鈕
+    m_Work_Grab.SetFaceColor(RGB(194, 194, 194));      // 灰色底
+    m_Work_Grab.SetTextColor(RGB(0, 0, 0));    //黑色字
+	//Stop Grab按鈕
+    m_Work_StopGrab.SetFaceColor(RGB(194, 194, 194));      // 灰色底
+    m_Work_StopGrab.SetTextColor(RGB(0, 0, 0));    //黑色字
+	//Temp Img按鈕
+	m_Work_TempImg.SetFaceColor(RGB(194, 194, 194));      // 灰色底
+	m_Work_TempImg.SetTextColor(RGB(0, 0, 0));    //黑色字
+	//Match Temp按鈕
+	m_Work_MatchTemp.SetFaceColor(RGB(194, 194, 194));      // 灰色底
+	m_Work_MatchTemp.SetTextColor(RGB(0, 0, 0));    //黑色字
+
+	//Tool Path按鈕
+	m_Work_ToolPath.SetFaceColor(RGB(212, 255, 179));      // 灰色底
+	m_Work_ToolPath.SetTextColor(RGB(0, 0, 0));    //黑色字
+    //Go按鈕
+    m_Work_Go.SetFaceColor(RGB(212, 255, 179));      // 灰色底
+    m_Work_Go.SetTextColor(RGB(0, 0, 0));    //黑色字
+
+	//Load Img按鈕
+	m_Work_LoadImg.SetFaceColor(RGB(200, 228, 255));      // 灰色底
+	m_Work_LoadImg.SetTextColor(RGB(0, 0, 0));    //黑色字
+	//Save Img按鈕
+	m_Work_SaveImg.SetFaceColor(RGB(200, 228, 255));
+	m_Work_SaveImg.SetTextColor(RGB(0, 0, 0));    //黑色字
+
+	//Calibration按鈕
+	m_Btn_Calibration.SetFaceColor(RGB(255, 212, 253));      // 灰色底
+	m_Btn_Calibration.SetTextColor(RGB(0, 0, 0));    //黑色字
+
+	//Example按鈕
+	//設定按鈕字型與大小
+
+
+
     return 0;
 
 }
@@ -1155,7 +1195,8 @@ void WorkTab::SendToolPathDataA(uint16_t* m_ToolPathData, int sizeOfArray, int s
 	}
 	int ServerId = pParentWnd->m_SystemPara.StationID;
 	modbus_set_slave(ctx, ServerId);
-	if (modbus_connect(ctx) == -1) {
+	if (modbus_connect(ctx) == -1) 
+    {
 		fprintf(stderr, "Connection failed: %s\n", modbus_strerror(errno));
 		modbus_free(ctx);
 		return;
