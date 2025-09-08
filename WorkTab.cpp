@@ -158,6 +158,7 @@ END_MESSAGE_MAP()
 
 // WorkTab 訊息處理常式
 
+// OnInitDialog 內初始化按鈕、字型與顏色
 BOOL WorkTab::OnInitDialog()
 {
 	CDialogEx::OnInitDialog();
@@ -175,8 +176,6 @@ BOOL WorkTab::OnInitDialog()
 	//Change mouse cursor to cross
 	HCURSOR hCursor = AfxGetApp()->LoadStandardCursor(IDC_CROSS);
 	SetCursor(hCursor);
-
-
 
     //Get Picture Control IDC_PICCTL_DISPLAY 大小
     CRect rect;
@@ -211,7 +210,7 @@ HBRUSH WorkTab::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
         pDC->SetTextColor(RGB(255, 255, 255));
 
         // 設定背景顏色
-        pDC->SetBkColor(RGB(255, 0, 0));
+        pDC->SetBkColor(RGB(255, 255, 0));
 
         // 回傳一個創建的筆刷
         if (m_brush.GetSafeHandle() == NULL)
@@ -303,7 +302,7 @@ UINT WorkTab::GrabThread(LPVOID pParam)
                 //const uint8_t* pImageBuffer = (uint8_t*)ptrGrabResult->GetBuffer();
 
 				//(uint8_t*)ptrGrabResult->GetBuffer() 資料型態是 uint8_t* 傳到 pImageBuffer
-				pWorkTab->pImageBuffer = (uint8_t*)ptrGrabResult->GetBuffer();
+                pWorkTab->pImageBuffer = (uint8_t*)ptrGrabResult->GetBuffer();
 				// Get pWorkTab->pImageBuffer Height and Width
 				pWorkTab->oriImageWidth = ptrGrabResult->GetWidth();
 				pWorkTab->oriImageHeight = ptrGrabResult->GetHeight();
@@ -956,7 +955,7 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
 	//toolpath: Tool Path
 	cv::Mat ImgSrc = m_mat.clone();
 	cv::Point2d Offset;
-	//ToolPath toolpath;
+	ToolPath toolpath;
 	//Get m_ToolPathData from Parrent Window
 	//CYUFADlg* pParentWnd = (CYUFADlg*)GetParent();
     CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
@@ -966,7 +965,7 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
 
    
 
-    GetToolPathData(ImgSrc, Offset, toolPath);
+    GetToolPathData(ImgSrc, Offset, toolpath);
 
 }
 

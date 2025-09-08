@@ -82,6 +82,12 @@ protected:
 	CMFCButton m_Work_SaveImg;        // MFC Button
 	CMFCButton m_Work_Go;             // MFC Button
 	CMFCButton m_Btn_Calibration;     // MFC Button
+	CMFCButton m_btnExample;          // 範例 MFC Button
+
+	CFont m_btnFont;                 // 按鈕字型
+	COLORREF m_btnTextColor;         // 文字顏色
+	COLORREF m_btnBkColor;           // 背景顏色
+	CBrush m_btnBkBrush;             // 背景刷子
 
 	void DrawPicToHDC(cv::Mat cvImg, UINT ID, bool bOnPaint);
 	void SendToolPathData(uint16_t *m_ToolPathData, int sizeOfArray, int stationID);
