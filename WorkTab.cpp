@@ -170,6 +170,26 @@ BOOL WorkTab::OnInitDialog()
     pWnd = GetDlgItem(IDC_PICCTL_DISPLAY); // 假设你的Picture Control控件的ID是IDC_PICTURE_CONTROL。
     pDC = pWnd->GetDC();
 
+
+    // 建立字型 (高度 20, 粗體)
+    m_fontBoldBig.CreateFont(
+        15,                        // 高度 (字體大小)
+        0,                         // 寬度 (0 = 自動)
+        0,                         // 角度
+        0,                         // 基線角度
+        FW_BOLD,                   // 粗體
+        FALSE,                     // 斜體
+        FALSE,                     // 底線
+        0,                         // StrikeOut
+        ANSI_CHARSET,              // 字元集
+        OUT_DEFAULT_PRECIS,
+        CLIP_DEFAULT_PRECIS,
+        DEFAULT_QUALITY,
+        DEFAULT_PITCH | FF_SWISS,
+        _T("Arial"));    // 字型名稱 (可改 "Arial", "Tahoma" 等)
+
+
+
     //初始化 m_bGrabThread
     m_bGrabThread = false;
 
@@ -202,33 +222,45 @@ BOOL WorkTab::OnInitDialog()
 	//Grab按鈕
     m_Work_Grab.SetFaceColor(RGB(194, 194, 194));      // 灰色底
     m_Work_Grab.SetTextColor(RGB(0, 0, 0));    //黑色字
+	//設定按鈕字型與大小
+	m_Work_Grab.SetFont(&m_fontBoldBig);
+   
 	//Stop Grab按鈕
     m_Work_StopGrab.SetFaceColor(RGB(194, 194, 194));      // 灰色底
     m_Work_StopGrab.SetTextColor(RGB(0, 0, 0));    //黑色字
+    m_Work_StopGrab.SetFont(&m_fontBoldBig);
 	//Temp Img按鈕
 	m_Work_TempImg.SetFaceColor(RGB(194, 194, 194));      // 灰色底
 	m_Work_TempImg.SetTextColor(RGB(0, 0, 0));    //黑色字
+    m_Work_TempImg.SetFont(&m_fontBoldBig);
+    
 	//Match Temp按鈕
 	m_Work_MatchTemp.SetFaceColor(RGB(194, 194, 194));      // 灰色底
 	m_Work_MatchTemp.SetTextColor(RGB(0, 0, 0));    //黑色字
+	m_Work_MatchTemp.SetFont(&m_fontBoldBig);
 
 	//Tool Path按鈕
 	m_Work_ToolPath.SetFaceColor(RGB(212, 255, 179));      // 灰色底
 	m_Work_ToolPath.SetTextColor(RGB(0, 0, 0));    //黑色字
+	m_Work_ToolPath.SetFont(&m_fontBoldBig);
     //Go按鈕
     m_Work_Go.SetFaceColor(RGB(212, 255, 179));      // 灰色底
     m_Work_Go.SetTextColor(RGB(0, 0, 0));    //黑色字
+	m_Work_Go.SetFont(&m_fontBoldBig);
 
 	//Load Img按鈕
 	m_Work_LoadImg.SetFaceColor(RGB(200, 228, 255));      // 灰色底
 	m_Work_LoadImg.SetTextColor(RGB(0, 0, 0));    //黑色字
+	m_Work_LoadImg.SetFont(&m_fontBoldBig);
 	//Save Img按鈕
 	m_Work_SaveImg.SetFaceColor(RGB(200, 228, 255));
 	m_Work_SaveImg.SetTextColor(RGB(0, 0, 0));    //黑色字
+	m_Work_SaveImg.SetFont(&m_fontBoldBig);
 
 	//Calibration按鈕
 	m_Btn_Calibration.SetFaceColor(RGB(255, 212, 253));      // 灰色底
 	m_Btn_Calibration.SetTextColor(RGB(0, 0, 0));    //黑色字
+	m_Btn_Calibration.SetFont(&m_fontBoldBig);
 
 	//Example按鈕
 	//設定按鈕字型與大小
@@ -244,23 +276,22 @@ HBRUSH WorkTab::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
 	HBRUSH hbr = CDialogEx::OnCtlColor(pDC, pWnd, nCtlColor);
 
     // 如果是我們的按鈕
-    if (pWnd->GetDlgCtrlID() == IDC_WORK_GRAB)
+   // if (pWnd->GetDlgCtrlID() == IDC_WORK_GRAB)
     {
-        // 設定文字顏色
-        pDC->SetTextColor(RGB(255, 255, 255));
+        //pDC->SetTextColor(RGB(0, 0, 255));
+       // pDC->SetBkColor(RGB(255, 255, 0));
 
-        // 設定背景顏色
-        pDC->SetBkColor(RGB(255, 255, 0));
+        // 使用自訂字型
+        //pDC->SelectObject(&m_fontBoldBig);
 
-        // 回傳一個創建的筆刷
-        if (m_brush.GetSafeHandle() == NULL)
-            m_brush.CreateSolidBrush(RGB(255, 0, 0));
-        return (HBRUSH)m_brush;
+       // if (m_brush.GetSafeHandle() == NULL)
+       //     m_brush.CreateSolidBrush(RGB(255, 0, 0));
 
+       // return (HBRUSH)m_brush;
     }
 
     // 否則，回傳預設的筆刷
-    return hbr;
+   return hbr;
 }
 
 

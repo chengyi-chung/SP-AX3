@@ -89,6 +89,8 @@ protected:
 	COLORREF m_btnBkColor;           // 背景顏色
 	CBrush m_btnBkBrush;             // 背景刷子
 
+	CFont m_fontBoldBig;
+
 	void DrawPicToHDC(cv::Mat cvImg, UINT ID, bool bOnPaint);
 	void SendToolPathData(uint16_t *m_ToolPathData, int sizeOfArray, int stationID);
 	void SendToolPathDataA(uint16_t* m_ToolPathData, int sizeOfArray, int stationID);
