@@ -1276,6 +1276,8 @@ void WorkTab::SendToolPathDataA(uint16_t* m_ToolPathData, int sizeOfArray, int s
 	modbus_free(ctx);
 }
 
+
+
 //Add Calibration Dialog
 void WorkTab::OnBnClickedIdcWorkCalibration()
 {

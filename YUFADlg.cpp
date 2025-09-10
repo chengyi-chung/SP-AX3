@@ -381,7 +381,7 @@ void CYUFADlg::OnBnClickedBtnMachine()
 	m_MachineTab.ShowWindow(SW_SHOW);
 	//change to select tab
 	m_Tab_Main.SetCurSel(3);
-	m_MachineTab.UpdateControl();
+	m_MachineTab.UpdateControl();  //Update Control with m_SystemPara
 	m_MachineTab.OpenModBus();
 
 	// OnTcnSelchangeTabMain

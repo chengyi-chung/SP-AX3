@@ -55,6 +55,33 @@ float Add(float a, float b)
 	return a + b;
 }
 
+/////////////////////////////
+
+#include <windows.h> // 用於取得螢幕解析度（Windows 專用）
+
+void ShowZoomedImage(const std::string& windowName, const cv::Mat& image)
+{
+	// 取得螢幕解析度
+	int screenWidth = GetSystemMetrics(SM_CXSCREEN);
+	int screenHeight = GetSystemMetrics(SM_CYSCREEN);
+
+	// 計算縮放比例
+	double scaleX = static_cast<double>(screenWidth) / image.cols;
+	double scaleY = static_cast<double>(screenHeight) / image.rows;
+	double scale = min(scaleX, scaleY); // 保持比例不失真
+
+	// 縮放影像
+	cv::Mat resized;
+	cv::resize(image, resized, cv::Size(), scale, scale, cv::INTER_LINEAR);
+
+	// 顯示影像
+	cv::imshow(windowName, resized);
+   
+}
+
+
+
+////////////////////////////
 
 //Find the area of image
 //Use findContours to find the area of image
@@ -96,65 +123,52 @@ void FindArea(cv::Mat& src, ContourArea& contourarea)
 // ToolPath: the output tool path
 void  GetToolPath(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpath)
 {
-	// Validate input image
-	if (ImgSrc.empty()) {
+	if (ImgSrc.empty())
+	{
 		throw std::invalid_argument("Input image is empty.");
 	}
 
-	cv::Mat result = ImgSrc.clone(); // Clone the input image
-
-	// Calculate erosion iterations based on Offset
+	cv::Mat result = ImgSrc.clone();
 	int numPixelsToErode = static_cast<int>(Offset.x + Offset.y);
-
-	// Create erosion kernel
 	cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
 
-	// Apply erosion iteratively
-	for (int i = 0; i < numPixelsToErode; ++i) {
+	for (int i = 0; i < numPixelsToErode; ++i)
+	{
 		cv::erode(result, result, kernel);
 	}
 
-	// Check if result is already grayscale (1 channel)
 	cv::Mat gray;
-	if (result.channels() != 1) {
-		// Convert the image to grayscale if it is not already grayscale
+	if (result.channels() != 1)
+	{
 		cv::cvtColor(result, gray, cv::COLOR_BGR2GRAY);
 	}
-	else {
-		// If the image is already grayscale, just use it as is
+	else
+	{
 		gray = result;
 	}
 
-	// Apply binary thresholding
 	cv::Mat thresh;
 	cv::threshold(gray, thresh, 128, 255, cv::THRESH_BINARY);
 
-	// Find contours to derive the tool path
-	std::vector<std::vector<cv::Point>> contours; // Contours detected
-	std::vector<cv::Vec4i> hierarchy;            // Contour hierarchy
+	std::vector<std::vector<cv::Point>> contours;
+	std::vector<cv::Vec4i> hierarchy;
 	cv::findContours(thresh, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
-	// 在原始影像上繪製輪廓
 	cv::Mat outputImage = ImgSrc.clone();
-	cv::drawContours(outputImage, contours, -1, Scalar(0, 255, 0), 2);
+	cv::drawContours(outputImage, contours, -1, cv::Scalar(0, 255, 0), 2);
 
-	// Populate the toolpath
 	toolpath.Offset = Offset;
-	//toolpath.Path.clear();
 	for (const auto& contour : contours)
 	{
-		for (const auto& point : contour) {
+		for (const auto& point : contour)
+		{
 			toolpath.Path.push_back(cv::Point2d(point));
 		}
 	}
-	
-	// Draw contours on the original image for visualization
+
 	cv::drawContours(ImgSrc, contours, -1, cv::Scalar(0, 255, 0), 2);
 
-	// Display the images
-	cv::imshow("Input Image", ImgSrc);
-
-	//cv::imshow("Eroded Result", result);
+	ShowZoomedImage("Input Image", ImgSrc);
 	cv::waitKey(0);
 	cv::destroyAllWindows();
 }
@@ -723,15 +737,15 @@ void WriteConfigToFile(const std::string& filename, SystemConfig &SysConfig)
 	file << "Port=" << SysConfig.Port << "\n";
 	file << "StationID=" << SysConfig.StationID << "\n";
 	file << "[ToolPath]\n";
-	file << "OffsetX=" << std::fixed << std::setprecision(2) << SysConfig.OffsetX << "\n";
-	file << "OffsetY=" << std::fixed << std::setprecision(2) << SysConfig.OffsetY << "\n";
+	file << "OffsetX=" << std::fixed << std::setprecision(3) << SysConfig.OffsetX << "\n";
+	file << "OffsetY=" << std::fixed << std::setprecision(3) << SysConfig.OffsetY << "\n";
 	file << "[Camera]\n";
 	file << "CameraID=" << SysConfig.CameraID << "\n";
 	file << "MACKey=" << SysConfig.MACKey << "\n";
 	file << "GoldenKey=" << SysConfig.GoldenKey << "\n";
 	file << "CameraWidth=" << SysConfig.CameraWidth << "\n";
 	file << "CameraHeight=" << SysConfig.CameraHeight << "\n";
-	file << "TransferFactor=" << std::fixed << std::setprecision(2) << SysConfig.TransferFactor << "\n";
+	file << "TransferFactor=" << std::fixed << std::setprecision(4) << SysConfig.TransferFactor << "\n";
 	file << "ImageFlip=" << SysConfig.ImageFlip << "\n";
 	file << "CenterX=" << std::fixed << std::setprecision(2) << SysConfig.CenterX << "\n";
 	file << "CenterY=" << std::fixed << std::setprecision(2) << SysConfig.CenterY << "\n";
@@ -780,10 +794,10 @@ int ReadSystemConfig(const std::string& filename, SystemConfig &SysConfig)
 				SysConfig.StationID = line.length() > 10 ? std::stoi(line.substr(10)) : 0;
 			}
 			else if (line.find("OffsetX=") == 0) {
-				SysConfig.OffsetX = line.length() > 8 ? std::stof(line.substr(8)) : 0.0f;
+				SysConfig.OffsetX = line.length() > 8 ? std::stof(line.substr(8)) : 0.00f;
 			}
 			else if (line.find("OffsetY=") == 0) {
-				SysConfig.OffsetY = line.length() > 8 ? std::stof(line.substr(8)) : 0.0f;
+				SysConfig.OffsetY = line.length() > 8 ? std::stof(line.substr(8)) : 0.00f;
 			}
 			else if (line.find("CameraID=") == 0) {
 				SysConfig.CameraID = line.length() > 9 ? std::stoi(line.substr(9)) : 0;
@@ -806,13 +820,13 @@ int ReadSystemConfig(const std::string& filename, SystemConfig &SysConfig)
 				SysConfig.CameraHeight = line.length() > 13 ? std::stoi(line.substr(13)) : 0;
 			}
 			else if (line.find("TransferFactor=") == 0) {
-				SysConfig.TransferFactor = line.length() > 15 ? std::stof(line.substr(15)) : 0.0f;
+				SysConfig.TransferFactor = line.length() > 15 ? std::stof(line.substr(15)) : 0.0000f;
 			}
 			else if (line.find("CenterX=") == 0) {
-				SysConfig.CenterX = line.length() > 8 ? std::stof(line.substr(8)) : 0.0f;
+				SysConfig.CenterX = line.length() > 8 ? std::stof(line.substr(8)) : 0.000f;
 			}
 			else if (line.find("CenterY=") == 0) {
-				SysConfig.CenterY = line.length() > 8 ? std::stof(line.substr(8)) : 0.0f;
+				SysConfig.CenterY = line.length() > 8 ? std::stof(line.substr(8)) : 0.000f;
 			}
 			else if (line.find("MachineType=") == 0) {
 				SysConfig.MachineType = line.length() > 12 ? line.substr(12) : "";
@@ -830,7 +844,7 @@ int ReadSystemConfig(const std::string& filename, SystemConfig &SysConfig)
 				SysConfig.IncAcceleration = line.length() > 16 ? std::stoi(line.substr(16)) : 0;
 			}
 			else if (line.find("Pitch=") == 0) {
-				SysConfig.Pitch = line.length() > 6 ? std::stof(line.substr(6)) : 0.0f;
+				SysConfig.Pitch = line.length() > 6 ? std::stof(line.substr(6)) : 0.000f;
 			}
 		}
 		catch (const std::exception& e) {

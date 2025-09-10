@@ -827,7 +827,7 @@ void MachineTab::UpdateControl()
 	SetDlgItemText(IDC_EDIT_PITCH, cStr);
 
 	// TransferFactor (assuming float, adjust if int)
-	cStr.Format(_T("%.3f"), pParentWnd->m_SystemPara.TransferFactor);
+	cStr.Format(_T("%.4f"), pParentWnd->m_SystemPara.TransferFactor);
 	SetDlgItemText(IDC_EDIT_TRANSFER_FACTOR, cStr);
 }
 
