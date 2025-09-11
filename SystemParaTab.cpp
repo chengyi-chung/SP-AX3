@@ -9,7 +9,11 @@
 #include "SystemParaTab.h"
 #include "Resource.h"
 #include "UAX.h"
+#include <cmath>
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 // SystemParaTab 對話方塊
 
 IMPLEMENT_DYNAMIC(SystemParaTab, CDialog)
@@ -44,13 +48,21 @@ BOOL SystemParaTab::OnInitDialog()
 {
 	CDialog::OnInitDialog();
 
+	CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
+
+
 	CString str;
 	str.Format(_T("%d"), 10);
 
 	// Replace IDD_TAB_SYS_OFFSET_VALUE with the correct control ID
+	float offsetValue = sqrt(pParentWnd->m_SystemPara.OffsetX * pParentWnd->m_SystemPara.OffsetX +
+		pParentWnd->m_SystemPara.OffsetY * pParentWnd->m_SystemPara.OffsetY);
+	str.Format(_T("%0.4f"), offsetValue);
 	SetDlgItemText(IDD_TAB_SYS_OFFSET_VALUE, str);
-	str.Format(_T("%0.3f"), 5.253);
+
+	str.Format(_T("%0.4f"), pParentWnd->m_SystemPara.OffsetX);
 	SetDlgItemText(IDD_TAB_SYS_X_OFFSET, str);
+	str.Format(_T("%0.4f"), pParentWnd->m_SystemPara.OffsetY);
 	SetDlgItemText(IDD_TAB_SYS_Y_OFFSET, str);
 
 	//pParentWnd = (CYUFADlg*)GetParent();
@@ -92,7 +104,12 @@ void SystemParaTab::OnEnChangeTabSysOffsetValue()
 	GetDlgItemText(IDD_TAB_SYS_OFFSET_VALUE, str);
 	//AfxMessageBox(str);
 	int iValue = _ttoi(str);
-	float iResult = iValue * 0.525322;
+	double iResult;
+	double Radian = 45.0 * (M_PI / 180);
+		//iResult = iValue pluse cosine 45 degree
+	iResult = iValue * cos(Radian);
+	
+	//float iResult = iValue * 0.525322;
 	str.Format(_T("%0.3f"), iResult);
 	SetDlgItemText(IDD_TAB_SYS_X_OFFSET, str);
 	SetDlgItemText(IDD_TAB_SYS_Y_OFFSET, str);
@@ -147,9 +164,9 @@ void SystemParaTab::UpdateControl()
 	{
 		CString str;
 		
-		str.Format(_T("%0.3f"), pParentWnd->m_SystemPara.OffsetX);
+		str.Format(_T("%0.4f"), pParentWnd->m_SystemPara.OffsetX);
 		SetDlgItemText(IDD_TAB_SYS_X_OFFSET, str);
-		str.Format(_T("%0.3f"), pParentWnd->m_SystemPara.OffsetY);
+		str.Format(_T("%0.4f"), pParentWnd->m_SystemPara.OffsetY);
 		SetDlgItemText(IDD_TAB_SYS_Y_OFFSET, str);
 
 		//OffsetX and OffsetY compound value, set to IDD_TAB_SYS_OFFSET_VALUE
@@ -172,8 +189,8 @@ void SystemParaTab::UpdateControl()
 			_T("端口: %d\r\n")
 			_T("站點 ID: %d\r\n\r\n")
 			_T("工具路徑配置:\r\n")
-			_T("偏移 X: %.2f\r\n")
-			_T("偏移 Y: %.2f\r\n\r\n")
+			_T("偏移 X: %.4f\r\n")
+			_T("偏移 Y: %.4f\r\n\r\n")
 			_T("相機配置:\r\n")
 			_T("相機 ID: %d\r\n")
 			_T("MAC 位址: %s\r\n")

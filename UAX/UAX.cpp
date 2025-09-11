@@ -737,8 +737,8 @@ void WriteConfigToFile(const std::string& filename, SystemConfig &SysConfig)
 	file << "Port=" << SysConfig.Port << "\n";
 	file << "StationID=" << SysConfig.StationID << "\n";
 	file << "[ToolPath]\n";
-	file << "OffsetX=" << std::fixed << std::setprecision(3) << SysConfig.OffsetX << "\n";
-	file << "OffsetY=" << std::fixed << std::setprecision(3) << SysConfig.OffsetY << "\n";
+	file << "OffsetX=" << std::fixed << std::setprecision(4) << SysConfig.OffsetX << "\n";
+	file << "OffsetY=" << std::fixed << std::setprecision(4) << SysConfig.OffsetY << "\n";
 	file << "[Camera]\n";
 	file << "CameraID=" << SysConfig.CameraID << "\n";
 	file << "MACKey=" << SysConfig.MACKey << "\n";
@@ -794,10 +794,10 @@ int ReadSystemConfig(const std::string& filename, SystemConfig &SysConfig)
 				SysConfig.StationID = line.length() > 10 ? std::stoi(line.substr(10)) : 0;
 			}
 			else if (line.find("OffsetX=") == 0) {
-				SysConfig.OffsetX = line.length() > 8 ? std::stof(line.substr(8)) : 0.00f;
+				SysConfig.OffsetX = line.length() > 8 ? std::stof(line.substr(8)) : 0.000f;
 			}
 			else if (line.find("OffsetY=") == 0) {
-				SysConfig.OffsetY = line.length() > 8 ? std::stof(line.substr(8)) : 0.00f;
+				SysConfig.OffsetY = line.length() > 8 ? std::stof(line.substr(8)) : 0.000f;
 			}
 			else if (line.find("CameraID=") == 0) {
 				SysConfig.CameraID = line.length() > 9 ? std::stoi(line.substr(9)) : 0;
