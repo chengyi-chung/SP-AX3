@@ -42,7 +42,9 @@ public:
 	};
 	SystemPara m_SystemPara;
 
-	ToolPath toolPath;
+	ToolPath toolPath;     // ToolPath in image coordinate : Pixel
+	ToolPath toolPath_world;   // ToolPath in world coordinate : mm
+
 	uint16_t m_ToolPathData[20000];
 	bool flgCenter;
 

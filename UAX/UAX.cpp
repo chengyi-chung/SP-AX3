@@ -121,6 +121,7 @@ void FindArea(cv::Mat& src, ContourArea& contourarea)
 // ImgSrc: the input image
 // Offset: the offse value of the tool path
 // ToolPath: the output tool path
+//units of Offset is pixel
 void  GetToolPath(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpath)
 {
 	if (ImgSrc.empty())
@@ -462,6 +463,9 @@ void InitTransformer(float* imagePts, float* worldPts, int count)
 	affineMatrix = cv::estimateAffine2D(img, world);
 }
 
+//Transform pixel to real world coordinate
+// x, y: the pixel coordinate
+// outX, outY: the real world coordinate
 bool TransformPixel(float x, float y, float* outX, float* outY) 
 {
 	cv::Mat affineMatrix;
@@ -473,6 +477,31 @@ bool TransformPixel(float x, float y, float* outX, float* outY)
 	*outX = static_cast<float>(result.at<double>(0, 0));
 	*outY = static_cast<float>(result.at<double>(1, 0));
 	return true;
+}
+
+//Transform image pixel to real world coordinate
+//With 3 points to calculate the affine matrix :  InitTransformer、TransformPixel 
+// x_pixel: the x coordinate of the pixel
+// y_pixel: the y coordinate of the pixel
+// &x_mm: the x coordinate of the real world
+// &y_mm: the y coordinate of the real world
+// imagePts: 指向影像座標點陣列的指標（長度至少6，3點）
+// worldPts: 指向對應世界座標點陣列的指標（長度至少6，3點）
+void PixelToWorld(float x_pixel, float y_pixel, float& x_mm, float& y_mm, float* imagePts, float* worldPts)
+{
+	if (!imagePts || !worldPts) {
+		std::cerr << "Invalid input points.\n";
+		return;
+	}
+
+	InitTransformer(imagePts, worldPts, 3);
+
+	if (TransformPixel(x_pixel, y_pixel, &x_mm, &y_mm)) {
+		std::cout << "World Coord: (" << x_mm << ", " << y_mm << ") mm\n";
+	}
+	else {
+		std::cerr << "Transform failed.\n";
+	}
 }
 
 /*  以上 InitTransformer、TransformPixel 使用範例

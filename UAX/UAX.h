@@ -86,6 +86,7 @@ struct ImageLocation
 	float Angle;			     // Angle of the template in the image 
 };
 
+//Original tool path of image
 struct ToolPath
 {
 	cv::Point2d Offset; // Offset of the tool path
@@ -178,11 +179,7 @@ extern "C" UAX_API int DeleteData(sqlite3* db, const char* db_name, const char* 
 //Close the database
 extern "C" UAX_API int CloseDatabase(sqlite3* db);
 
-//Get Application Path
-extern "C" UAX_API std::string GetAppPath();
 
-//Get mac address
-extern "C" UAX_API void GetMacAddress(char* macAddress);
 
 
 //Data Tools
@@ -192,6 +189,14 @@ extern "C" UAX_API void GetMacAddress(char* macAddress);
 
 // 函數：將 Double Word 拆分為 High Word 和 Low Word
 extern "C" UAX_API void splitDoubleWord(uint32_t doubleWord, uint16_t& highWord, uint16_t& lowWord);
+
+//Transform image pixel to real world coordinate
+//With 3 points to calculate the affine matrix :  InitTransformer、TransformPixel 
+// x_pixel: the x coordinate of the pixel
+// y_pixel: the y coordinate of the pixel
+// &x_mm: the x coordinate of the real world
+// &y_mm: the y coordinate of the real world
+extern "C" UAX_API void PixelToWorld(float x_pixel, float y_pixel, float& x_mm, float& y_mm, float* imagePts, float* worldPts);
 
 
 
@@ -230,6 +235,12 @@ extern "C" UAX_API void WriteConfigToFile(const std::string& filename,  SystemCo
 extern "C" UAX_API int ReadSystemConfig(const std::string& filename, SystemConfig &SysConfig);
 // Initialize the system configuration ini file
 //extern "C" UAX_API void InitialConfig(const std::string& filename, const SystemConfig& SysConfig);
+
+//Get Application Path
+extern "C" UAX_API std::string GetAppPath();
+
+//Get mac address
+extern "C" UAX_API void GetMacAddress(char* macAddress);
 
 
 

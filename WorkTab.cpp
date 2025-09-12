@@ -220,27 +220,27 @@ BOOL WorkTab::OnInitDialog()
 	//宣告RGB顏色變
 
 	//Grab按鈕
-    m_Work_Grab.SetFaceColor(RGB(194, 194, 194));      // 灰色底
+    m_Work_Grab.SetFaceColor(RGB(194, 194, 194));      
     m_Work_Grab.SetTextColor(RGB(0, 0, 0));    //黑色字
 	//設定按鈕字型與大小
 	m_Work_Grab.SetFont(&m_fontBoldBig);
    
 	//Stop Grab按鈕
-    m_Work_StopGrab.SetFaceColor(RGB(194, 194, 194));      // 灰色底
+    m_Work_StopGrab.SetFaceColor(RGB(194, 194, 194));    
     m_Work_StopGrab.SetTextColor(RGB(0, 0, 0));    //黑色字
     m_Work_StopGrab.SetFont(&m_fontBoldBig);
 	//Temp Img按鈕
-	m_Work_TempImg.SetFaceColor(RGB(194, 194, 194));      // 灰色底
+	m_Work_TempImg.SetFaceColor(RGB(194, 194, 194));      
 	m_Work_TempImg.SetTextColor(RGB(0, 0, 0));    //黑色字
     m_Work_TempImg.SetFont(&m_fontBoldBig);
     
 	//Match Temp按鈕
-	m_Work_MatchTemp.SetFaceColor(RGB(194, 194, 194));      // 灰色底
+	m_Work_MatchTemp.SetFaceColor(RGB(194, 194, 194));     
 	m_Work_MatchTemp.SetTextColor(RGB(0, 0, 0));    //黑色字
 	m_Work_MatchTemp.SetFont(&m_fontBoldBig);
 
 	//Tool Path按鈕
-	m_Work_ToolPath.SetFaceColor(RGB(212, 255, 179));      // 灰色底
+	m_Work_ToolPath.SetFaceColor(RGB(212, 255, 179));      
 	m_Work_ToolPath.SetTextColor(RGB(0, 0, 0));    //黑色字
 	m_Work_ToolPath.SetFont(&m_fontBoldBig);
     //Go按鈕
@@ -249,7 +249,7 @@ BOOL WorkTab::OnInitDialog()
 	m_Work_Go.SetFont(&m_fontBoldBig);
 
 	//Load Img按鈕
-	m_Work_LoadImg.SetFaceColor(RGB(200, 228, 255));      // 灰色底
+	m_Work_LoadImg.SetFaceColor(RGB(200, 228, 255));      
 	m_Work_LoadImg.SetTextColor(RGB(0, 0, 0));    //黑色字
 	m_Work_LoadImg.SetFont(&m_fontBoldBig);
 	//Save Img按鈕
@@ -258,7 +258,7 @@ BOOL WorkTab::OnInitDialog()
 	m_Work_SaveImg.SetFont(&m_fontBoldBig);
 
 	//Calibration按鈕
-	m_Btn_Calibration.SetFaceColor(RGB(255, 212, 253));      // 灰色底
+	m_Btn_Calibration.SetFaceColor(RGB(255, 212, 253));      
 	m_Btn_Calibration.SetTextColor(RGB(0, 0, 0));    //黑色字
 	m_Btn_Calibration.SetFont(&m_fontBoldBig);
 
@@ -1034,9 +1034,18 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
     Offset.x = pParentWnd->m_SystemPara.OffsetX;
 	Offset.y = pParentWnd->m_SystemPara.OffsetY;
 
-   
+    //convert Offset mm to pixel by TransferFactor
+    Offset.x = Offset.x / pParentWnd->m_SystemPara.TransferFactor;
+    Offset.y = Offset.y / pParentWnd->m_SystemPara.TransferFactor;
 
+	//Call the function to get the tool path from UAX
+	//toolpath: Tool Path pixel
+	//ImgSrc: Source Image
+	//Offset: Offset of the tool path, mm to pixel before call GetToolPathData
     GetToolPathData(ImgSrc, Offset, toolpath);
+
+    //
+
 
 }
 
@@ -1087,12 +1096,9 @@ void WorkTab::GetToolPathData(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& too
 	//ImgSrc: Source Image
 	//Offset: Offset of the tool path
 	//toolpath: Tool Path
-
-    //Offset.x = 5;
-	//Offset.y = 5;
-
 	toolpath.Path.clear();
 
+    //Offset value is pixel
   	GetToolPath(ImgSrc, Offset, toolpath);
 
 }
@@ -1108,10 +1114,37 @@ void WorkTab::OnBnClickedIdcWorkGo()
 	//Convert toolPath.Path to m_ToolPathData[20000]
 	int sizeOfToolPath = toolPath.Path.size();
 
+   
+
 	// int m_ToolPathData[20000];
     uint16_t* m_ToolPathData = new uint16_t[20000];
     //call ToolPathTransform(ToolPath& toolpath, int* m_ToolPathData)
 	ToolPathTransform(toolPath, m_ToolPathData);
+
+
+    //測試機修正參數
+    float imagePts[] = { 1097,1063, 1373,1063, 1371,945 };
+    float worldPts[] = { 34.79f,205.19f, 187.19f,205.19f, 187.19f,141.79f };
+
+	//use UAX.dll to convert image coordinate to world coordinate
+    //call (float x_pixel, float y_pixel, float& x_mm, float& y_mm, float* imagePts, float* worldPts)
+
+	toolPath_world = toolPath; // copy toolPath to toolPath_world
+    for (int i = 0; i < sizeOfToolPath; i++)
+    {
+        float x_mm, y_mm;
+        PixelToWorld(toolPath.Path[i].x, toolPath.Path[i].y, x_mm, y_mm, imagePts, worldPts);
+        toolPath_world.Path[i].x = x_mm;
+        toolPath_world.Path[i].y = y_mm;
+    }
+    //Convert toolPath_world to m_ToolPathData[20000]
+    //toolPath_world: Tool Path in world coordinate
+    //m_ToolPathData: Tool Path Data Array
+    //toolPath_world.Path : Path of the tool in world coordinate
+    //Convert toolPath_world.Path to m_ToolPathData[20000]
+	//ToolPathTransform(toolPath_world, m_ToolPathData);
+
+    ToolPathTransform(toolPath_world, m_ToolPathData);
 
 	//send m_ToolPathData to PLC with modbus tcp
 	SendToolPathDataA(m_ToolPathData, sizeOfToolPath, 1);
