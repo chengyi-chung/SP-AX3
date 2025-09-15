@@ -207,6 +207,8 @@ void ContourToToolPath(cv::Mat& src, ToolPath& toolpath)
 }
 
 
+
+
 // Function to resize the image to fit the screen
 // inputImage: the input image
 // screenWidth: the width of the screen
@@ -890,4 +892,45 @@ void UpdateSystemConfig(const std::string& filename,  SystemConfig &SysConfig)
 {
     // 將 const SystemConfig* 轉為 SystemConfig*，以符合 WriteConfigToFile 的參數型別
     WriteConfigToFile(filename, SysConfig);
+}
+
+
+
+// UModbus thread safety
+std::mutex plc_mutex;
+
+void SafeModbusRead(/*...*/) {
+    std::lock_guard<std::mutex> lock(plc_mutex);
+    // 呼叫 UModbus 讀取函式
+}
+
+void SafeModbusWrite(/*...*/) {
+    std::lock_guard<std::mutex> lock(plc_mutex);
+    // 呼叫 UModbus 寫入函式
+}
+
+int SafeModbusReadRegisters(modbus_t* ctx, int addr, int nb, uint16_t* dest)
+{
+	std::lock_guard<std::mutex> lock(plc_mutex);
+	return modbus_read_registers(ctx, addr, nb, dest);
+}
+int SafeModbusWriteRegisters(modbus_t* ctx, int addr, int nb, const uint16_t* data)
+{
+	std::lock_guard<std::mutex> lock(plc_mutex);
+	return modbus_write_registers(ctx, addr, nb, data);
+}
+int SafeModbusWriteRegister(modbus_t* ctx, int addr, uint16_t value)
+{
+	std::lock_guard<std::mutex> lock(plc_mutex);
+	return modbus_write_register(ctx, addr, value);
+}
+int SafeModbusReadBits(modbus_t* ctx, int addr, int nb, uint8_t* dest)
+{
+	std::lock_guard<std::mutex> lock(plc_mutex);
+	return modbus_read_bits(ctx, addr, nb, dest);
+}
+int SafeModbusWriteBit(modbus_t* ctx, int addr, int status)
+{
+	std::lock_guard<std::mutex> lock(plc_mutex);
+	return modbus_write_bit(ctx, addr, status);
 }

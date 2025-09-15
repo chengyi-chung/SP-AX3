@@ -190,6 +190,7 @@ void MachineTab::SendDataToModBus()
 	//Display the data to the dialog control
 }
 
+
 //define functio for Discrete3000 value change in Control
 //intType: 0: check 1: button
 //BitAdress: Bit Adress
@@ -322,6 +323,151 @@ void MachineTab::ClearDiscrete3000(int iStartAdress, int iEndAdress)
 	}
 }
 
+//Clear All Discrete5000
+//int Start Adress: iStartAdress
+//int End Adress: iEndAdress
+void MachineTab::ClearDiscrete5000(int iStartAdress, int iEndAdress)
+{
+	//Clear All Discrete5000
+	//Discrete5000.reset();
+	for (int i = iStartAdress; i <= iEndAdress; i++)
+	{
+		Discrete5000.set(i, 0);
+	}
+	Discrete5000Word = Discrete5000.to_ulong();
+	int rc = modbus_write_register(m_ctx, 50000, Discrete5000Word);
+	//append Discrete5000Word value to IDC_EDIT_REPORT with m_strReportData
+	m_strReportData = m_strReportData + "\r\n" + "Reg[50000]." + std::to_string(iStartAdress) + "  = " + std::to_string(Discrete5000Word) + " " + Discrete5000.to_string();
+	SetDlgItemText(IDC_EDIT_REPORT, CString(m_strReportData.c_str()));
+	if (rc == -1)
+	{
+		CString errorMessage;
+		errorMessage.Format(_T("Failed to write to Modbus register: %S"), modbus_strerror(errno));
+		AfxMessageBox(errorMessage);
+	}
+}
+
+//define functio for Discrete5000 value change in Control, data type is world
+//intType: 0: check 1: button
+//BitAdress: Bit Adress
+//BitValue: Bit Value
+//nID: check or button Control ID
+void MachineTab::Discrete5000Change(int intType, int BitAdress, int BitValue, int nID)
+{
+	// Check if the Modbus context is initialized
+	if (m_ctx == NULL)
+	{
+		// Get the parent dialog (CYUFADlg)
+		CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
+		if (!pParentWnd)
+		{
+			AfxMessageBox(_T("Failed to get CYUFADlg parent window."));
+			return;
+		}
+		// Access m_SystemPara
+		if (pParentWnd->m_SystemPara.IpAddress.empty())
+		{
+			AfxMessageBox(_T("IP Address is not set in System Parameters."));
+			return;
+		}
+		std::string ip = pParentWnd->m_SystemPara.IpAddress;
+		const char* ip_cstr = ip.c_str();
+		int port = pParentWnd->Port;
+		int stationId = pParentWnd->m_SystemPara.StationID; // Assuming stationId is available
+		m_ctx = modbus_new_tcp(ip_cstr, port);
+		if (m_ctx == NULL)
+		{
+			AfxMessageBox(_T("Failed to create the libmodbus context."));
+			return;
+		}
+		// Set the Modbus slave/station ID
+		if (modbus_set_slave(m_ctx, stationId) == -1)
+		{
+			CString errorMessage;
+			errorMessage.Format(_T("Failed to set Modbus slave ID: %S"), modbus_strerror(errno));
+			modbus_free(m_ctx);
+			m_ctx = NULL;
+			AfxMessageBox(errorMessage);
+			return;
+		}
+		// Establish connection
+		if (modbus_connect(m_ctx) == -1)
+		{
+			CString errorMessage;
+			errorMessage.Format(_T("Failed to connect to Modbus server: %S"), modbus_strerror(errno));
+			modbus_free(m_ctx);
+			m_ctx = NULL;
+			AfxMessageBox(errorMessage);
+			return;
+		}
+	}
+	
+    // Reset the Discrete5000 bitset (ensure it’s 16 bits for a single register)
+	Discrete5000.reset(); // Assuming Discrete3000 is std::bitset<16>
+
+	if (intType == 0) // Check or Radio Control
+	{
+		if (((CButton*)GetDlgItem(nID))->GetCheck() == 1)
+		{
+			Discrete5000.set(BitAdress, BitValue); // Set the bit to 1 if checked
+		}
+		else
+		{
+			Discrete5000.set(BitAdress, 0); // Set the bit to 0 if unchecked
+		}
+	}
+	else if (intType == 1) // Button Control
+	{
+		Discrete5000.set(BitAdress, 1);
+	}
+	else
+	{
+		Discrete5000.set(BitAdress, BitValue);
+	}
+	
+	// Convert bitset to unsigned long (ensure it fits in 16 bits)
+	Discrete5000Word = Discrete5000.to_ulong();
+
+	// Write to Modbus register (using 29999 for 0-based addressing)
+	int rc = modbus_write_register(m_ctx, 50000, Discrete5000Word);
+
+	// Log the operation
+	m_strReportData = m_strReportData + "\r\n" + "Reg[50000]." + std::to_string(BitAdress) + " = " +
+		std::to_string(Discrete5000Word) + " " + Discrete5000.to_string();
+	SetDlgItemText(IDC_EDIT_REPORT, CString(m_strReportData.c_str()));
+
+	if (rc == -1)
+	{
+		CString errorMessage;
+		errorMessage.Format(_T("Failed to write to Modbus register 50000: %S"), modbus_strerror(errno));
+		AfxMessageBox(errorMessage);
+		// Close and free the context to reset it
+		modbus_close(m_ctx);
+		modbus_free(m_ctx);
+		m_ctx = NULL;
+		return;
+	}
+}
+
+
+
+//Clear All Discrete3000
+//int Start Adress: iStartAdress
+//int End Adress: iEndAdress
+
+//***************************************************************************
+//            extend word to double word (DINT)
+//***************************************************************************
+
+//define functio for Discrete5000 value change in Control
+//intType: 0: check 1: button
+//BitAdress: Bit Adress
+//BitValue: Bit Value
+//nID: check or button Control ID
+//void MachineTab::Discrete5000Change(int intType, int BitAdress, int BitValue, int nID)
+
+
+
 
 void MachineTab::OnBnClickedBtnMachineSaveMotion()
 {
@@ -443,6 +589,22 @@ void MachineTab::GetHoldingRegister(int iStartAdress, int iEndAdress, uint16_t* 
 	}
 }
 
+// Double word (DINT) functions
+//Set Holding Registers value
+//iStartAdress: Start Address, double word need 2 word address
+//iEndAdress: End Address
+//int iValue[]: Value array to be set
+void MachineTab::SetHoldingRegisteDInt(int iStartAdress, int iEndAdress, uint16_t* iValue, int SizeOfArray)
+{
+	int rc = modbus_write_registers(m_ctx, iStartAdress, SizeOfArray * 2, iValue);
+	if (rc == -1)
+	{
+		CString errorMessage;
+		errorMessage.Format(_T("Failed to write to Modbus register DINT: %S"), modbus_strerror(errno));
+		AfxMessageBox(errorMessage);
+	}
+}
+	
 
 BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 {
@@ -467,8 +629,8 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 				int nID = IDC_BTN_JOG_X_PLUS;
 
 				flgGetCoord = FALSE;
-				this->ClearDiscrete3000(0, 8);
-				Discrete3000Change(1, bitAdress, bitValue, nID);
+				this->ClearDiscrete5000(0, 8);
+				Discrete5000Change(1, bitAdress, bitValue, nID);
 				
 			}
 			else if (pMsg->message == WM_LBUTTONUP)
@@ -478,7 +640,7 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 				int bitAdress = 3;  // Bit address for X+ button
 				int bitValue = 0;    // Bit value for X+ button pressed
 				int nID = IDC_BTN_JOG_X_PLUS;
-				ClearDiscrete3000(0, 8);
+				ClearDiscrete5000(0, 8);
 				//Discrete3000Change(1, bitAdress, bitValue, nID);
 				flgGetCoord = TRUE;
 			}
@@ -495,8 +657,8 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 				int bitValue = 1;
 				int nID = IDC_BTN_JOG_X_MINUS;
 				flgGetCoord = FALSE;
-				ClearDiscrete3000(0, 8);
-				Discrete3000Change(1, bitAdress, bitValue, nID);
+				ClearDiscrete5000(0, 8);
+				Discrete5000Change(1, bitAdress, bitValue, nID);
 			}
 			else if (pMsg->message == WM_LBUTTONUP)
 			{
@@ -505,7 +667,7 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 				int bitAdress = 4;
 				int bitValue = 0;
 				int nID = IDC_BTN_JOG_X_MINUS;
-				ClearDiscrete3000(0, 8);
+				ClearDiscrete5000(0, 8);
 				//Discrete3000Change(1, bitAdress, bitValue, nID);
 				flgGetCoord = TRUE;
 			}
@@ -523,8 +685,8 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 				int nID = IDC_BTN_JOG_Y_PLUS;
 
 				flgGetCoord = FALSE;
-				ClearDiscrete3000(0, 8);
-				Discrete3000Change(1, bitAdress, bitValue, nID);
+				ClearDiscrete5000(0, 8);
+				Discrete5000Change(1, bitAdress, bitValue, nID);
 			}
 			else if (pMsg->message == WM_LBUTTONUP)
 			{
@@ -533,7 +695,7 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 				int bitAdress = 5;
 				int bitValue = 0;
 				int nID = IDC_BTN_JOG_Y_PLUS;
-				ClearDiscrete3000(0, 8);
+				ClearDiscrete5000(0, 8);
 				//Discrete3000Change(1, bitAdress, bitValue, nID);
 				flgGetCoord = TRUE;
 			}
@@ -552,8 +714,8 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 				int nID = IDC_BTN_JOG_Y_MINUS;
 
 				flgGetCoord = FALSE;
-				ClearDiscrete3000(0, 8);
-				Discrete3000Change(1, bitAdress, bitValue, nID);
+				ClearDiscrete5000(0, 8);
+				Discrete5000Change(1, bitAdress, bitValue, nID);
 			}
 			else if (pMsg->message == WM_LBUTTONUP)
 			{
@@ -562,7 +724,7 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 				int bitAdress = 6;
 				int bitValue = 0;
 				int nID = IDC_BTN_JOG_Y_MINUS;
-				ClearDiscrete3000(0, 8);
+				ClearDiscrete5000(0, 8);
 				//Discrete3000Change(1, bitAdress, bitValue, nID);
 				flgGetCoord = TRUE;
 
@@ -582,8 +744,8 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 				int nID = IDC_BTN_JOG_Z_PLUS;
 
 				flgGetCoord = FALSE;
-				ClearDiscrete3000(0, 8);
-				Discrete3000Change(1, bitAdress, bitValue, nID);
+				ClearDiscrete5000(0, 8);
+				Discrete5000Change(1, bitAdress, bitValue, nID);
 			}
 			else if (pMsg->message == WM_LBUTTONUP)
 			{
@@ -592,7 +754,7 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 				int bitAdress = 7;
 				int bitValue = 0;
 				int nID = IDC_BTN_JOG_Z_PLUS;
-				ClearDiscrete3000(0, 8);
+				ClearDiscrete5000(0, 8);
 				//Discrete3000Change(1, bitAdress, bitValue, nID);
 				flgGetCoord = TRUE;
 			}
@@ -611,8 +773,8 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 				int nID = IDC_BTN_JOG_Z_MINUS;
 
 				flgGetCoord = FALSE;
-				ClearDiscrete3000(0, 8);
-				Discrete3000Change(1, bitAdress, bitValue, nID);
+				ClearDiscrete5000(0, 8);
+				Discrete5000Change(1, bitAdress, bitValue, nID);
 			}
 			else if (pMsg->message == WM_LBUTTONUP)
 			{
@@ -621,7 +783,7 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 				int bitAdress = 8;
 				int bitValue = 0;
 				int nID = IDC_BTN_JOG_Z_MINUS;
-				ClearDiscrete3000(0, 8);
+				ClearDiscrete5000(0, 8);
 				//Discrete3000Change(1, bitAdress, bitValue, nID);
 				flgGetCoord = TRUE;
 			}

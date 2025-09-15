@@ -10,11 +10,7 @@
 //#include <opencv2/highgui/highgui.hpp>
 //#include <opencv2/imgproc/imgproc.hpp>
 #include <vector>
-
-
 #include "opencv2/core.hpp"
-
-
 #include "opencv2/calib3d.hpp"
 #include "opencv2/highgui.hpp"
 #include "opencv2/imgproc.hpp"
@@ -32,6 +28,8 @@
 #include <fstream>
 #include <string>
 #include <stdexcept>
+
+#include "modbus.h"
 
 using namespace cv;
 using namespace std;
@@ -244,3 +242,12 @@ extern "C" UAX_API void GetMacAddress(char* macAddress);
 
 
 
+//
+// 裝 thread-safe 函式
+//
+
+extern "C" UAX_API int SafeModbusReadRegisters(modbus_t* ctx, int addr, int nb, uint16_t* dest);
+extern "C" UAX_API int SafeModbusWriteRegisters(modbus_t* ctx, int addr, int nb, const uint16_t* data);
+extern "C" UAX_API int SafeModbusWriteRegister(modbus_t* ctx, int addr, uint16_t value);
+extern "C" UAX_API int SafeModbusReadBits(modbus_t* ctx, int addr, int nb, uint8_t* dest);
+extern "C" UAX_API int SafeModbusWriteBit(modbus_t* ctx, int addr, int status);

@@ -49,8 +49,16 @@ protected:
 
 	//define Holding Register bitset for Modbus
 	bitset<16> Discrete3000;
+	bitset<16> Discrete5000;
 	//Convert bitset to word
 	uint16_t Discrete3000Word = 0;
+	uint16_t Discrete5000Word= 0;
+
+	//Define Holding Register  bitset for Modbus
+	bitset<16> HoldingRegister5000;
+	
+
+
 	void ConvertBitsetToWord(bitset<16> bitset, uint16_t* word);
 	//Convert word to bitset
 	void ConvertWordToBitset(uint16_t word, bitset<16>* bitset);
@@ -61,6 +69,23 @@ protected:
 	//BitValue: Bit Value
 	//nID: check or button Control ID
 	void Discrete3000Change(int intType, int BitAdress, int BitValue, int nID);
+
+	//Clear All Discrete3000
+	//int Start Adress: iStartAdress
+	//int End Adress: iEndAdress
+	void ClearDiscrete3000(int iStartAdress, int iEndAdress);
+
+	//define functio for Discrete5000 value change in Control
+	//intType: 0: check 1: button
+	//BitAdress: Bit Adress
+	//BitValue: Bit Value
+	//nID: check or button Control ID
+	void Discrete5000Change(int intType, int BitAdress, int BitValue, int nID);
+
+	//Clear All Discrete3000
+	//int Start Adress: iStartAdress
+	//int End Adress: iEndAdress
+	void ClearDiscrete5000(int iStartAdress, int iEndAdress);
 
 	//Set Holding Register value
 	//iStartAdress: Start Address
@@ -73,10 +98,22 @@ protected:
 	//int iValue[]: Value array to be get
 	void GetHoldingRegister(int iStartAdress, int iEndAdress, uint16_t*  iValue);
 
-	//Clear All Discrete3000
-	//int Start Adress: iStartAdress
-	//int End Adress: iEndAdress
-	void ClearDiscrete3000(int iStartAdress, int iEndAdress);
+	
+
+
+	// Double word (DINT) functions
+	//Set Holding Register value
+	//iStartAdress: Start Address
+	//iEndAdress: End Address
+	//int iValue[]: Value array to be set
+	void SetHoldingRegisteDInt(int iStartAdress, int iEndAdress, uint16_t* iValue, int SizeOfArray);
+	//Get Holding Register value
+	//iStartAdress: Start Address
+	//iEndAdress: End Address
+	//int iValue[]: Value array to be get
+	void GetHoldingRegisterDInt(int iStartAdress, int iEndAdress, uint16_t* iValue);
+
+
 
 
 
