@@ -453,11 +453,17 @@ void GetMacAddress(char* macAddress)
 
 }
 
-void InitTransformer(float* imagePts, float* worldPts, int count)
+//Coordinate Transformation Tools
+// Init the transformer with 3 points
+// imagePts: the pixel coordinate of the 3 points
+// worldPts: the real world coordinate of the 3 points
+// count: the number of the points
+// cv::Mat & affineMatrix: the affine matrix of the transformation form pixel to world
+void InitTransformer(float* imagePts, float* worldPts, int count, cv::Mat& affineMatrix)
 {
 	std::vector<cv::Point2f> img, world;
     // 在檔案開頭（全域區域）宣告 affineMatrix 變數
-    cv::Mat affineMatrix;
+    //cv::Mat affineMatrix;
 	for (int i = 0; i < count; ++i) {
 		img.emplace_back(imagePts[i * 2], imagePts[i * 2 + 1]);
 		world.emplace_back(worldPts[i * 2], worldPts[i * 2 + 1]);
@@ -465,12 +471,13 @@ void InitTransformer(float* imagePts, float* worldPts, int count)
 	affineMatrix = cv::estimateAffine2D(img, world);
 }
 
-//Transform pixel to real world coordinate
+// Transform pixel to real world coordinate
 // x, y: the pixel coordinate
 // outX, outY: the real world coordinate
-bool TransformPixel(float x, float y, float* outX, float* outY) 
+// cv::Mat & affineMatrix: the affine matrix of the transformation form pixel to world
+bool TransformPixel(float x, float y, float* outX, float* outY, cv::Mat affineMatrix)
 {
-	cv::Mat affineMatrix;
+	//cv::Mat affineMatrix;
 	if (affineMatrix.empty()) return false;
 
 	cv::Mat pt = (cv::Mat_<double>(3, 1) << x, y, 1.0);
@@ -487,23 +494,18 @@ bool TransformPixel(float x, float y, float* outX, float* outY)
 // y_pixel: the y coordinate of the pixel
 // &x_mm: the x coordinate of the real world
 // &y_mm: the y coordinate of the real world
-// imagePts: 指向影像座標點陣列的指標（長度至少6，3點）
-// worldPts: 指向對應世界座標點陣列的指標（長度至少6，3點）
-void PixelToWorld(float x_pixel, float y_pixel, float& x_mm, float& y_mm, float* imagePts, float* worldPts)
+// cv::Mat & affineMatrix: the affine matrix of the transformation form pixel to world
+void PixelToWorld(float x_pixel, float y_pixel, float& x_mm, float& y_mm, cv::Mat affineMatrix)
 {
-	if (!imagePts || !worldPts) {
-		std::cerr << "Invalid input points.\n";
-		return;
-	}
+	//cv::Mat affineMatrix;
+	if (affineMatrix.empty()) return;
 
-	InitTransformer(imagePts, worldPts, 3);
+	cv::Mat pt = (cv::Mat_<double>(3, 1) << x_pixel, y_pixel, 1.0);
+	cv::Mat result = affineMatrix * pt;
 
-	if (TransformPixel(x_pixel, y_pixel, &x_mm, &y_mm)) {
-		std::cout << "World Coord: (" << x_mm << ", " << y_mm << ") mm\n";
-	}
-	else {
-		std::cerr << "Transform failed.\n";
-	}
+	x_mm = static_cast<float>(result.at<double>(0, 0));
+	y_mm = static_cast<float>(result.at<double>(1, 0));
+	
 }
 
 /*  以上 InitTransformer、TransformPixel 使用範例
@@ -787,6 +789,11 @@ void WriteConfigToFile(const std::string& filename, SystemConfig &SysConfig)
 	file << "DecAcceleration=" << SysConfig.DecAcceleration << "\n";
 	file << "IncAcceleration=" << SysConfig.IncAcceleration << "\n";
 	file << "Pitch=" << std::fixed << std::setprecision(2) << SysConfig.Pitch << "\n";
+	file << "Z1=" << SysConfig.Z1 << "\n";
+	file << "Z2=" << SysConfig.Z2 << "\n";
+	file << "Z3=" << SysConfig.Z3 << "\n";
+	file << "Z4=" << SysConfig.Z4 << "\n";
+	file << "Z5=" << SysConfig.Z5 << "\n";
 }
 
 // Initialize system configuration file
@@ -814,7 +821,8 @@ int ReadSystemConfig(const std::string& filename, SystemConfig &SysConfig)
 			continue;
 		}
 
-		try {
+		try
+		{
 			if (line.find("IpAddress=") == 0) {
 				SysConfig.IpAddress = line.length() > 10 ? line.substr(10) : "";
 			}
@@ -877,8 +885,24 @@ int ReadSystemConfig(const std::string& filename, SystemConfig &SysConfig)
 			else if (line.find("Pitch=") == 0) {
 				SysConfig.Pitch = line.length() > 6 ? std::stof(line.substr(6)) : 0.000f;
 			}
+			else if (line.find("Z1=") == 0) {
+				SysConfig.Z1 = line.length() > 13 ? std::stoi(line.substr(13)) : 0;
+			}
+			else if (line.find("Z2=") == 0) {
+				SysConfig.Z2 = line.length() > 13 ? std::stoi(line.substr(13)) : 0;
+			}
+			else if (line.find("Z3=") == 0) {
+				SysConfig.Z3 = line.length() > 13 ? std::stoi(line.substr(13)) : 0;
+			}
+			else if (line.find("Z4=") == 0) {
+				SysConfig.Z4 = line.length() > 13 ? std::stoi(line.substr(13)) : 0;
+			}
+			else if (line.find("Z5=") == 0) {
+				SysConfig.Z5 = line.length() > 13 ? std::stoi(line.substr(13)) : 0;
+			}
 		}
-		catch (const std::exception& e) {
+		catch (const std::exception& e) 
+		{
 			std::cerr << "Error parsing config line: " << line << ", Error: " << e.what() << std::endl;
 			// Continue processing other lines
 		}
@@ -899,7 +923,8 @@ void UpdateSystemConfig(const std::string& filename,  SystemConfig &SysConfig)
 // UModbus thread safety
 std::mutex plc_mutex;
 
-void SafeModbusRead(/*...*/) {
+void SafeModbusRead(/*...*/) 
+{
     std::lock_guard<std::mutex> lock(plc_mutex);
     // 呼叫 UModbus 讀取函式
 }

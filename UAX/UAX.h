@@ -194,7 +194,14 @@ extern "C" UAX_API void splitDoubleWord(uint32_t doubleWord, uint16_t& highWord,
 // y_pixel: the y coordinate of the pixel
 // &x_mm: the x coordinate of the real world
 // &y_mm: the y coordinate of the real world
-extern "C" UAX_API void PixelToWorld(float x_pixel, float y_pixel, float& x_mm, float& y_mm, float* imagePts, float* worldPts);
+// imagePts: 指向影像座標點陣列的指標（長度至少6，3點）
+// worldPts: 指向對應世界座標點陣列的指標（長度至少6，3點）
+//cv::Mat & affineMatrix: the affine matrix of the transformation form pixel to world
+
+extern "C" UAX_API void InitTransformer(float* imagePts, float* worldPts, int numPoints, cv::Mat &affineMatrix);
+//extern "C" UAX_API void PixelToWorld(float x_pixel, float y_pixel, float& x_mm, float& y_mm, float* imagePts, float* worldPts);
+extern "C" UAX_API void PixelToWorld(float x_pixel, float y_pixel, float& x_mm, float& y_mm, cv::Mat affineMatrix);
+extern "C" UAX_API bool TransformPixel(float x, float y, float* outX, float* outY, cv::Mat affineMatrix);
 
 
 
@@ -225,6 +232,11 @@ struct SystemConfig
     int DecAcceleration;
     int IncAcceleration;
     float Pitch;
+    float Z1;
+	float Z2;
+	float Z3;
+	float Z4;
+	float Z5;
 };
 
 // Write system configuration to ini file

@@ -91,7 +91,8 @@ protected:
 	//iStartAdress: Start Address
 	//iEndAdress: End Address
 	//int iValue[]: Value array to be set
-	void SetHoldingRegister(int iStartAdress, int iEndAdress, uint16_t* iValue, int SizeOfArray);
+    bool SetHoldingRegister(int iStartAdress, int iEndAdress, uint16_t* iValue, int SizeOfArray);
+	bool SetHoldingRegister32(int iStartAdress, uint16_t lowWord, uint16_t highWord);
 	//Get Holding Register value
 	//iStartAdress: Start Address
 	//iEndAdress: End Address
@@ -173,5 +174,3 @@ public:
 		HANDLE m_hStopThreadEvent;       // 停止執行緒的事件
 		
 };
-// 自定義消息，用於執行緒通知 UI 更新
-//#define WM_UPDATE_COORDINATES (WM_USER + 100)

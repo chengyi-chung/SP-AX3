@@ -81,7 +81,7 @@ BOOL MachineTab::OnInitDialog()
 	((CButton*)GetDlgItem(IDC_RADIO_AUTO))->SetCheck(TRUE);
 	((CButton*)GetDlgItem(IDC_RADIO_MANUAL))->SetCheck(FALSE);
 
-	// Laucvh OnBnClickedRadioAuto
+	// Laucxh OnBnClickedRadioAuto
 	OnBnClickedRadioAuto();
 	
 	m_iMachineMode = 1;
@@ -94,7 +94,6 @@ BOOL MachineTab::OnInitDialog()
 	return TRUE;  // return TRUE unless you set the focus to a control
 	// EXCEPTION: OCX Property Pages should return FALSE
 }
-
 
 //Open Modbus TCP/IP server 
 void MachineTab::OpenModBus()
@@ -468,95 +467,213 @@ void MachineTab::Discrete5000Change(int intType, int BitAdress, int BitValue, in
 
 
 
-
 void MachineTab::OnBnClickedBtnMachineSaveMotion()
 {
-	// TODO: 在此加入控制項告知處理常式程式碼  
-	// 20014 : Jog Velocity  
-	// 20015 : Auto Velocity  
-	// 20016 : Axis Dec Acceleration  
-	// 20017 : Axis Inc Acceleration  
+	// ====== Double Word Register Address Definitions ======
+	constexpr uint16_t REG_BASE_Z1 = 40000; // Z1 double word (40000, 40001)
+	constexpr uint16_t REG_BASE_Z2 = 40002; // Z2 double word
+	constexpr uint16_t REG_BASE_Z3 = 40004; // Z3 double word
+	constexpr uint16_t REG_BASE_Z4 = 40006; // Z4 double word
+	constexpr uint16_t REG_BASE_Z5 = 40008; // Z5 double word
+	constexpr uint16_t REG_JOG_VELOCITY = 40016; // Jog Velocity double word
+	constexpr uint16_t REG_AUTO_VELOCITY = 40018; // Auto Velocity double word
+	constexpr uint16_t REG_AXIS_DEC_ACC = 40020; // Dec Acceleration double word
+	constexpr uint16_t REG_AXIS_INC_ACC = 40022; // Inc Acceleration double word
 
-	int16_t iValueSigned[4] = { 0 }; // 用於儲存帶符號的值
-	uint16_t iValueUnsigned[4] = { 0 }; // 用於傳遞給 SetHoldingRegister
+	// ======== Step 1. Retrieve motion parameters from UI ========
+	BOOL ok = FALSE;
+	int32_t jogVelocity = GetDlgItemInt(IDC_EDIT_JOG_VELOCITY, &ok, TRUE);
+	if (!ok) { AfxMessageBox(_T("Jog Velocity input error")); return; }
 
-	// 獲取 UI 輸入值，並儲存為帶符號的值
-	iValueSigned[0] = static_cast<int16_t>(GetDlgItemInt(IDC_EDIT_JOG_VELOCITY));
-	iValueSigned[1] = static_cast<int16_t>(GetDlgItemInt(IDC_EDIT_AUTO_VELOCITY));
-	iValueSigned[2] = static_cast<int16_t>(GetDlgItemInt(IDC_EDIT_AXIS_ACC_DEC));
-	iValueSigned[3] = static_cast<int16_t>(GetDlgItemInt(IDC_EDIT_AXIS_ACC_INC));
+	int32_t autoVelocity = GetDlgItemInt(IDC_EDIT_AUTO_VELOCITY, &ok, TRUE);
+	if (!ok) { AfxMessageBox(_T("Auto Velocity input error")); return; }
 
-	// 將 int16_t 的補碼值直接賦值給 uint16_t，不改變二進位表示
-	for (int i = 0; i < 4; i++)
-	{
-		// 使用 reinterpret_cast 或直接賦值，確保二進位數據不變
-		iValueUnsigned[i] = *reinterpret_cast<uint16_t*>(&iValueSigned[i]);
+	int32_t decAcc = GetDlgItemInt(IDC_EDIT_AXIS_ACC_DEC, &ok, TRUE);
+	if (!ok) { AfxMessageBox(_T("Deceleration input error")); return; }
+
+	int32_t incAcc = GetDlgItemInt(IDC_EDIT_AXIS_ACC_INC, &ok, TRUE);
+	if (!ok) { AfxMessageBox(_T("Acceleration input error")); return; }
+
+	int32_t z1Pos = GetDlgItemInt(IDC_EDIT_Z1, &ok, TRUE);
+	if (!ok) { AfxMessageBox(_T("Z1 Position input error")); return; }
+
+	int32_t z2Pos = GetDlgItemInt(IDC_EDIT_Z2, &ok, TRUE);
+	if (!ok) { AfxMessageBox(_T("Z2 Position input error")); return; }
+
+	int32_t z3Pos = GetDlgItemInt(IDC_EDIT_Z3, &ok, TRUE);
+	if (!ok) { AfxMessageBox(_T("Z3 Position input error")); return; }
+
+	int32_t z4Pos = GetDlgItemInt(IDC_EDIT_Z4, &ok, TRUE);
+	if (!ok) { AfxMessageBox(_T("Z4 Position input error")); return; }
+
+	int32_t z5Pos = GetDlgItemInt(IDC_EDIT_Z5, &ok, TRUE);
+	if (!ok) { AfxMessageBox(_T("Z5 Position input error")); return; }
+
+	// ======== Step 2. Split int32_t into high/low 16-bit ========
+	auto splitInt32 = [](int32_t value, uint16_t& low, uint16_t& high)
+		{
+			uint32_t uval = static_cast<uint32_t>(value);
+			low = static_cast<uint16_t>(uval & 0xFFFF);
+			high = static_cast<uint16_t>((uval >> 16) & 0xFFFF);
+		};
+
+	uint16_t jogLow, jogHigh, autoLow, autoHigh;
+	uint16_t decLow, decHigh, incLow, incHigh;
+	uint16_t z1Low, z1High, z2Low, z2High, z3Low, z3High, z4Low, z4High, z5Low, z5High;
+
+	splitInt32(jogVelocity, jogLow, jogHigh);
+	splitInt32(autoVelocity, autoLow, autoHigh);
+	splitInt32(decAcc, decLow, decHigh);
+	splitInt32(incAcc, incLow, incHigh);
+	splitInt32(z1Pos, z1Low, z1High);
+	splitInt32(z2Pos, z2Low, z2High);
+	splitInt32(z3Pos, z3Low, z3High);
+	splitInt32(z4Pos, z4Low, z4High);
+	splitInt32(z5Pos, z5Low, z5High);
+
+
+	// ======== Step 3. Write to PLC (Double Word, each value 2 registers) ========
+	if (!SetHoldingRegister32(REG_JOG_VELOCITY, jogLow, jogHigh)) {
+		AfxMessageBox(_T("Failed to write Jog Velocity"));
+		return;
+	}
+	if (!SetHoldingRegister32(REG_AUTO_VELOCITY, autoLow, autoHigh)) {
+		AfxMessageBox(_T("Failed to write Auto Velocity"));
+		return;
+	}
+	if (!SetHoldingRegister32(REG_AXIS_DEC_ACC, decLow, decHigh)) {
+		AfxMessageBox(_T("Failed to write Deceleration"));
+		return;
+	}
+	if (!SetHoldingRegister32(REG_AXIS_INC_ACC, incLow, incHigh)) {
+		AfxMessageBox(_T("Failed to write Acceleration"));
+		return;
+	}
+	if (!SetHoldingRegister32(REG_BASE_Z1, z1Low, z1High)) {
+		AfxMessageBox(_T("Failed to write Z1 Position"));
+		return;
+	}
+	if (!SetHoldingRegister32(REG_BASE_Z2, z2Low, z2High)) {
+		AfxMessageBox(_T("Failed to write Z2 Position"));
+		return;
+	}
+	if (!SetHoldingRegister32(REG_BASE_Z3, z3Low, z3High)) {
+		AfxMessageBox(_T("Failed to write Z3 Position"));
+		return;
+	}
+	if (!SetHoldingRegister32(REG_BASE_Z4, z4Low, z4High)) {
+		AfxMessageBox(_T("Failed to write Z4 Position"));
+		return;
+	}
+	if (!SetHoldingRegister32(REG_BASE_Z5, z5Low, z5High)) {
+		AfxMessageBox(_T("Failed to write Z5 Position"));
+		return;
 	}
 
-	// 調用 SetHoldingRegister，傳遞 uint16_t 類型的陣列
-	SetHoldingRegister(20014, 20017, iValueUnsigned, sizeof(iValueUnsigned) / sizeof(iValueUnsigned[0]));
-
-	// 將 iValueSigned 陣列的值寫入 YUDADlg 的 m_SystemPara
+	// ======== Step 4. Update System Parameters ========
 	CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
-	if (!pParentWnd)
-	{
-		AfxMessageBox(_T("無法取得 CYUFADlg 父視窗。"));
+	if (!pParentWnd) {
+		AfxMessageBox(_T("Failed to retrieve parent dialog"));
 		return;
 	}
 
-	// 存取 m_SystemPara
-	if (pParentWnd->m_SystemPara.IpAddress.empty())
-	{
-		AfxMessageBox(_T("系統參數中未設定 IP 位址。"));
-		return;
-	}
+	pParentWnd->m_SystemPara.JogVelocity = jogVelocity;
+	pParentWnd->m_SystemPara.AutoVelocity = autoVelocity;
+	pParentWnd->m_SystemPara.DecAcceleration = decAcc;
+	pParentWnd->m_SystemPara.IncAcceleration = incAcc;
+	pParentWnd->m_SystemPara.Z1 = z1Pos;
+	pParentWnd->m_SystemPara.Z2 = z2Pos;
+	pParentWnd->m_SystemPara.Z3 = z3Pos;
+	pParentWnd->m_SystemPara.Z4 = z4Pos;
+	pParentWnd->m_SystemPara.Z5 = z5Pos;
 
-	// 使用帶符號的值儲存到 m_SystemPara 中，以便保留負值資訊
-	pParentWnd->m_SystemPara.JogVelocity = iValueSigned[0];
-	pParentWnd->m_SystemPara.AutoVelocity = iValueSigned[1];
-	pParentWnd->m_SystemPara.DecAcceleration = iValueSigned[2];
-	pParentWnd->m_SystemPara.IncAcceleration = iValueSigned[3];
 
-	// 將 IDC_EDIT_PITCH、IDC_EDIT_TRANSFER_FACTOR 的值賦予 pParentWnd->m_SystemPara
-	CString strPitch, strTransferFactor;
+	// ======== Step 5. Handle Pitch and Transfer Factor ========
+	CString strPitch, strTransfer;
 	GetDlgItemText(IDC_EDIT_PITCH, strPitch);
-	GetDlgItemText(IDC_EDIT_TRANSFER_FACTOR, strTransferFactor);
+	GetDlgItemText(IDC_EDIT_TRANSFER_FACTOR, strTransfer);
 
-	// 將 strPitch 和 strTransferFactor 轉換為 double
 	double pitch = _ttof(strPitch);
-	double transferFactor = _ttof(strTransferFactor);
+	double transferFactor = _ttof(strTransfer);
 
+	if (pitch <= 0 || transferFactor <= 0) {
+		AfxMessageBox(_T("Pitch / Transfer Factor must be positive numbers"));
+		return;
+	}
 	pParentWnd->m_SystemPara.Pitch = pitch;
 	pParentWnd->m_SystemPara.TransferFactor = transferFactor;
 
-	std::string appPath;
-	// 取得應用程式路徑
-	appPath = GetAppPath();
-
-	// 設定系統設定檔名稱並加入應用程式路徑
-	CString strConfigFile = _T("SystemConfig.ini");
-	strConfigFile = CString(appPath.c_str()) + _T("\\") + strConfigFile;
-
-	// 呼叫 UAX: SystemConfig ReadSystemConfig(const std::string& filename)
-	WriteConfigToFile(std::string(CT2A(strConfigFile)), pParentWnd->m_SystemPara);
+	// ======== Step 6. Save Configuration ========
+	std::string appPath = GetAppPath();
+	CString configFile = CString(appPath.c_str()) + _T("\\SystemConfig.ini");
+	WriteConfigToFile(std::string(CT2A(configFile)), pParentWnd->m_SystemPara);
 }
-
 
 
 //Set Holding Register value
 //iStartAdress: Start Address
 //iEndAdress: End Address
 //int iValue[]: Value array to be set
-void MachineTab::SetHoldingRegister(int iStartAdress, int iEndAdress, uint16_t* iValue, int sizeOfArray)
+bool MachineTab::SetHoldingRegister(int iStartAdress, int iEndAdress, uint16_t* iValue, int SizeOfArray)
 {
-	int rc = modbus_write_registers(m_ctx, iStartAdress, sizeOfArray, iValue);
+	// 檢查 Modbus context
+	if (m_ctx == nullptr)
+	{
+		AfxMessageBox(_T("Modbus context is not initialized."));
+		return false;
+	}
 
-	if (rc == -1)
+	// 檢查輸入參數
+	if (iValue == nullptr || SizeOfArray <= 0)
+	{
+		AfxMessageBox(_T("Invalid parameters for SetHoldingRegister."));
+		return false;
+	}
+
+	// 計算並檢查結束位址一致性（非致命）
+	int expectedEnd = iStartAdress + SizeOfArray - 1;
+	if (iEndAdress != expectedEnd)
+	{
+		// 記錄警告到報告框，但仍按 SizeOfArray 執行寫入
+		CString warn;
+		warn.Format(_T("Warning: iEndAdress(%d) != expectedEnd(%d). Using sizeOfArray=%d."),
+			iEndAdress, expectedEnd, SizeOfArray);
+		m_strReportData += "\r\n" + std::string(CT2A(warn));
+		SetDlgItemText(IDC_EDIT_REPORT, CString(m_strReportData.c_str()));
+	}
+
+	// libmodbus 一次寫入的最大暫存器數量（安全上限）
+	const int MODBUS_MAX_REGS = 125;
+	if (SizeOfArray > MODBUS_MAX_REGS)
+	{
+		CString err;
+		err.Format(_T("Too many registers to write: %d (max %d)."), SizeOfArray, MODBUS_MAX_REGS);
+		AfxMessageBox(err);
+		return false;
+	}
+
+	// 執行寫入
+	int rc = modbus_write_registers(m_ctx, iStartAdress, SizeOfArray, iValue);
+	if (rc == -1 || rc != SizeOfArray)
 	{
 		CString errorMessage;
-		errorMessage.Format(_T("Failed to write to Modbus register: %S"), modbus_strerror(errno));
+		errorMessage.Format(_T("Failed to write %d registers starting at %d: %S"),
+			SizeOfArray, iStartAdress, modbus_strerror(errno));
 		AfxMessageBox(errorMessage);
+
+		// 記錄錯誤
+		m_strReportData += "\r\n" + std::string(CT2A(errorMessage));
+		SetDlgItemText(IDC_EDIT_REPORT, CString(m_strReportData.c_str()));
+		return false;
 	}
+
+	// 成功，記錄並回傳 true
+	CString okMsg;
+	okMsg.Format(_T("Wrote %d registers starting at %d successfully."), SizeOfArray, iStartAdress);
+	m_strReportData += "\r\n" + std::string(CT2A(okMsg));
+	SetDlgItemText(IDC_EDIT_REPORT, CString(m_strReportData.c_str()));
+
+	return true;
 }
 //Get Holding Register value
 //iStartAdress: Start Address
@@ -809,7 +926,7 @@ void MachineTab::OnBnClickedRadioAuto()
 	int bitValue = 1;
 	int nID = IDC_RADIO_AUTO;
 	//ClearDiscrete3000(0, 7);
-	Discrete3000Change(0, bitAdress, bitValue, nID);
+	Discrete5000Change(0, bitAdress, bitValue, nID);
 
 	//Set DlgItemID : IDC_MFCBTN_MACHINE_AUTO_WORK_SART、IDC_MFCBTN_MACHINE_AUTO_WORK_STOP to enable
 	((CButton*)GetDlgItem(IDC_MFCBTN_MACHINE_AUTO_WORK_SART))->EnableWindow(TRUE);
@@ -854,7 +971,7 @@ void MachineTab::OnBnClickedRadioManual()
 	int bitValue = 2;
 	int nID = IDC_RADIO_AUTO;
 	//ClearDiscrete3000(0, 7);
-	Discrete3000Change(0, bitAdress, bitValue, nID);
+	Discrete5000Change(0, bitAdress, bitValue, nID);
 
 
 }
@@ -866,7 +983,7 @@ void MachineTab::OnBnClickedMfcbtnMachineAutoWorkSart()
 	int bitValue = 1;
 	int nID = 0;  // IDC_CHECK_AUTO_WORK_START;
 	//ClearDiscrete3000(0, 7);
-	Discrete3000Change(1, bitAdress, bitValue, nID);
+	Discrete5000Change(1, bitAdress, bitValue, nID);
 }
 
 void MachineTab::OnBnClickedMfcbtnMachineAutoWorkStop()
@@ -878,7 +995,7 @@ void MachineTab::OnBnClickedMfcbtnMachineAutoWorkStop()
 	int bitValue = 1;
 	int nID = 0;  // IDC_CHECK_AUTO_WORK_STOP;
 	//ClearDiscrete3000(0, 7);
-	Discrete3000Change(1, bitAdress, bitValue, nID);
+	Discrete5000Change(1, bitAdress, bitValue, nID);
 
 
 }
@@ -890,7 +1007,7 @@ void MachineTab::OnBnClickedMfcbtnMachineHome()
 	int bitValue = 1;
 	int nID = 0; // IDC_CHECK_HOME;
 	//ClearDiscrete3000(0, 7);
-	Discrete3000Change(1, bitAdress, bitValue, nID);
+	Discrete5000Change(1, bitAdress, bitValue, nID);
 }
 
 void MachineTab::OnBnClickedMfcbtnMachineResetSw()
@@ -900,7 +1017,7 @@ void MachineTab::OnBnClickedMfcbtnMachineResetSw()
 	int bitValue = 1;
 	int nID = 0; // IDC_CHECK_RESET;
 	//ClearDiscrete3000(0, 7);
-	Discrete3000Change(1, bitAdress, bitValue, nID);
+	Discrete5000Change(1, bitAdress, bitValue, nID);
 }
 
 void MachineTab::OnBnClickedMfcbtnMachineGo()
@@ -991,6 +1108,22 @@ void MachineTab::UpdateControl()
 	// TransferFactor (assuming float, adjust if int)
 	cStr.Format(_T("%.4f"), pParentWnd->m_SystemPara.TransferFactor);
 	SetDlgItemText(IDC_EDIT_TRANSFER_FACTOR, cStr);
+	// Z1 (assuming int, adjust if float)
+	cStr.Format(_T("%d"), pParentWnd->m_SystemPara.Z1);
+	SetDlgItemText(IDC_EDIT_Z1, cStr);
+	// Z2 (assuming int, adjust if float)
+	cStr.Format(_T("%d"), pParentWnd->m_SystemPara.Z2);
+	SetDlgItemText(IDC_EDIT_Z2, cStr);
+	// Z3 (assuming int, adjust if float)
+	cStr.Format(_T("%d"), pParentWnd->m_SystemPara.Z3);
+	SetDlgItemText(IDC_EDIT_Z3, cStr);
+	// Z4 (assuming int, adjust if float)
+	cStr.Format(_T("%d"), pParentWnd->m_SystemPara.Z4);
+	SetDlgItemText(IDC_EDIT_Z4, cStr);
+	// Z5 (assuming int, adjust if float)
+	cStr.Format(_T("%d"), pParentWnd->m_SystemPara.Z5);
+	SetDlgItemText(IDC_EDIT_Z5, cStr);
+
 }
 
 LRESULT MachineTab::OnUpdateCoordinates(WPARAM wParam, LPARAM lParam)
@@ -1015,11 +1148,12 @@ LRESULT MachineTab::OnUpdateCoordinates(WPARAM wParam, LPARAM lParam)
 	return 0;
 }
 
+/*
 UINT MachineTab::ReadCoordinatesThread(LPVOID pParam)
 {
 	MachineTab* pThis = static_cast<MachineTab*>(pParam);
 	uint16_t registers[3] = { 0 }; // 用於儲存 X, Y, Z 座標
-	const int startAddress = 20011;
+	const int startAddress = 40010;
 	const int numRegisters = 3;
 
 	while (pThis->m_bThreadRunning)
@@ -1050,7 +1184,7 @@ UINT MachineTab::ReadCoordinatesThread(LPVOID pParam)
 					static_cast<float>(static_cast<int16_t>(registers[2]))  // Z
 				};
 				// 動態分配記憶體並發送消息到 UI 更新
-			
+
 				float* coordPtr = new float[3];
 				coordPtr[0] = coordinates[0];
 				coordPtr[1] = coordinates[1];
@@ -1064,13 +1198,75 @@ UINT MachineTab::ReadCoordinatesThread(LPVOID pParam)
 				errorMessage.Format(_T("Failed to read coordinates: %S"), modbus_strerror(errno));
 				pThis->m_strReportData += "\r\n" + std::string(CT2A(errorMessage));
 
-				pThis->ClearDiscrete3000(0, 8); // 清除 Discrete3000 狀態
-				
+				pThis->ClearDiscrete5000(0, 8); // 清除 Discrete3000 狀態
+
 				//pThis->PostMessage(WM_SETITEMTEXT, IDC_EDIT_REPORT, reinterpret_cast<LPARAM>(new CString(pThis->m_strReportData.c_str())));
 			}
 		}
 
 		// 每 800 毫秒讀取一次
+		Sleep(800);
+	}
+
+	return 0;
+}
+*/
+UINT MachineTab::ReadCoordinatesThread(LPVOID pParam)
+{
+	MachineTab* pThis = static_cast<MachineTab*>(pParam);
+	uint16_t registers[6] = { 0 }; // 每個座標 2 個暫存器
+	const int startAddress = 40010;
+	const int numRegisters = 6;
+	const float scalingFactor = -1580.0f / -142606337.0f; // 縮放因子
+
+	while (pThis->m_bThreadRunning)
+	{
+		if (WaitForSingleObject(pThis->m_hStopThreadEvent, 0) == WAIT_OBJECT_0)
+			break;
+
+		if (pThis->m_ctx != nullptr)
+		{
+			if (!pThis->flgGetCoord)
+			{
+				Sleep(100);
+				continue;
+			}
+
+			int rc = modbus_read_registers(pThis->m_ctx, startAddress, numRegisters, registers);
+			if (rc != -1)
+			{
+				// 合併成 float (32-bit signed integer 轉換)
+				float coordinates[3] = { 0 };
+				for (int i = 0; i < 3; i++)
+				{
+					uint32_t raw =
+						((uint32_t)registers[i * 2] << 16) | // 高位
+						registers[i * 2 + 1];              // 低位
+
+					// 將 raw 視為 32-bit 有符號整數
+					int32_t signedValue = static_cast<int32_t>(raw);
+					// 應用縮放因子轉換為 float
+					float value = signedValue * scalingFactor;
+					coordinates[i] = value;
+				}
+
+				float* coordPtr = new float[3];
+				coordPtr[0] = coordinates[0];
+				coordPtr[1] = coordinates[1];
+				coordPtr[2] = coordinates[2];
+
+				pThis->PostMessage(WM_UPDATE_COORDINATES, 0, reinterpret_cast<LPARAM>(coordPtr));
+			}
+			else
+			{
+				CString errorMessage;
+				errorMessage.Format(_T("Failed to read coordinates: %S"), modbus_strerror(errno));
+				pThis->m_strReportData += "\r\n" + std::string(CT2A(errorMessage));
+
+				pThis->ClearDiscrete5000(0, 8);
+			}
+		}
+
 		Sleep(800);
 	}
 
@@ -1101,4 +1297,34 @@ void MachineTab::StopCoordinateThread()
 		WaitForSingleObject(m_pCoordinateThread->m_hThread, INFINITE); // 等待執行緒結束
 		m_pCoordinateThread = nullptr;
 	}
+}
+
+// 新增：實作 bool SetHoldingRegister(int, uint16_t, uint16_t)
+// 這個 overload 會寫入 2 個連續的保持暫存器 (reg, reg+1)
+// 注意：讀取時程式把 registers[0] 當作 high word、registers[1] 當作 low word
+// 因此寫入也要採用相同的順序 (high first, low second)。
+ bool MachineTab::SetHoldingRegister32(int iStartAdress, uint16_t lowWord, uint16_t highWord)
+{
+	// 確認 Modbus context 已初始化
+	if (m_ctx == nullptr)
+	{
+		AfxMessageBox(_T("Modbus context is not initialized."));
+		return false;
+	}
+
+	// 按照系統中讀取時的約定：先寫入 high word，再寫入 low word
+	uint16_t regs[2];
+	regs[0] = highWord; // 高位在前
+	regs[1] = lowWord;  // 低位在後
+
+	int rc = modbus_write_registers(m_ctx, iStartAdress, 2, regs);
+	if (rc == -1)
+	{
+		CString errorMessage;
+		errorMessage.Format(_T("Failed to write to Modbus registers starting %d: %S"), iStartAdress, modbus_strerror(errno));
+		AfxMessageBox(errorMessage);
+		return false;
+	}
+
+	return true ;
 }

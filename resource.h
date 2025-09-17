@@ -67,10 +67,8 @@
 #define IDC_EDIT_AUTO_VELOCITY          1047
 #define IDC_EDIT_AXIS_ACC_DEC           1048
 #define IDC_EDIT_AXIS_ACC_INC           1049
-//#define IDC_BUTTON3                     1050
 #define IDC_BTN_CALIBRATION             1050
 #define IDC_BTN_MACHINE_SAVE_MOTION     1051
-//#define IDC_EDIT2                       1052
 #define IDC_EDIT_PITCH                  1052
 #define IDC_EDIT_CCD_CENTER_X           1052
 #define IDC_MFCBTN_MACHINE_HOME         1053
@@ -85,14 +83,20 @@
 #define IDC_MFCBTN_MACHINE_GO           1060
 #define IDC_MFCBTN_SAVE_SYSTEM          1061
 #define IDC_LIST_IMAGE_FILES            1062
+#define IDC_EDIT_Z1                     1066
+#define IDC_EDIT_Z2                     1067
+#define IDC_EDIT_Z3                     1068
+#define IDC_EDIT_Z4                     1069
+#define IDC_EDIT_Z5                     1070
 #define IDC_EDIT_MACHINE_X              11001
 #define IDC_EDIT_MACHINE_Y              11002
 #define IDC_EDIT_MACHINE_Z              11003
+#define IDC_MFCBTN_EXAMPLE              11010
 #define ID_INDICATOR_TIME               59142
 #define ID_INDICATOR_FILE               59143
 
-
-#define WM_UPDATE_COORDINATES    (WM_USER + 100)
+// 自定義消息，用於執行緒通知 UI 更新
+#define WM_UPDATE_COORDINATES (WM_USER + 100)
 
 // Next default values for new objects
 // 
@@ -100,8 +104,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        142
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1066
+#define _APS_NEXT_CONTROL_VALUE         1067
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
-#define IDC_MFCBTN_EXAMPLE  11010

@@ -1117,10 +1117,12 @@ void WorkTab::OnBnClickedIdcWorkGo()
    
 
 	// int m_ToolPathData[20000];
-    uint16_t* m_ToolPathData = new uint16_t[20000];
+    //uint16_t* m_ToolPathData = new uint16_t[20000];
     //call ToolPathTransform(ToolPath& toolpath, int* m_ToolPathData)
-	ToolPathTransform(toolPath, m_ToolPathData);
+	//ToolPathTransform(toolPath, m_ToolPathData);
 
+    // int m_ToolPathData[40000];
+    uint32_t* m_ToolPathData = new uint32_t[40000];
 
     //測試機修正參數
     float imagePts[] = { 1097,1063, 1373,1063, 1371,945 };
@@ -1130,24 +1132,17 @@ void WorkTab::OnBnClickedIdcWorkGo()
     //call (float x_pixel, float y_pixel, float& x_mm, float& y_mm, float* imagePts, float* worldPts)
 
 	toolPath_world = toolPath; // copy toolPath to toolPath_world
-    for (int i = 0; i < sizeOfToolPath; i++)
-    {
-        float x_mm, y_mm;
-        PixelToWorld(toolPath.Path[i].x, toolPath.Path[i].y, x_mm, y_mm, imagePts, worldPts);
-        toolPath_world.Path[i].x = x_mm;
-        toolPath_world.Path[i].y = y_mm;
-    }
+   
     //Convert toolPath_world to m_ToolPathData[20000]
     //toolPath_world: Tool Path in world coordinate
     //m_ToolPathData: Tool Path Data Array
     //toolPath_world.Path : Path of the tool in world coordinate
     //Convert toolPath_world.Path to m_ToolPathData[20000]
 	//ToolPathTransform(toolPath_world, m_ToolPathData);
-
-    ToolPathTransform(toolPath_world, m_ToolPathData);
+    ToolPathTransform32(toolPath_world, m_ToolPathData);
 
 	//send m_ToolPathData to PLC with modbus tcp
-	SendToolPathDataA(m_ToolPathData, sizeOfToolPath, 1);
+	SendToolPathData32(m_ToolPathData, sizeOfToolPath, 1);
 
 
 }
@@ -1167,7 +1162,53 @@ void WorkTab::ToolPathTransform(ToolPath& toolpath, uint16_t* m_ToolPathData)
 	}
 }
 
+void WorkTab::ToolPathTransform32(ToolPath& toolpath, uint32_t* m_ToolPathData)
+{
+    // toolPath pixel  transform to World unit with PixelToWorld()
+	//Convert toolPath to m_ToolPathData[40000]
+	//toolPath: Tool Path
+	//m_ToolPathData: Tool Path Data Array
+	//toolPath.Path : Path of the tool
+	//Convert toolPath.Path to m_ToolPathData[40000]
+	//int sizeOfToolPath = toolpath.Path.size();
+	//
+	//Convert toolPath.Path from pixel to mm with PixelToWorld()
+	//imagePts and worldPts for PixelToWorld()
+	float imagePts[] = { 1097,1063, 1373,1063, 1371,945 };
+	float worldPts[] = { 34.79f,205.19f, 187.19f,205.19f, 187.19f,141.79f };
+    
+    cv::Mat AffineMatrix;
 
+    InitTransformer(imagePts, worldPts, 3, AffineMatrix);
+
+    for (int i = 0; i < toolpath.Path.size(); i++)
+    {
+        float x_mm, y_mm;
+		int x_pixel = toolpath.Path[i].x;
+		int y_pixel = toolpath.Path[i].y;
+
+		PixelToWorld(x_pixel, y_pixel, x_mm, y_mm, AffineMatrix);
+       
+       // x_mm, Y_mm add to m_ToolPathData[40000] as int
+        m_ToolPathData[i * 2] = static_cast<uint32_t>(x_mm * 1000); // Convert mm to micrometer
+		m_ToolPathData[i * 2 + 1] = static_cast<uint32_t>(y_mm * 1000); // Convert mm to micrometer
+        
+	}
+
+    //Convert toolPath to m_ToolPathData[40000]
+    //toolPath: Tool Path
+    //m_ToolPathData: Tool Path Data Array
+    //toolPath.Path : Path of the tool
+    //Convert toolPath.Path to m_ToolPathData[40000]
+    int sizeOfToolPath = toolpath.Path.size();
+
+
+    for (int i = 0; i < sizeOfToolPath; i++)
+    {
+        m_ToolPathData[i] = toolpath.Path[i].x;
+        m_ToolPathData[i + 1] = toolpath.Path[i].y;
+    }
+}
 
 //Send Tool Path Data to PLC with Modbus TCP
 //int* m_ToolPathData: Tool Path Data Array
@@ -1309,6 +1350,52 @@ void WorkTab::SendToolPathDataA(uint16_t* m_ToolPathData, int sizeOfArray, int s
 	modbus_free(ctx);
 }
 
+void WorkTab::SendToolPathData32(uint32_t* m_ToolPathData, int sizeOfArray, int stationID)
+{
+    const int maxBatchSize = 100;
+    const int maxModbusBatchSize = 123;
+    CYUFADlg* pParentWnd = (CYUFADlg*)GetParent();
+    if (pParentWnd == NULL) {
+        AfxMessageBox(_T("Parent window is NULL."));
+        return;
+    }
+    pParentWnd->m_SystemPara.IpAddress;
+    std::string ipAddress = pParentWnd->m_SystemPara.IpAddress;
+    modbus_t* ctx = modbus_new_tcp(ipAddress.c_str(), 502);
+    if (ctx == NULL) {
+        fprintf(stderr, "Failed to create Modbus context.\n");
+        return;
+    }
+    int ServerId = pParentWnd->m_SystemPara.StationID;
+    modbus_set_slave(ctx, ServerId);
+    if (modbus_connect(ctx) == -1) {
+        fprintf(stderr, "Connection failed: %s\n", modbus_strerror(errno));
+        modbus_free(ctx);
+        return;
+    }
+    //int rc = modbus_write_bit(ctx, 0, TRUE);
+    //int rc = modbus_write_register(ctx, 20001,1);
+    uint16_t index = 0;
+    while (index < sizeOfArray)
+    {
+        int batchSize = (sizeOfArray - index > maxBatchSize) ? maxBatchSize : (sizeOfArray - index);
+        batchSize = (batchSize > maxModbusBatchSize) ? maxModbusBatchSize : batchSize;
+        //cout 100 items for debug
+        int iResult = 0;
+        for (int i = 0; i < 100; i++)
+        {
+            //output m_ToolPathData[i] for debug
+            iResult = m_ToolPathData[i];
+            //cout << m_ToolPathData[i] << " ";
+        }
+        //int startAddressX : Start Address of the Tool Path Data Array even index
+        //int startAddressY : Start Address of the Tool Path Data Array odd index
+        //Write the Tool Path Data Array to PLC
+        int startAddressX = 0;
+        int startAddressY = 20000; // For 32 bit data, Y address starts from 20000
+        //int rc = modbus_write_registers(ctx, startAddressX + index, batchSize, &m_ToolPathData)
+    }
+}
 
 
 //Add Calibration Dialog
@@ -1419,3 +1506,8 @@ BOOL WorkTab::PreTranslateMessage(MSG* pMsg)
 
     return CDialogEx::PreTranslateMessage(pMsg);
 }
+
+// 假設 InitTransformer 的正確宣告如下：
+// void InitTransformer(const std::vector<cv::Point2f>& imagePts, const std::vector<cv::Point2f>& worldPts, cv::Mat& affineMatrix);
+
+
