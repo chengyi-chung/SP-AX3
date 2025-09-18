@@ -1122,7 +1122,7 @@ void WorkTab::OnBnClickedIdcWorkGo()
 	//ToolPathTransform(toolPath, m_ToolPathData);
 
     // int m_ToolPathData[40000];
-    uint32_t* m_ToolPathData = new uint32_t[40000];
+    uint16_t* m_ToolPathData = new uint16_t[40000];
 
     //測試機修正參數
     float imagePts[] = { 1097,1063, 1373,1063, 1371,945 };
@@ -1131,6 +1131,12 @@ void WorkTab::OnBnClickedIdcWorkGo()
 	//use UAX.dll to convert image coordinate to world coordinate
     //call (float x_pixel, float y_pixel, float& x_mm, float& y_mm, float* imagePts, float* worldPts)
 
+    //tooPath 
+    //struct ToolPath
+    //{
+    //    cv::Point2d Offset; // Offset of the tool path
+    //    std::vector<cv::Point2d> Path; // Tool path
+   // };
 	toolPath_world = toolPath; // copy toolPath to toolPath_world
    
     //Convert toolPath_world to m_ToolPathData[20000]
@@ -1139,70 +1145,58 @@ void WorkTab::OnBnClickedIdcWorkGo()
     //toolPath_world.Path : Path of the tool in world coordinate
     //Convert toolPath_world.Path to m_ToolPathData[20000]
 	//ToolPathTransform(toolPath_world, m_ToolPathData);
-    ToolPathTransform32(toolPath_world, m_ToolPathData);
+	ToolPathTransform32(toolPath, m_ToolPathData);  //轉換 toolPath到 m_ToolPathData[40000] 矩陣
+
+
+    //Send m_ToolPathData to PLC with modbus tcp
+	//call SendToolPathData(int* m_ToolPathData, int sizeOfArray, int stationID)
 
 	//send m_ToolPathData to PLC with modbus tcp
 	SendToolPathData32(m_ToolPathData, sizeOfToolPath, 1);
 
+}
 
+void WorkTab::ToolPathTransform32(ToolPath ToolPapath_Ori, uint16_t* m_ToolPathData)
+{
+    if (!m_ToolPathData || ToolPapath_Ori.Path.empty()) return;
+
+    // 三點對應（像素 → 世界）
+    float imagePts[] = { 1097, 1063, 1373, 1063, 1371, 945 };
+    float worldPts[] = { 34.79f, 205.19f, 187.19f, 205.19f, 187.19f, 141.79f };
+    constexpr float scaleFactor = 100.0f; // mm → 整數
+
+    cv::Mat AffineMatrix;
+    InitTransformer(imagePts, worldPts, 3, AffineMatrix);
+
+    for (size_t i = 0; i < ToolPapath_Ori.Path.size(); ++i)
+    {
+        float x_mm = 0.0f, y_mm = 0.0f;
+        PixelToWorld(ToolPapath_Ori.Path[i].x, ToolPapath_Ori.Path[i].y, x_mm, y_mm, AffineMatrix);
+
+        // 放大並取整
+        int32_t x_int = static_cast<int32_t>(std::lround(x_mm * scaleFactor));
+        int32_t y_int = static_cast<int32_t>(std::lround(y_mm * scaleFactor));
+
+        // 維持二補數(負數可正確拆分)
+        uint32_t x_u = static_cast<uint32_t>(x_int);
+        uint32_t y_u = static_cast<uint32_t>(y_int);
+
+        size_t base = i * 4;
+        m_ToolPathData[base + 0] = static_cast<uint16_t>(x_u & 0xFFFFu); // low
+        m_ToolPathData[base + 1] = static_cast<uint16_t>((x_u >> 16) & 0xFFFFu); // high
+        m_ToolPathData[base + 2] = static_cast<uint16_t>(y_u & 0xFFFFu);
+        m_ToolPathData[base + 3] = static_cast<uint16_t>((y_u >> 16) & 0xFFFFu);
+    }
 }
 
 void WorkTab::ToolPathTransform(ToolPath& toolpath, uint16_t* m_ToolPathData)
 {
-	//Convert toolPath to m_ToolPathData[20000]
-	//toolPath: Tool Path
-	//m_ToolPathData: Tool Path Data Array
-	//toolPath.Path : Path of the tool
-	//Convert toolPath.Path to m_ToolPathData[20000]
-	int sizeOfToolPath = toolpath.Path.size();
-	for (int i = 0; i < sizeOfToolPath; i++)
-	{
-		m_ToolPathData[i] = toolpath.Path[i].x;
-		m_ToolPathData[i + 1] = toolpath.Path[i].y;
-	}
-}
-
-void WorkTab::ToolPathTransform32(ToolPath& toolpath, uint32_t* m_ToolPathData)
-{
-    // toolPath pixel  transform to World unit with PixelToWorld()
-	//Convert toolPath to m_ToolPathData[40000]
-	//toolPath: Tool Path
-	//m_ToolPathData: Tool Path Data Array
-	//toolPath.Path : Path of the tool
-	//Convert toolPath.Path to m_ToolPathData[40000]
-	//int sizeOfToolPath = toolpath.Path.size();
-	//
-	//Convert toolPath.Path from pixel to mm with PixelToWorld()
-	//imagePts and worldPts for PixelToWorld()
-	float imagePts[] = { 1097,1063, 1373,1063, 1371,945 };
-	float worldPts[] = { 34.79f,205.19f, 187.19f,205.19f, 187.19f,141.79f };
-    
-    cv::Mat AffineMatrix;
-
-    InitTransformer(imagePts, worldPts, 3, AffineMatrix);
-
-    for (int i = 0; i < toolpath.Path.size(); i++)
-    {
-        float x_mm, y_mm;
-		int x_pixel = toolpath.Path[i].x;
-		int y_pixel = toolpath.Path[i].y;
-
-		PixelToWorld(x_pixel, y_pixel, x_mm, y_mm, AffineMatrix);
-       
-       // x_mm, Y_mm add to m_ToolPathData[40000] as int
-        m_ToolPathData[i * 2] = static_cast<uint32_t>(x_mm * 1000); // Convert mm to micrometer
-		m_ToolPathData[i * 2 + 1] = static_cast<uint32_t>(y_mm * 1000); // Convert mm to micrometer
-        
-	}
-
-    //Convert toolPath to m_ToolPathData[40000]
+    //Convert toolPath to m_ToolPathData[20000]
     //toolPath: Tool Path
     //m_ToolPathData: Tool Path Data Array
     //toolPath.Path : Path of the tool
-    //Convert toolPath.Path to m_ToolPathData[40000]
+    //Convert toolPath.Path to m_ToolPathData[20000]
     int sizeOfToolPath = toolpath.Path.size();
-
-
     for (int i = 0; i < sizeOfToolPath; i++)
     {
         m_ToolPathData[i] = toolpath.Path[i].x;
@@ -1350,7 +1344,7 @@ void WorkTab::SendToolPathDataA(uint16_t* m_ToolPathData, int sizeOfArray, int s
 	modbus_free(ctx);
 }
 
-void WorkTab::SendToolPathData32(uint32_t* m_ToolPathData, int sizeOfArray, int stationID)
+void WorkTab::SendToolPathData32(uint16_t* m_ToolPathData, int sizeOfArray, int stationID)
 {
     const int maxBatchSize = 100;
     const int maxModbusBatchSize = 123;

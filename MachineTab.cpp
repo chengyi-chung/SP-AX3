@@ -1148,69 +1148,7 @@ LRESULT MachineTab::OnUpdateCoordinates(WPARAM wParam, LPARAM lParam)
 	return 0;
 }
 
-/*
-UINT MachineTab::ReadCoordinatesThread(LPVOID pParam)
-{
-	MachineTab* pThis = static_cast<MachineTab*>(pParam);
-	uint16_t registers[3] = { 0 }; // 用於儲存 X, Y, Z 座標
-	const int startAddress = 40010;
-	const int numRegisters = 3;
 
-	while (pThis->m_bThreadRunning)
-	{
-		// 檢查停止事件
-		if (WaitForSingleObject(pThis->m_hStopThreadEvent, 0) == WAIT_OBJECT_0)
-		{
-			break; // 停止執行緒
-		}
-
-		// 確保 Modbus 上下文有效
-		if (pThis->m_ctx != nullptr)
-		{
-
-			// if flgGetCoord is TRUE, read coordinates
-			if (!pThis->flgGetCoord)
-			{
-				Sleep(100); // 等待 100 毫秒
-				continue; // 跳過此次迴圈
-			}
-			int rc = modbus_read_registers(pThis->m_ctx, startAddress, numRegisters, registers);
-			if (rc != -1)
-			{
-				// 成功讀取，將 uint16_t 轉換為 int16_t 以處理負值，然後轉為 float
-				float coordinates[3] = {
-					static_cast<float>(static_cast<int16_t>(registers[0])), // X
-					static_cast<float>(static_cast<int16_t>(registers[1])), // Y
-					static_cast<float>(static_cast<int16_t>(registers[2]))  // Z
-				};
-				// 動態分配記憶體並發送消息到 UI 更新
-
-				float* coordPtr = new float[3];
-				coordPtr[0] = coordinates[0];
-				coordPtr[1] = coordinates[1];
-				coordPtr[2] = coordinates[2];
-				pThis->PostMessage(WM_UPDATE_COORDINATES, 0, reinterpret_cast<LPARAM>(coordPtr));
-			}
-			else
-			{
-				// 記錄錯誤
-				CString errorMessage;
-				errorMessage.Format(_T("Failed to read coordinates: %S"), modbus_strerror(errno));
-				pThis->m_strReportData += "\r\n" + std::string(CT2A(errorMessage));
-
-				pThis->ClearDiscrete5000(0, 8); // 清除 Discrete3000 狀態
-
-				//pThis->PostMessage(WM_SETITEMTEXT, IDC_EDIT_REPORT, reinterpret_cast<LPARAM>(new CString(pThis->m_strReportData.c_str())));
-			}
-		}
-
-		// 每 800 毫秒讀取一次
-		Sleep(800);
-	}
-
-	return 0;
-}
-*/
 UINT MachineTab::ReadCoordinatesThread(LPVOID pParam)
 {
 	MachineTab* pThis = static_cast<MachineTab*>(pParam);

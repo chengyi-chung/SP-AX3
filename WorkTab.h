@@ -63,7 +63,7 @@ protected:
 	int imgFlip;
 
 	void ToolPathTransform(ToolPath& toolpath, uint16_t* m_ToolPathData);
-	void ToolPathTransform32(ToolPath& toolpath, uint32_t* m_ToolPathData);
+	void ToolPathTransform32(ToolPath ToolPapath_Ori, uint16_t* m_ToolPathData);
 
 
 	void ShowImageOnPictureCtl();
@@ -99,7 +99,7 @@ protected:
 	void DrawPicToHDC(cv::Mat cvImg, UINT ID, bool bOnPaint);
 	void SendToolPathData(uint16_t *m_ToolPathData, int sizeOfArray, int stationID);
 	void SendToolPathDataA(uint16_t* m_ToolPathData, int sizeOfArray, int stationID);
-	void SendToolPathData32(uint32_t* m_ToolPathData, int sizeOfArray, int stationID);
+	void SendToolPathData32(uint16_t* m_ToolPathData, int sizeOfArray, int stationID);
 	HICON m_hIcon;
 
 protected:

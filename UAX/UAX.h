@@ -200,8 +200,9 @@ extern "C" UAX_API void splitDoubleWord(uint32_t doubleWord, uint16_t& highWord,
 
 extern "C" UAX_API void InitTransformer(float* imagePts, float* worldPts, int numPoints, cv::Mat &affineMatrix);
 //extern "C" UAX_API void PixelToWorld(float x_pixel, float y_pixel, float& x_mm, float& y_mm, float* imagePts, float* worldPts);
-extern "C" UAX_API void PixelToWorld(float x_pixel, float y_pixel, float& x_mm, float& y_mm, cv::Mat affineMatrix);
-extern "C" UAX_API bool TransformPixel(float x, float y, float* outX, float* outY, cv::Mat affineMatrix);
+//extern "C" UAX_API void PixelToWorld(float x_pixel, float y_pixel, float& x_mm, float& y_mm, cv::Mat affineMatrix);
+extern "C" UAX_API void PixelToWorld(float x_pixel, float y_pixel, float& x_mm, float& y_mm, const cv::Mat& affineMatrix);
+//extern "C" UAX_API bool TransformPixel(float x, float y, float* outX, float* outY, cv::Mat affineMatrix);
 
 
 

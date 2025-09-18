@@ -174,3 +174,4 @@ public:
 		HANDLE m_hStopThreadEvent;       // 停止執行緒的事件
 		
 };
+

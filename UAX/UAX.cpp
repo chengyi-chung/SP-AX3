@@ -471,10 +471,33 @@ void InitTransformer(float* imagePts, float* worldPts, int count, cv::Mat& affin
 	affineMatrix = cv::estimateAffine2D(img, world);
 }
 
+
+
+// 建立 3×3 仿射矩陣（齊次表示）
+void InitTransformer(const float* imagePts, const float* worldPts, int count, cv::Mat& affineMatrix)
+{
+	std::vector<cv::Point2f> img, world;
+	img.reserve(count);
+	world.reserve(count);
+
+	for (int i = 0; i < count; ++i) {
+		img.emplace_back(imagePts[i * 2], imagePts[i * 2 + 1]);
+		world.emplace_back(worldPts[i * 2], worldPts[i * 2 + 1]);
+	}
+
+	cv::Mat affine2x3 = cv::estimateAffine2D(img, world); // 2×3
+	if (affine2x3.empty()) return;
+
+	// 擴展成 3×3
+	affineMatrix = cv::Mat::eye(3, 3, CV_64F);
+	affine2x3.copyTo(affineMatrix(cv::Rect(0, 0, 3, 2)));
+}
+
 // Transform pixel to real world coordinate
 // x, y: the pixel coordinate
 // outX, outY: the real world coordinate
 // cv::Mat & affineMatrix: the affine matrix of the transformation form pixel to world
+/*
 bool TransformPixel(float x, float y, float* outX, float* outY, cv::Mat affineMatrix)
 {
 	//cv::Mat affineMatrix;
@@ -487,9 +510,17 @@ bool TransformPixel(float x, float y, float* outX, float* outY, cv::Mat affineMa
 	*outY = static_cast<float>(result.at<double>(1, 0));
 	return true;
 }
+*/
 
+
+// Transform pixel to real world coordinate
+// x, y: the pixel coordinate
+// outX, outY: the real world coordinate
+// cv::Mat & affineMatrix: the affine matrix of the transformation form pixel to world
+// 將像素轉世界座標
+/*
 //Transform image pixel to real world coordinate
-//With 3 points to calculate the affine matrix :  InitTransformer、TransformPixel 
+//With 3 points to calculate the affine matrix :  InitTransformer、TransformPixel
 // x_pixel: the x coordinate of the pixel
 // y_pixel: the y coordinate of the pixel
 // &x_mm: the x coordinate of the real world
@@ -505,8 +536,28 @@ void PixelToWorld(float x_pixel, float y_pixel, float& x_mm, float& y_mm, cv::Ma
 
 	x_mm = static_cast<float>(result.at<double>(0, 0));
 	y_mm = static_cast<float>(result.at<double>(1, 0));
-	
+
 }
+*/
+
+// Transform pixel to real world coordinate
+// x, y: the pixel coordinate
+// outX, outY: the real world coordinate
+// cv::Mat & affineMatrix: the affine matrix of the transformation form pixel to world
+// 將像素轉世界座標
+inline void PixelToWorld(float x_pixel, float y_pixel, float& x_mm, float& y_mm, const cv::Mat& affineMatrix)
+{
+	if (affineMatrix.empty()) return;
+
+	// 使用齊次座標做轉換
+	cv::Mat pt = (cv::Mat_<double>(3, 1) << x_pixel, y_pixel, 1.0);
+	cv::Mat result = affineMatrix * pt;
+
+	x_mm = static_cast<float>(result.at<double>(0, 0));
+	y_mm = static_cast<float>(result.at<double>(1, 0));
+}
+
+
 
 /*  以上 InitTransformer、TransformPixel 使用範例
 int main() 
