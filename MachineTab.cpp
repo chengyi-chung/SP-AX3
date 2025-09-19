@@ -1032,6 +1032,9 @@ void MachineTab::OnBnClickedMfcbtnMachineGo()
 	float fX = GetDlgItemInt(IDC_EDIT_MANUAL_X);
 	float fY = GetDlgItemInt(IDC_EDIT_MANUAL_Y);
 
+
+
+
 	
 }
 

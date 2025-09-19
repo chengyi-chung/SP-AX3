@@ -1026,7 +1026,7 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
 	//toolpath: Tool Path
 	cv::Mat ImgSrc = m_mat.clone();
 	cv::Point2d Offset;
-	ToolPath toolpath;
+	//ToolPath toolpath;
 	//Get m_ToolPathData from Parrent Window
 	//CYUFADlg* pParentWnd = (CYUFADlg*)GetParent();
     CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
@@ -1042,7 +1042,10 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
 	//toolpath: Tool Path pixel
 	//ImgSrc: Source Image
 	//Offset: Offset of the tool path, mm to pixel before call GetToolPathData
-    GetToolPathData(ImgSrc, Offset, toolpath);
+
+    //直接把結果放到成員變數 toolPath，避免用區域變數後沒指派回來
+    this->toolPath.Path.clear();
+    GetToolPathData(ImgSrc, Offset, this->toolPath);
 
     //
 
@@ -1112,7 +1115,7 @@ void WorkTab::OnBnClickedIdcWorkGo()
 	//m_ToolPathData: Tool Path Data Array
 	//toolPath.Path : Path of the tool
 	//Convert toolPath.Path to m_ToolPathData[20000]
-	int sizeOfToolPath = toolPath.Path.size();
+	int sizeOfToolPath = this->toolPath.Path.size();
 
    
 
@@ -1145,7 +1148,7 @@ void WorkTab::OnBnClickedIdcWorkGo()
     //toolPath_world.Path : Path of the tool in world coordinate
     //Convert toolPath_world.Path to m_ToolPathData[20000]
 	//ToolPathTransform(toolPath_world, m_ToolPathData);
-	ToolPathTransform32(toolPath, m_ToolPathData);  //轉換 toolPath到 m_ToolPathData[40000] 矩陣
+	ToolPathTransform32(this->toolPath, m_ToolPathData);  //轉換 toolPath到 m_ToolPathData[40000] 矩陣
 
 
     //Send m_ToolPathData to PLC with modbus tcp
@@ -1370,14 +1373,15 @@ void WorkTab::SendToolPathData32(uint16_t* m_ToolPathData, int sizeOfArray, int 
         std::vector<uint16_t> xRegs(batchCount * 2);
         std::vector<uint16_t> yRegs(batchCount * 2);
 
-        for (int i = 0; i < batchCount; ++i) {
-            // X 座標
-            xRegs[i * 2] = m_ToolPathData[index + i * 4 + 1]; // Low word
-            xRegs[i * 2 + 1] = m_ToolPathData[index + i * 4];     // High word
+        for (int i = 0; i < batchCount; ++i)
+        {
+               // X 座標
+                 xRegs[i*2]   = m_ToolPathData[index + i*4 + 1]; // Low word
+                 xRegs[i*2+1] = m_ToolPathData[index + i*4];     // High word
 
-            // Y 座標
-            yRegs[i * 2] = m_ToolPathData[index + i * 4 + 3]; // Low word
-            yRegs[i * 2 + 1] = m_ToolPathData[index + i * 4 + 2]; // High word
+              // Y 座標
+                 yRegs[i*2]   = m_ToolPathData[index + i*4 + 3]; // Low word
+                 yRegs[i*2+1] = m_ToolPathData[index + i*4 + 2]; // High word
         }
 
         // 依起始地址寫入
