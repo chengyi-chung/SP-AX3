@@ -90,6 +90,7 @@ BOOL MachineTab::OnInitDialog()
 	Discrete3000.reset();
 	Discrete3000.set(0, 1);
 
+	UpdateControl();
 
 	return TRUE;  // return TRUE unless you set the focus to a control
 	// EXCEPTION: OCX Property Pages should return FALSE
@@ -513,8 +514,9 @@ void MachineTab::OnBnClickedBtnMachineSaveMotion()
 	auto splitInt32 = [](int32_t value, uint16_t& low, uint16_t& high)
 		{
 			uint32_t uval = static_cast<uint32_t>(value);
-			low = static_cast<uint16_t>(uval & 0xFFFF);
-			high = static_cast<uint16_t>((uval >> 16) & 0xFFFF);
+			// 交換：將高 16 位寫入 low，將低 16 位寫入 high
+			low = static_cast<uint16_t>((uval >> 16) & 0xFFFF);   // 原 high -> low
+			high = static_cast<uint16_t>(uval & 0xFFFF);          // 原 low  -> high
 		};
 
 	uint16_t jogLow, jogHigh, autoLow, autoHigh;
@@ -770,12 +772,12 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 			{
 				// 處理 Button Down
 				//AfxMessageBox(_T("X- Down"));
-				int bitAdress = 4;
-				int bitValue = 1;
-				int nID = IDC_BTN_JOG_X_MINUS;
-				flgGetCoord = FALSE;
-				ClearDiscrete5000(0, 8);
-				Discrete5000Change(1, bitAdress, bitValue, nID);
+			 int bitAdress = 4;
+			 int bitValue = 1;
+			 int nID = IDC_BTN_JOG_X_MINUS;
+			 flgGetCoord = FALSE;
+			 ClearDiscrete5000(0, 8);
+			 Discrete5000Change(1, bitAdress, bitValue, nID);
 			}
 			else if (pMsg->message == WM_LBUTTONUP)
 			{
@@ -797,13 +799,13 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 			{
 				// 處理 Button Down
 				//AfxMessageBox(_T("Y+ Down"));
-				int bitAdress = 5;
-				int bitValue = 1;
-				int nID = IDC_BTN_JOG_Y_PLUS;
+			 int bitAdress = 5;
+			 int bitValue = 1;
+			 int nID = IDC_BTN_JOG_Y_PLUS;
 
-				flgGetCoord = FALSE;
-				ClearDiscrete5000(0, 8);
-				Discrete5000Change(1, bitAdress, bitValue, nID);
+			 flgGetCoord = FALSE;
+			 ClearDiscrete5000(0, 8);
+			 Discrete5000Change(1, bitAdress, bitValue, nID);
 			}
 			else if (pMsg->message == WM_LBUTTONUP)
 			{
@@ -826,13 +828,13 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 			{
 				// 處理 Button Down
 				//AfxMessageBox(_T("Y- Down"));
-				int bitAdress = 6;
-				int bitValue = 1;
-				int nID = IDC_BTN_JOG_Y_MINUS;
+			 int bitAdress = 6;
+			 int bitValue = 1;
+			 int nID = IDC_BTN_JOG_Y_MINUS;
 
-				flgGetCoord = FALSE;
-				ClearDiscrete5000(0, 8);
-				Discrete5000Change(1, bitAdress, bitValue, nID);
+			 flgGetCoord = FALSE;
+			 ClearDiscrete5000(0, 8);
+			 Discrete5000Change(1, bitAdress, bitValue, nID);
 			}
 			else if (pMsg->message == WM_LBUTTONUP)
 			{
@@ -856,13 +858,13 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 			{
 				// 處理 Button Down
 				//AfxMessageBox(_T("Z- Down"));
-				int bitAdress = 7;
-				int bitValue = 1;
-				int nID = IDC_BTN_JOG_Z_PLUS;
+			 int bitAdress = 7;
+			 int bitValue = 1;
+			 int nID = IDC_BTN_JOG_Z_PLUS;
 
-				flgGetCoord = FALSE;
-				ClearDiscrete5000(0, 8);
-				Discrete5000Change(1, bitAdress, bitValue, nID);
+			 flgGetCoord = FALSE;
+			 ClearDiscrete5000(0, 8);
+			 Discrete5000Change(1, bitAdress, bitValue, nID);
 			}
 			else if (pMsg->message == WM_LBUTTONUP)
 			{
@@ -885,13 +887,13 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 			{
 				// 處理 Button Down
 				//AfxMessageBox(_T("Z- Down"));
-				int bitAdress = 8;
-				int bitValue = 1;
-				int nID = IDC_BTN_JOG_Z_MINUS;
+			 int bitAdress = 8;
+			 int bitValue = 1;
+			 int nID = IDC_BTN_JOG_Z_MINUS;
 
-				flgGetCoord = FALSE;
-				ClearDiscrete5000(0, 8);
-				Discrete5000Change(1, bitAdress, bitValue, nID);
+			 flgGetCoord = FALSE;
+			 ClearDiscrete5000(0, 8);
+			 Discrete5000Change(1, bitAdress, bitValue, nID);
 			}
 			else if (pMsg->message == WM_LBUTTONUP)
 			{
@@ -1109,19 +1111,24 @@ void MachineTab::UpdateControl()
 	cStr.Format(_T("%.4f"), pParentWnd->m_SystemPara.TransferFactor);
 	SetDlgItemText(IDC_EDIT_TRANSFER_FACTOR, cStr);
 	// Z1 (assuming int, adjust if float)
-	cStr.Format(_T("%d"), pParentWnd->m_SystemPara.Z1);
+	//cStr.Format(_T("%d"), pParentWnd->m_SystemPara.Z1);
+    // 原本的寫法會有 C6273 警告，因為 pParentWnd->m_SystemPara.Z1 是 float 型別
+    // cStr.Format(_T("%d"), pParentWnd->m_SystemPara.Z1);
+
+    // 修正方式：先將 float 轉為 int，再傳給 Format
+    cStr.Format(_T("%d"), static_cast<int>(pParentWnd->m_SystemPara.Z1));
 	SetDlgItemText(IDC_EDIT_Z1, cStr);
 	// Z2 (assuming int, adjust if float)
-	cStr.Format(_T("%d"), pParentWnd->m_SystemPara.Z2);
+	cStr.Format(_T("%d"), static_cast<int>(pParentWnd->m_SystemPara.Z2));
 	SetDlgItemText(IDC_EDIT_Z2, cStr);
 	// Z3 (assuming int, adjust if float)
-	cStr.Format(_T("%d"), pParentWnd->m_SystemPara.Z3);
+	cStr.Format(_T("%d"), static_cast<int>(pParentWnd->m_SystemPara.Z3));
 	SetDlgItemText(IDC_EDIT_Z3, cStr);
 	// Z4 (assuming int, adjust if float)
-	cStr.Format(_T("%d"), pParentWnd->m_SystemPara.Z4);
+	cStr.Format(_T("%d"), static_cast<int>(pParentWnd->m_SystemPara.Z4));
 	SetDlgItemText(IDC_EDIT_Z4, cStr);
 	// Z5 (assuming int, adjust if float)
-	cStr.Format(_T("%d"), pParentWnd->m_SystemPara.Z5);
+	cStr.Format(_T("%d"), static_cast<int>(pParentWnd->m_SystemPara.Z5));
 	SetDlgItemText(IDC_EDIT_Z5, cStr);
 
 }
@@ -1152,59 +1159,66 @@ LRESULT MachineTab::OnUpdateCoordinates(WPARAM wParam, LPARAM lParam)
 UINT MachineTab::ReadCoordinatesThread(LPVOID pParam)
 {
 	MachineTab* pThis = static_cast<MachineTab*>(pParam);
-	uint16_t registers[6] = { 0 }; // 每個座標 2 個暫存器
-	const int startAddress = 40010;
-	const int numRegisters = 6;
+	if (pThis == nullptr)
+		return 0;
+
+	constexpr int startAddress = 40010;
+	constexpr int numRegisters = 6; // 3 個座標，每個座標 2 個暫存器
 	const float scalingFactor = -1580.0f / -142606337.0f; // 縮放因子
 
 	while (pThis->m_bThreadRunning)
 	{
-		if (WaitForSingleObject(pThis->m_hStopThreadEvent, 0) == WAIT_OBJECT_0)
+		// 檢查是否被要求停止
+		if (pThis->m_hStopThreadEvent && WaitForSingleObject(pThis->m_hStopThreadEvent, 0) == WAIT_OBJECT_0)
 			break;
 
-		if (pThis->m_ctx != nullptr)
+		// 如果沒有 Modbus context 或不允許抓取座標，就短暫休息並繼續迴圈
+		if (pThis->m_ctx == nullptr || !pThis->flgGetCoord)
 		{
-			if (!pThis->flgGetCoord)
-			{
-				Sleep(100);
-				continue;
-			}
-
-			int rc = modbus_read_registers(pThis->m_ctx, startAddress, numRegisters, registers);
-			if (rc != -1)
-			{
-				// 合併成 float (32-bit signed integer 轉換)
-				float coordinates[3] = { 0 };
-				for (int i = 0; i < 3; i++)
-				{
-					uint32_t raw =
-						((uint32_t)registers[i * 2] << 16) | // 高位
-						registers[i * 2 + 1];              // 低位
-
-					// 將 raw 視為 32-bit 有符號整數
-					int32_t signedValue = static_cast<int32_t>(raw);
-					// 應用縮放因子轉換為 float
-					float value = signedValue * scalingFactor;
-					coordinates[i] = value;
-				}
-
-				float* coordPtr = new float[3];
-				coordPtr[0] = coordinates[0];
-				coordPtr[1] = coordinates[1];
-				coordPtr[2] = coordinates[2];
-
-				pThis->PostMessage(WM_UPDATE_COORDINATES, 0, reinterpret_cast<LPARAM>(coordPtr));
-			}
-			else
-			{
-				CString errorMessage;
-				errorMessage.Format(_T("Failed to read coordinates: %S"), modbus_strerror(errno));
-				pThis->m_strReportData += "\r\n" + std::string(CT2A(errorMessage));
-
-				pThis->ClearDiscrete5000(0, 8);
-			}
+			Sleep(100);
+			continue;
 		}
 
+		uint16_t registers[numRegisters] = { 0 };
+		int rc = modbus_read_registers(pThis->m_ctx, startAddress, numRegisters, registers);
+
+		if (rc == numRegisters)
+		{
+			// 合併並轉換
+			float coordinates[3] = { 0.0f, 0.0f, 0.0f };
+			for (int i = 0; i < 3; ++i)
+			{
+				uint32_t raw = (static_cast<uint32_t>(registers[i * 2]) << 16) | registers[i * 2 + 1];
+				int32_t signedValue = static_cast<int32_t>(raw);
+				coordinates[i] = static_cast<float>(signedValue) * scalingFactor;
+			}
+
+			// 動態配置並傳給主執行緒更新 UI（UI 負責 delete[]）
+			float* coordPtr = new float[3];
+			coordPtr[0] = coordinates[0];
+			coordPtr[1] = coordinates[1];
+			coordPtr[2] = coordinates[2];
+
+			pThis->PostMessage(WM_UPDATE_COORDINATES, 0, reinterpret_cast<LPARAM>(coordPtr));
+		}
+		else
+		{
+			// 讀取失敗，記錄錯誤並清除相關輸出位元
+			CString errorMessage;
+			errorMessage.Format(_T("Failed to read coordinates: %S"), modbus_strerror(errno));
+			pThis->m_strReportData += "\r\n" + std::string(CT2A(errorMessage));
+			//SetDlgItemText(IDC_EDIT_REPORT, CString(pThis->m_strReportData.c_str()));
+			// 背景執行緒發送更新請求
+			pThis->PostMessage(WM_UPDATE_REPORT, 0, reinterpret_cast<LPARAM>(new std::string(pThis->m_strReportData)));
+
+			// 清除輸出位元以保護系統
+			pThis->ClearDiscrete5000(0, 8);
+
+			// 若讀取失敗，可稍作延遲再重試
+			Sleep(200);
+		}
+
+		// 迴圈頻率控制
 		Sleep(800);
 	}
 
@@ -1215,8 +1229,21 @@ void MachineTab::StartCoordinateThread()
 {
 	if (!m_bThreadRunning)
 	{
+		// 若尚未建立停止事件，建立一個 manual-reset 事件
+		if (m_hStopThreadEvent == nullptr)
+		{
+			m_hStopThreadEvent = CreateEvent(nullptr, TRUE, FALSE, nullptr);
+			if (m_hStopThreadEvent == nullptr)
+			{
+				AfxMessageBox(_T("Failed to create stop-event for coordinate thread."));
+				return;
+			}
+		}
+
+		// 確保事件為未觸發狀態
+		ResetEvent(m_hStopThreadEvent);
+
 		m_bThreadRunning = TRUE;
-		ResetEvent(m_hStopThreadEvent); // 重置停止事件
 		m_pCoordinateThread = AfxBeginThread(ReadCoordinatesThread, this, THREAD_PRIORITY_NORMAL);
 		if (m_pCoordinateThread == nullptr)
 		{
@@ -1228,13 +1255,27 @@ void MachineTab::StartCoordinateThread()
 
 void MachineTab::StopCoordinateThread()
 {
-	if (m_bThreadRunning && m_pCoordinateThread)
+	// 若尚未啟動或執行緒指標為空，直接返回
+	if (!m_bThreadRunning || m_pCoordinateThread == nullptr)
+		return;
+
+	// 要求執行緒結束
+	m_bThreadRunning = FALSE;
+
+	// 觸發停止事件，讓執行緒可以立刻跳出等待
+	if (m_hStopThreadEvent)
 	{
-		m_bThreadRunning = FALSE;
-		SetEvent(m_hStopThreadEvent); // 觸發停止事件
-		WaitForSingleObject(m_pCoordinateThread->m_hThread, INFINITE); // 等待執行緒結束
-		m_pCoordinateThread = nullptr;
+		SetEvent(m_hStopThreadEvent);
 	}
+
+	// 等待執行緒結束 (安全檢查 m_pCoordinateThread->m_hThread)
+	if (m_pCoordinateThread->m_hThread)
+	{
+		WaitForSingleObject(m_pCoordinateThread->m_hThread, INFINITE);
+	}
+
+	// 清除執行緒物件指標（CWinThread 由 MFC 管理，AfxBeginThread 建立後 MFC 負責釋放）
+	m_pCoordinateThread = nullptr;
 }
 
 // 新增：實作 bool SetHoldingRegister(int, uint16_t, uint16_t)

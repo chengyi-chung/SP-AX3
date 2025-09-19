@@ -865,6 +865,14 @@ int ReadSystemConfig(const std::string& filename, SystemConfig &SysConfig)
 		return -1; // Indicate default configuration was used
 	}
 
+	auto trim = [](std::string &s) {
+		const char* ws = " \t\r\n";
+		size_t start = s.find_first_not_of(ws);
+		if (start == std::string::npos) { s.clear(); return; }
+		size_t end = s.find_last_not_of(ws);
+		s = s.substr(start, end - start + 1);
+	};
+
 	std::string line;
 	while (std::getline(file, line)) {
 		// Skip empty lines or lines without '='
@@ -874,85 +882,91 @@ int ReadSystemConfig(const std::string& filename, SystemConfig &SysConfig)
 
 		try
 		{
-			if (line.find("IpAddress=") == 0) {
-				SysConfig.IpAddress = line.length() > 10 ? line.substr(10) : "";
+			// split key and value
+			size_t pos = line.find('=');
+			std::string key = line.substr(0, pos);
+			std::string val = line.substr(pos + 1);
+			trim(key);
+			trim(val);
+
+			if (key == "IpAddress") {
+				SysConfig.IpAddress = val;
 			}
-			else if (line.find("Port=") == 0) {
-				SysConfig.Port = line.length() > 5 ? std::stoi(line.substr(5)) : 0;
+			else if (key == "Port") {
+				SysConfig.Port = val.empty() ? 0 : std::stoi(val);
 			}
-			else if (line.find("StationID=") == 0) {
-				SysConfig.StationID = line.length() > 10 ? std::stoi(line.substr(10)) : 0;
+			else if (key == "StationID") {
+				SysConfig.StationID = val.empty() ? 0 : std::stoi(val);
 			}
-			else if (line.find("OffsetX=") == 0) {
-				SysConfig.OffsetX = line.length() > 8 ? std::stof(line.substr(8)) : 0.000f;
+			else if (key == "OffsetX") {
+				SysConfig.OffsetX = val.empty() ? 0.0f : std::stof(val);
 			}
-			else if (line.find("OffsetY=") == 0) {
-				SysConfig.OffsetY = line.length() > 8 ? std::stof(line.substr(8)) : 0.000f;
+			else if (key == "OffsetY") {
+				SysConfig.OffsetY = val.empty() ? 0.0f : std::stof(val);
 			}
-			else if (line.find("CameraID=") == 0) {
-				SysConfig.CameraID = line.length() > 9 ? std::stoi(line.substr(9)) : 0;
+			else if (key == "CameraID") {
+				SysConfig.CameraID = val.empty() ? 0 : std::stoi(val);
 			}
-			else if (line.find("ImageFlip=") == 0) {
-				SysConfig.ImageFlip = line.length() > 10 ? std::stoi(line.substr(10)) : 0;
+			else if (key == "ImageFlip") {
+				SysConfig.ImageFlip = val.empty() ? 0 : std::stoi(val);
 			}
-			else if (line.find("MACKey=") == 0) {
-				std::string key = line.length() > 7 ? line.substr(7) : "";
-				strncpy_s(SysConfig.MACKey, sizeof(SysConfig.MACKey), key.c_str(), _TRUNCATE);
-			}	
-			else if (line.find("GoldenKey=") == 0) {
-				std::string key = line.length() > 10 ? line.substr(10) : "";
-				strncpy_s(SysConfig.GoldenKey, sizeof(SysConfig.GoldenKey), key.c_str(), _TRUNCATE);
+			else if (key == "MACKey") {
+				strncpy_s(SysConfig.MACKey, sizeof(SysConfig.MACKey), val.c_str(), _TRUNCATE);
 			}
-			else if (line.find("CameraWidth=") == 0) {
-				SysConfig.CameraWidth = line.length() > 12 ? std::stoi(line.substr(12)) : 0;
+			else if (key == "GoldenKey") {
+				strncpy_s(SysConfig.GoldenKey, sizeof(SysConfig.GoldenKey), val.c_str(), _TRUNCATE);
 			}
-			else if (line.find("CameraHeight=") == 0) {
-				SysConfig.CameraHeight = line.length() > 13 ? std::stoi(line.substr(13)) : 0;
+			else if (key == "CameraWidth") {
+				SysConfig.CameraWidth = val.empty() ? 0 : std::stoi(val);
 			}
-			else if (line.find("TransferFactor=") == 0) {
-				SysConfig.TransferFactor = line.length() > 15 ? std::stof(line.substr(15)) : 0.0000f;
+			else if (key == "CameraHeight") {
+				SysConfig.CameraHeight = val.empty() ? 0 : std::stoi(val);
 			}
-			else if (line.find("CenterX=") == 0) {
-				SysConfig.CenterX = line.length() > 8 ? std::stof(line.substr(8)) : 0.000f;
+			else if (key == "TransferFactor") {
+				SysConfig.TransferFactor = val.empty() ? 0.0f : std::stof(val);
 			}
-			else if (line.find("CenterY=") == 0) {
-				SysConfig.CenterY = line.length() > 8 ? std::stof(line.substr(8)) : 0.000f;
+			else if (key == "CenterX") {
+				SysConfig.CenterX = val.empty() ? 0.0f : std::stof(val);
 			}
-			else if (line.find("MachineType=") == 0) {
-				SysConfig.MachineType = line.length() > 12 ? line.substr(12) : "";
+			else if (key == "CenterY") {
+				SysConfig.CenterY = val.empty() ? 0.0f : std::stof(val);
 			}
-			else if (line.find("JogVelocity=") == 0) {
-				SysConfig.JogVelocity = line.length() > 12 ? std::stoi(line.substr(12)) : 0;
+			else if (key == "MachineType") {
+				SysConfig.MachineType = val;
 			}
-			else if (line.find("AutoVelocity=") == 0) {
-				SysConfig.AutoVelocity = line.length() > 13 ? std::stoi(line.substr(13)) : 0;
+			else if (key == "JogVelocity") {
+				SysConfig.JogVelocity = val.empty() ? 0 : std::stoi(val);
 			}
-			else if (line.find("DecAcceleration=") == 0) {
-				SysConfig.DecAcceleration = line.length() > 16 ? std::stoi(line.substr(16)) : 0;
+			else if (key == "AutoVelocity") {
+				SysConfig.AutoVelocity = val.empty() ? 0 : std::stoi(val);
 			}
-			else if (line.find("IncAcceleration=") == 0) {
-				SysConfig.IncAcceleration = line.length() > 16 ? std::stoi(line.substr(16)) : 0;
+			else if (key == "DecAcceleration") {
+				SysConfig.DecAcceleration = val.empty() ? 0 : std::stoi(val);
 			}
-			else if (line.find("Pitch=") == 0) {
-				SysConfig.Pitch = line.length() > 6 ? std::stof(line.substr(6)) : 0.000f;
+			else if (key == "IncAcceleration") {
+				SysConfig.IncAcceleration = val.empty() ? 0 : std::stoi(val);
 			}
-			else if (line.find("Z1=") == 0) {
-				SysConfig.Z1 = line.length() > 13 ? std::stoi(line.substr(13)) : 0;
+			else if (key == "Pitch") {
+				SysConfig.Pitch = val.empty() ? 0.0f : std::stof(val);
 			}
-			else if (line.find("Z2=") == 0) {
-				SysConfig.Z2 = line.length() > 13 ? std::stoi(line.substr(13)) : 0;
+			// FIXED: Z1~Z5 都是 float，並且要從 '=' 之後整段取值 (substr index = 3 原先錯誤)
+			else if (key == "Z1") {
+				SysConfig.Z1 = val.empty() ? 0.0f : std::stof(val);
 			}
-			else if (line.find("Z3=") == 0) {
-				SysConfig.Z3 = line.length() > 13 ? std::stoi(line.substr(13)) : 0;
+			else if (key == "Z2") {
+				SysConfig.Z2 = val.empty() ? 0.0f : std::stof(val);
 			}
-			else if (line.find("Z4=") == 0) {
-				SysConfig.Z4 = line.length() > 13 ? std::stoi(line.substr(13)) : 0;
+			else if (key == "Z3") {
+				SysConfig.Z3 = val.empty() ? 0.0f : std::stof(val);
 			}
-			else if (line.find("Z5=") == 0) {
-				SysConfig.Z5 = line.length() > 13 ? std::stoi(line.substr(13)) : 0;
+			else if (key == "Z4") {
+				SysConfig.Z4 = val.empty() ? 0.0f : std::stof(val);
+			}
+			else if (key == "Z5") {
+				SysConfig.Z5 = val.empty() ? 0.0f : std::stof(val);
 			}
 		}
-		catch (const std::exception& e) 
+		catch (const std::exception& e)
 		{
 			std::cerr << "Error parsing config line: " << line << ", Error: " << e.what() << std::endl;
 			// Continue processing other lines

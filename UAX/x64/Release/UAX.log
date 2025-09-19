@@ -1,4 +1,5 @@
-﻿  UAX.cpp
+﻿  dllmain.cpp
+  UAX.cpp
 C:\opencv\build\include\opencv2\core.hpp(1747,1): warning C4819: 檔案含有無法在目前字碼頁 (950) 中表示的字元。請以 Unicode 格式儲存檔案以防止資料遺失
   (編譯來源檔案 'UAX.cpp')
   
@@ -36,14 +37,9 @@ D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(815,3): warning C4297: 'WriteCo
       D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(815,3):
       已在函式指定 __declspec(nothrow)、throw()、noexcept(true) 或 noexcept
   
-D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(940,39): warning C4244: '=': 將 'int' 轉換為 'float'，由於類型不同，可能導致資料遺失
-D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(943,39): warning C4244: '=': 將 'int' 轉換為 'float'，由於類型不同，可能導致資料遺失
-D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(946,39): warning C4244: '=': 將 'int' 轉換為 'float'，由於類型不同，可能導致資料遺失
-D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(949,39): warning C4244: '=': 將 'int' 轉換為 'float'，由於類型不同，可能導致資料遺失
-D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(952,39): warning C4244: '=': 將 'int' 轉換為 'float'，由於類型不同，可能導致資料遺失
      正在建立程式庫 D:\Git Repository\chengyi-chung\YUFA\x64\Release\UAX.lib 和物件 D:\Git Repository\chengyi-chung\YUFA\x64\Release\UAX.exp
   正在產生程式碼
-  Previous IPDB was built with incompatible compiler, fall back to full compilation.
-  All 719 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+  Previous IPDB not found, fall back to full compilation.
+  All 730 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
   已完成程式碼產生
   UAX.vcxproj -> D:\Git Repository\chengyi-chung\YUFA\x64\Release\UAX.dll

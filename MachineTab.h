@@ -59,9 +59,9 @@ protected:
 	
 
 
-	void ConvertBitsetToWord(bitset<16> bitset, uint16_t* word);
+	//void ConvertBitsetToWord(bitset<16> bitset, uint16_t* word);
 	//Convert word to bitset
-	void ConvertWordToBitset(uint16_t word, bitset<16>* bitset);
+	//void ConvertWordToBitset(uint16_t word, bitset<16>* bitset);
 
 	//define functio for Discrete3000 value change in Control
 	//intType: 0: check 1: button
@@ -165,7 +165,7 @@ public:
 
 	// 新增的消息處理函數，用於更新 UI
 	afx_msg LRESULT OnUpdateCoordinates(WPARAM wParam, LPARAM lParam);
-
+	//afx_msg LRESULT WM_UPDATE_REPORT(WPARAM wParam, LPARAM lParam);
 
 	protected:
 		// 執行緒控制

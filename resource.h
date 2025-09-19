@@ -97,6 +97,7 @@
 
 // 自定義消息，用於執行緒通知 UI 更新
 #define WM_UPDATE_COORDINATES (WM_USER + 100)
+#define WM_UPDATE_REPORT (WM_USER + 1)
 
 // Next default values for new objects
 // 

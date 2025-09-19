@@ -1139,7 +1139,7 @@ void WorkTab::OnBnClickedIdcWorkGo()
    // };
 	toolPath_world = toolPath; // copy toolPath to toolPath_world
    
-    //Convert toolPath_world to m_ToolPathData[20000]
+    //Convert toolPath_world to m_ToolPathData[20000], 轉換
     //toolPath_world: Tool Path in world coordinate
     //m_ToolPathData: Tool Path Data Array
     //toolPath_world.Path : Path of the tool in world coordinate
@@ -1182,9 +1182,9 @@ void WorkTab::ToolPathTransform32(ToolPath ToolPapath_Ori, uint16_t* m_ToolPathD
         uint32_t y_u = static_cast<uint32_t>(y_int);
 
         size_t base = i * 4;
-        m_ToolPathData[base + 0] = static_cast<uint16_t>(x_u & 0xFFFFu); // low
-        m_ToolPathData[base + 1] = static_cast<uint16_t>((x_u >> 16) & 0xFFFFu); // high
-        m_ToolPathData[base + 2] = static_cast<uint16_t>(y_u & 0xFFFFu);
+        m_ToolPathData[base + 0] = static_cast<uint16_t>(x_u & 0xFFFFu); // X low
+        m_ToolPathData[base + 1] = static_cast<uint16_t>((x_u >> 16) & 0xFFFFu); // X high
+        m_ToolPathData[base + 2] = static_cast<uint16_t>(y_u & 0xFFFFu);  
         m_ToolPathData[base + 3] = static_cast<uint16_t>((y_u >> 16) & 0xFFFFu);
     }
 }
@@ -1303,7 +1303,8 @@ void WorkTab::SendToolPathDataA(uint16_t* m_ToolPathData, int sizeOfArray, int s
 
 	//int rc = modbus_write_bit(ctx, 0, TRUE);
 
-	//int rc = modbus_write_register(ctx, 20001,1);
+     //write sizeOfArray to PLC address 40026 : 點位總步數
+	int rc = modbus_write_register(ctx, 40026, sizeOfArray);
 
 	uint16_t index = 0;
 	while (index < sizeOfArray)
@@ -1346,49 +1347,50 @@ void WorkTab::SendToolPathDataA(uint16_t* m_ToolPathData, int sizeOfArray, int s
 
 void WorkTab::SendToolPathData32(uint16_t* m_ToolPathData, int sizeOfArray, int stationID)
 {
-    const int maxBatchSize = 100;
-    const int maxModbusBatchSize = 123;
+    const int maxBatchSize = 100; // 單批最多寫入的點數 (X 或 Y 各一半)
     CYUFADlg* pParentWnd = (CYUFADlg*)GetParent();
-    if (pParentWnd == NULL) {
-        AfxMessageBox(_T("Parent window is NULL."));
-        return;
-    }
-    pParentWnd->m_SystemPara.IpAddress;
+    if (!pParentWnd) { AfxMessageBox(_T("Parent window is NULL.")); return; }
+
     std::string ipAddress = pParentWnd->m_SystemPara.IpAddress;
     modbus_t* ctx = modbus_new_tcp(ipAddress.c_str(), 502);
-    if (ctx == NULL) {
-        fprintf(stderr, "Failed to create Modbus context.\n");
-        return;
-    }
-    int ServerId = pParentWnd->m_SystemPara.StationID;
-    modbus_set_slave(ctx, ServerId);
-    if (modbus_connect(ctx) == -1) {
-        fprintf(stderr, "Connection failed: %s\n", modbus_strerror(errno));
-        modbus_free(ctx);
-        return;
-    }
-    //int rc = modbus_write_bit(ctx, 0, TRUE);
-    //int rc = modbus_write_register(ctx, 20001,1);
+    if (!ctx) return;
+
+    modbus_set_slave(ctx, pParentWnd->m_SystemPara.StationID);
+    if (modbus_connect(ctx) == -1) { modbus_free(ctx); return; }
+
+    // 寫入總步數
+    modbus_write_register(ctx, 40026, sizeOfArray / 2);
+
     uint16_t index = 0;
     while (index < sizeOfArray)
     {
-        int batchSize = (sizeOfArray - index > maxBatchSize) ? maxBatchSize : (sizeOfArray - index);
-        batchSize = (batchSize > maxModbusBatchSize) ? maxModbusBatchSize : batchSize;
-        //cout 100 items for debug
-        int iResult = 0;
-        for (int i = 0; i < 100; i++)
-        {
-            //output m_ToolPathData[i] for debug
-            iResult = m_ToolPathData[i];
-            //cout << m_ToolPathData[i] << " ";
+        int batchCount = std::min(maxBatchSize, (sizeOfArray - index) / 2); // 每批幾組 (X,Y)
+
+        // 建立 X 和 Y 暫存陣列
+        std::vector<uint16_t> xRegs(batchCount * 2);
+        std::vector<uint16_t> yRegs(batchCount * 2);
+
+        for (int i = 0; i < batchCount; ++i) {
+            // X 座標
+            xRegs[i * 2] = m_ToolPathData[index + i * 4 + 1]; // Low word
+            xRegs[i * 2 + 1] = m_ToolPathData[index + i * 4];     // High word
+
+            // Y 座標
+            yRegs[i * 2] = m_ToolPathData[index + i * 4 + 3]; // Low word
+            yRegs[i * 2 + 1] = m_ToolPathData[index + i * 4 + 2]; // High word
         }
-        //int startAddressX : Start Address of the Tool Path Data Array even index
-        //int startAddressY : Start Address of the Tool Path Data Array odd index
-        //Write the Tool Path Data Array to PLC
+
+        // 依起始地址寫入
         int startAddressX = 0;
-        int startAddressY = 20000; // For 32 bit data, Y address starts from 20000
-        //int rc = modbus_write_registers(ctx, startAddressX + index, batchSize, &m_ToolPathData)
+        int startAddressY = 20000;
+        if (modbus_write_registers(ctx, startAddressX + (index / 2) * 2, xRegs.size(), xRegs.data()) == -1) break;
+        if (modbus_write_registers(ctx, startAddressY + (index / 2) * 2, yRegs.size(), yRegs.data()) == -1) break;
+
+        index += batchCount * 4; // 前進到下一批資料
     }
+
+    modbus_close(ctx);
+    modbus_free(ctx);
 }
 
 
