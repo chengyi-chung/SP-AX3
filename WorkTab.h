@@ -68,9 +68,9 @@ protected:
 
 	void ShowImageOnPictureCtl();
 	void ShowImageOnPictureControl(bool flgCenter = false,
-		cv::Scalar crossColor = cv::Scalar(0, 0, 255, 255),
-		int lineThickness = 1,
-		CrossStyle style = CrossStyle::Solid);
+		                                                       cv::Scalar crossColor = cv::Scalar(0, 0, 255, 255),
+		                                                       int lineThickness = 1,
+		                                                       CrossStyle style = CrossStyle::Solid);
 	void ShowImageOnPictureControlWithCImage();
 	void ResizeGrayImage(uint8_t* pImageBuffer, int originalWidth, int originalHeight, uint8_t*& pResizedBuffer, int targetWidth, int targetHeight);
 	void DisplayGrayImageInControl(uint8_t* pImage, int width, int height, CStatic& pictureControl);

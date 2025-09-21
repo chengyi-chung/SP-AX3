@@ -10,6 +10,11 @@
 #include "UModBus.h"
 #include "MachineTab.h"
 
+#include <thread> // for std::this_thread::sleep_for
+#include <chrono> // for std::chrono::milliseconds
+#include <mutex>
+#include "modbus.h" // 請確保已包含 modbus 函式庫標頭
+
 // CYUFADlg 對話方塊
 class CYUFADlg : public CDialogEx
 {
@@ -102,6 +107,14 @@ protected:
 public:
     void InitButtonStyle();   // 初始化按鈕樣式
     void ApplyButtonStyle();  // 套用按鈕樣式
+
+    // 共用 Modbus 連線物件與互斥鎖
+    modbus_t* m_modbusCtx = nullptr;
+    std::mutex m_modbusMutex;
+
+    // Modbus 連線重試機制
+    bool InitModbusWithRetry(const std::string& ip, int port, int slaveId, int maxRetry, int retryDelayMs);
+
 };
 
 

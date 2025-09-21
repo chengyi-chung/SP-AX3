@@ -4,6 +4,8 @@
 #include <modbus.h>
 #include <bitset>
 
+#include <mutex>
+
 // MachineTab 對話方塊
 
 class MachineTab : public CDialog
@@ -172,6 +174,9 @@ public:
 		CWinThread* m_pCoordinateThread; // 執行緒指針
 		volatile BOOL m_bThreadRunning;  // 執行緒運行標誌
 		HANDLE m_hStopThreadEvent;       // 停止執行緒的事件
+
+		std::mutex m_modbusMutex;
+
 		
 };
 

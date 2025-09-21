@@ -10,6 +10,8 @@
 #include "afxwin.h"
 #include "SystemParaTab.h"
 #include "WorkTab.h"
+#include <thread>
+#include <chrono>
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -207,6 +209,21 @@ BOOL CYUFADlg::OnInitDialog()
 	InitButtonStyle();
 
 	//Get Mac ID assign to m_SystemPara with UAX: GetMacAddress
+
+	// 讀取系統參數
+	ReadSystemParametersFromConfigFile();
+
+	// 嘗試建立 Modbus 連線（自動重試3次，每次間隔1000ms）
+	bool modbusOk = InitModbusWithRetry(
+		m_SystemPara.IpAddress,
+		m_SystemPara.Port,
+		m_SystemPara.StationID,
+		3,      // 最大重試次數
+		1000    // 每次重試間隔(ms)
+	);
+	if (!modbusOk) {
+		// 連線失敗，已顯示錯誤訊息，可視情況額外處理
+	}
 
 	return TRUE;  // return TRUE unless you set the focus to a control
 }
@@ -578,4 +595,45 @@ CYUFADlg::~CYUFADlg()
     
     if (m_ButtonBrush.GetSafeHandle())
         m_ButtonBrush.DeleteObject();
+}
+
+// YUFADlg.cpp
+
+bool CYUFADlg::InitModbusWithRetry(const std::string& ip, int port, int slaveId, int maxRetry, int retryDelayMs)
+{
+    std::lock_guard<std::mutex> lock(m_modbusMutex);
+
+    // 釋放舊連線
+    if (m_modbusCtx) {
+        modbus_close(m_modbusCtx);
+        modbus_free(m_modbusCtx);
+        m_modbusCtx = nullptr;
+    }
+
+    m_modbusCtx = modbus_new_tcp(ip.c_str(), port);
+    if (!m_modbusCtx) {
+        AfxMessageBox(_T("無法建立 Modbus 物件。"));
+        return false;
+    }
+    modbus_set_slave(m_modbusCtx, slaveId);
+
+    int retry = 0;
+    while (retry < maxRetry) {
+        if (modbus_connect(m_modbusCtx) != -1) {
+            // 連線成功
+            return true;
+        }
+        // 連線失敗，顯示錯誤訊息
+        CString msg;
+        msg.Format(_T("Modbus 連線失敗（第 %d 次）：%S"), retry + 1, modbus_strerror(errno));
+        AfxMessageBox(msg, MB_ICONWARNING);
+        std::this_thread::sleep_for(std::chrono::milliseconds(retryDelayMs));
+        retry++;
+    }
+
+    // 最終失敗
+    modbus_free(m_modbusCtx);
+    m_modbusCtx = nullptr;
+    AfxMessageBox(_T("Modbus 連線多次失敗，請檢查網路或 PLC 狀態。"), MB_ICONERROR);
+    return false;
 }
