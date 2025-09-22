@@ -27,8 +27,6 @@ public:
 	void SendDataToModBus();
 	//Close Modbus TCP/IP server
 	void CloseModBus();
-	//define modbus context
-	modbus_t* m_ctx;
 
 	//define Report Data on  IDC_EDIT_REPORT
 	string m_strReportData;

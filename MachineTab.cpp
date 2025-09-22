@@ -306,69 +306,28 @@ void MachineTab::Discrete5000Change(int intType, int BitAdress, int BitValue, in
 //nID: check or button Control ID
 void MachineTab::Discrete5000Change(int intType, int BitAdress, int BitValue, int nID)
 {
-	// Check if the Modbus context is initialized
-	if (m_ctx == NULL)
-	{
-		// Get the parent dialog (CYUFADlg)
-		CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
-		if (!pParentWnd)
-		{
-			AfxMessageBox(_T("Failed to get CYUFADlg parent window."));
-			return;
-		}
-		// Access m_SystemPara
-		if (pParentWnd->m_SystemPara.IpAddress.empty())
-		{
-			AfxMessageBox(_T("IP Address is not set in System Parameters."));
-			return;
-		}
-		std::string ip = pParentWnd->m_SystemPara.IpAddress;
-		const char* ip_cstr = ip.c_str();
-		int port = pParentWnd->Port;
-		int stationId = pParentWnd->m_SystemPara.StationID; // Assuming stationId is available
-		m_ctx = modbus_new_tcp(ip_cstr, port);
-		if (m_ctx == NULL)
-		{
-			AfxMessageBox(_T("Failed to create the libmodbus context."));
-			return;
-		}
-		// Set the Modbus slave/station ID
-		if (modbus_set_slave(m_ctx, stationId) == -1)
-		{
-			CString errorMessage;
-			errorMessage.Format(_T("Failed to set Modbus slave ID: %S"), modbus_strerror(errno));
-			modbus_free(m_ctx);
-			m_ctx = NULL;
-			AfxMessageBox(errorMessage);
-			return;
-		}
-		// Establish connection
-		if (modbus_connect(m_ctx) == -1)
-		{
-			CString errorMessage;
-			errorMessage.Format(_T("Failed to connect to Modbus server: %S"), modbus_strerror(errno));
-			modbus_free(m_ctx);
-			m_ctx = NULL;
-			AfxMessageBox(errorMessage);
-			return;
-		}
-	}
-	
-    // Reset the Discrete5000 bitset (ensure it’s 16 bits for a single register)
-	Discrete5000.reset(); // Assuming Discrete3000 is std::bitset<16>
+	CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
 
-	if (intType == 0) // Check or Radio Control
+	if (!pParentWnd || !pParentWnd->m_modbusCtx) {
+		AfxMessageBox(_T("Modbus 尚未連線，請先建立連線。"));
+		return;
+	}
+	std::lock_guard<std::mutex> lock(pParentWnd->m_modbusMutex);
+
+	Discrete5000.reset();
+
+	if (intType == 0)
 	{
 		if (((CButton*)GetDlgItem(nID))->GetCheck() == 1)
 		{
-			Discrete5000.set(BitAdress, BitValue); // Set the bit to 1 if checked
+			Discrete5000.set(BitAdress, BitValue);
 		}
 		else
 		{
-			Discrete5000.set(BitAdress, 0); // Set the bit to 0 if unchecked
+			Discrete5000.set(BitAdress, 0);
 		}
 	}
-	else if (intType == 1) // Button Control
+	else if (intType == 1)
 	{
 		Discrete5000.set(BitAdress, 1);
 	}
@@ -376,29 +335,24 @@ void MachineTab::Discrete5000Change(int intType, int BitAdress, int BitValue, in
 	{
 		Discrete5000.set(BitAdress, BitValue);
 	}
-	
-	// Convert bitset to unsigned long (ensure it fits in 16 bits)
+
 	Discrete5000Word = Discrete5000.to_ulong();
 
-	// Write to Modbus register (using 29999 for 0-based addressing)
-	int rc = modbus_write_register(m_ctx, 50000, Discrete5000Word);
+    //{
+		//std::lock_guard<std::mutex> lock(pParentWnd->m_modbusMutex);
+        int rc = modbus_write_register(pParentWnd->m_modbusCtx, 50000, Discrete5000Word);
 
-	// Log the operation
-	m_strReportData = m_strReportData + "\r\n" + "Reg[50000]." + std::to_string(BitAdress) + " = " +
-		std::to_string(Discrete5000Word) + " " + Discrete5000.to_string();
-	SetDlgItemText(IDC_EDIT_REPORT, CString(m_strReportData.c_str()));
+        m_strReportData = m_strReportData + "\r\n" + "Reg[50000]." + std::to_string(BitAdress) + " = " +
+            std::to_string(Discrete5000Word) + " " + Discrete5000.to_string();
+        SetDlgItemText(IDC_EDIT_REPORT, CString(m_strReportData.c_str()));
 
-	if (rc == -1)
-	{
-		CString errorMessage;
-		errorMessage.Format(_T("Failed to write to Modbus register 50000: %S"), modbus_strerror(errno));
-		AfxMessageBox(errorMessage);
-		// Close and free the context to reset it
-		modbus_close(m_ctx);
-		modbus_free(m_ctx);
-		m_ctx = NULL;
-		return;
-	}
+        if (rc == -1) {
+            CString errorMessage;
+            errorMessage.Format(_T("Failed to write to Modbus register 50000: %S"), modbus_strerror(errno));
+            AfxMessageBox(errorMessage);
+            return;
+        }
+    //}
 }
 
 //Clear All Discrete3000
@@ -524,7 +478,8 @@ void MachineTab::OnBnClickedBtnMachineSaveMotion()
 
 	// ======== Step 4. Update System Parameters ========
 	CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
-	if (!pParentWnd) {
+	if (!pParentWnd)
+	{
 		AfxMessageBox(_T("Failed to retrieve parent dialog"));
 		return;
 	}
@@ -548,7 +503,8 @@ void MachineTab::OnBnClickedBtnMachineSaveMotion()
 	double pitch = _ttof(strPitch);
 	double transferFactor = _ttof(strTransfer);
 
-	if (pitch <= 0 || transferFactor <= 0) {
+	if (pitch <= 0 || transferFactor <= 0)
+	{
 		AfxMessageBox(_T("Pitch / Transfer Factor must be positive numbers"));
 		return;
 	}
@@ -572,6 +528,7 @@ bool MachineTab::SetHoldingRegister(int iStartAdress, int iEndAdress, uint16_t* 
         AfxMessageBox(_T("Modbus 尚未連線，請先建立連線。"));
         return false;
     }
+
     std::lock_guard<std::mutex> lock(pParentWnd->m_modbusMutex);
     int rc = modbus_write_registers(pParentWnd->m_modbusCtx, iStartAdress, SizeOfArray, iValue);
     if (rc == -1) {
@@ -588,13 +545,17 @@ bool MachineTab::SetHoldingRegister(int iStartAdress, int iEndAdress, uint16_t* 
 //int iValue[]: Value array to be get
 void MachineTab::GetHoldingRegister(int iStartAdress, int iEndAdress, uint16_t* iValue)
 {
-    // 這裡假設 m_ctx 已經正確初始化
-    if (!m_ctx) return;
+    CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
+    if (!pParentWnd || !pParentWnd->m_modbusCtx) {
+        // 沒有連線就直接返回
+        return;
+    }
 
     int count = iEndAdress - iStartAdress + 1;
     if (count <= 0) return;
 
-    int rc = modbus_read_registers(m_ctx, iStartAdress, count, iValue);
+    std::lock_guard<std::mutex> lock(pParentWnd->m_modbusMutex);
+    int rc = modbus_read_registers(pParentWnd->m_modbusCtx, iStartAdress, count, iValue);
     if (rc == -1) {
         CString errorMessage;
         errorMessage.Format(_T("Failed to read Modbus holding registers: %S"), modbus_strerror(errno));
@@ -932,6 +893,22 @@ void MachineTab::OnBnClickedMfcbtnMachineGo()
 	// IDC_EDIT_MANUAL_X, IDC_EDIT_MANUAL_Y 的值轉換為float, float fX, fY;
 	float fX = GetDlgItemInt(IDC_EDIT_MANUAL_X);
 	float fY = GetDlgItemInt(IDC_EDIT_MANUAL_Y);
+
+	//寫入 Modbus holding Register 000000: x low, 000001: x high, 000002: y low, 20000: y high : 20001
+	uint16_t xLow, xHigh, yLow, yHigh;
+	xLow = static_cast<uint16_t>((static_cast<uint32_t>(fX * 100) >> 16) & 0xFFFF);   // 原 high -> low
+	xHigh = static_cast<uint16_t>(static_cast<uint32_t>(fX * 100) & 0xFFFF);          // 原 low  -> high
+	yLow = static_cast<uint16_t>((static_cast<uint32_t>(fY * 100) >> 16) & 0xFFFF);   // 原 high -> low
+	yHigh = static_cast<uint16_t>(static_cast<uint32_t>(fY * 100) & 0xFFFF);          // 原 low  -> high
+
+	uint16_t valuesX[2] = { xLow, xHigh };  
+	SetHoldingRegister(0, 1, valuesX, 2);
+	uint16_t valuesY[2] = { yLow, yHigh };
+	SetHoldingRegister(20000, 20001, valuesY, 2);
+
+	uint16_t values[1];
+	SetHoldingRegister(40026, 40026, values, 1);
+	
 }
 
 
@@ -997,11 +974,11 @@ void MachineTab::UpdateControl()
 	SetDlgItemText(IDC_EDIT_AUTO_VELOCITY, cStr);
 
 	// AxisAccDec (assuming float for precision, adjust if int)
-	cStr.Format(_T("%.d"), pParentWnd->m_SystemPara.DecAcceleration);
+	cStr.Format(_T("%d"), static_cast<int>(pParentWnd->m_SystemPara.DecAcceleration));
 	SetDlgItemText(IDC_EDIT_AXIS_ACC_DEC, cStr);
 
 	// AxisAccInc (assuming float for precision, adjust if int)
-	cStr.Format(_T("%.d"), pParentWnd->m_SystemPara.IncAcceleration);
+	cStr.Format(_T("%d"), static_cast<int>(pParentWnd->m_SystemPara.IncAcceleration));
 	SetDlgItemText(IDC_EDIT_AXIS_ACC_INC, cStr);
 
 	// Pitch (assuming float, adjust if int)
@@ -1179,26 +1156,25 @@ void MachineTab::StopCoordinateThread()
 // 因此寫入也要採用相同的順序 (high first, low second)。
  bool MachineTab::SetHoldingRegister32(int iStartAdress, uint16_t lowWord, uint16_t highWord)
 {
-	// 確認 Modbus context 已初始化
-	if (m_ctx == nullptr)
-	{
-		AfxMessageBox(_T("Modbus context is not initialized."));
-		return false;
-	}
+    CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
+    if (!pParentWnd || !pParentWnd->m_modbusCtx) {
+        AfxMessageBox(_T("Modbus 尚未連線，請先建立連線。"));
+        return false;
+    }
 
-	// 按照系統中讀取時的約定：先寫入 high word，再寫入 low word
-	uint16_t regs[2];
-	regs[0] = highWord; // 高位在前
-	regs[1] = lowWord;  // 低位在後
+    uint16_t regs[2];
+    regs[0] = highWord; // 高位在前
+    regs[1] = lowWord;  // 低位在後
 
-	int rc = modbus_write_registers(m_ctx, iStartAdress, 2, regs);
-	if (rc == -1)
-	{
-		CString errorMessage;
-		errorMessage.Format(_T("Failed to write to Modbus registers starting %d: %S"), iStartAdress, modbus_strerror(errno));
-		AfxMessageBox(errorMessage);
-		return false;
-	}
+    std::lock_guard<std::mutex> lock(pParentWnd->m_modbusMutex);
+    int rc = modbus_write_registers(pParentWnd->m_modbusCtx, iStartAdress, 2, regs);
+    if (rc == -1)
+    {
+        CString errorMessage;
+        errorMessage.Format(_T("Failed to write to Modbus registers starting %d: %S"), iStartAdress, modbus_strerror(errno));
+        AfxMessageBox(errorMessage);
+        return false;
+    }
 
-	return true ;
+    return true;
 }

@@ -159,7 +159,18 @@ BOOL CYUFADlg::OnInitDialog()
 		m_Status_Bar.MoveWindow(rect.left, rect.bottom - 20, rect.Width(), 20);
 	}
 	
-	
+	// 嘗試建立 Modbus 連線（自動重試3次，每次間隔1000ms）
+	bool modbusOk = InitModbusWithRetry
+	(
+		m_SystemPara.IpAddress,
+		m_SystemPara.Port,
+		m_SystemPara.StationID,
+		3,      // 最大重試次數
+		1000    // 每次重試間隔(ms)
+	);
+	if (!modbusOk) {
+		// 連線失敗，已顯示錯誤訊息，可視情況額外處理
+	}
 
     // Set Timer
 	SetTimer(100, 1000, NULL);
@@ -213,17 +224,7 @@ BOOL CYUFADlg::OnInitDialog()
 	// 讀取系統參數
 	ReadSystemParametersFromConfigFile();
 
-	// 嘗試建立 Modbus 連線（自動重試3次，每次間隔1000ms）
-	bool modbusOk = InitModbusWithRetry(
-		m_SystemPara.IpAddress,
-		m_SystemPara.Port,
-		m_SystemPara.StationID,
-		3,      // 最大重試次數
-		1000    // 每次重試間隔(ms)
-	);
-	if (!modbusOk) {
-		// 連線失敗，已顯示錯誤訊息，可視情況額外處理
-	}
+
 
 	return TRUE;  // return TRUE unless you set the focus to a control
 }

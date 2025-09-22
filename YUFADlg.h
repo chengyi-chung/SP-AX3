@@ -116,28 +116,3 @@ public:
     bool InitModbusWithRetry(const std::string& ip, int port, int slaveId, int maxRetry, int retryDelayMs);
 
 };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

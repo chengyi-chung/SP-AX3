@@ -556,7 +556,7 @@ void WorkTab::ShowImageOnPictureControl()
     if (m_mat.empty()) return;
 
     CRect rect;
-    //CWnd* pWnd = GetDlgItem(IDC_PICCTL_DISPLAY); // 假设你的Picture Control控件的ID是IDC_PICTURE_CONTROL。
+    //CWnd* pWnd = GetDlgItem(IDC_PICTURE_CONTROL); // 假设你的Picture Control控件的ID是IDC_PICTURE_CONTROL。
     pWnd->GetClientRect(&rect);
     cv::Mat resizedImage;
     cv::resize(m_mat, resizedImage, cv::Size(rect.Width(), rect.Height())); // 对图像进行缩放。
@@ -1212,191 +1212,200 @@ void WorkTab::ToolPathTransform(ToolPath& toolpath, uint16_t* m_ToolPathData)
 void WorkTab::SendToolPathData(uint16_t *m_ToolPathData, int sizeOfArray, int stationID)
 {
     const int maxBatchSize = 100;
-    const int maxModbusBatchSize = 123;
+    const int maxModbusBatchSize = MODBUS_MAX_WRITE_REGISTERS; // 123
 
-    CYUFADlg* pParentWnd = (CYUFADlg*)GetParent();
+    CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
+    if (pParentWnd == nullptr) {
+        AfxMessageBox(_T("Parent window is NULL."));
+        return;
+    }
+
+    // Ensure modbus ctx available; try to init if not
+    if (!pParentWnd->m_modbusCtx) {
+        bool ok = pParentWnd->InitModbusWithRetry(pParentWnd->m_SystemPara.IpAddress, pParentWnd->Port, stationID, 3, 1000);
+        if (!ok) {
+            AfxMessageBox(_T("Failed to initialize Modbus connection."));
+            return;
+        }
+    }
+
+    // Use parent ctx under mutex
+    {
+        std::lock_guard<std::mutex> lock(pParentWnd->m_modbusMutex);
+
+        // optional: set slave id on context (harmless if already set)
+        modbus_set_slave(pParentWnd->m_modbusCtx, stationID);
+
+        // Write a control bit if needed (kept from original)
+        modbus_write_bit(pParentWnd->m_modbusCtx, 0, TRUE);
+
+        int index = 0;
+        while (index < sizeOfArray) 
+        {
+            int batchSize = (sizeOfArray - index > maxBatchSize) ? maxBatchSize : (sizeOfArray - index);
+            batchSize = std::min(batchSize, maxModbusBatchSize);
+
+            int rc = modbus_write_registers(pParentWnd->m_modbusCtx, index, batchSize, &m_ToolPathData[index]);
+            if (rc == -1) 
+            {
+                CString err;
+                err.Format(_T("Failed to write registers at %d: %S"), index, modbus_strerror(errno));
+                AfxMessageBox(err);
+                return;
+            }
+            index += batchSize;
+        }
+    } // unlock here
+
+    // 不關閉或釋放 pParentWnd->m_modbusCtx（由主視窗管理）
+}
+
+void WorkTab::SendToolPathDataA(uint16_t* m_ToolPathData, int sizeOfArray, int stationID)
+{
+    const int maxBatchSize = 100;
+    const int maxModbusBatchSize = MODBUS_MAX_WRITE_REGISTERS; // 123
+
+    CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
     if (pParentWnd == NULL) {
         AfxMessageBox(_T("Parent window is NULL."));
         return;
     }
 
-    pParentWnd->m_SystemPara.IpAddress;
-    std::string ipAddress = pParentWnd->m_SystemPara.IpAddress;
-
-    modbus_t* ctx = modbus_new_tcp(ipAddress.c_str(), 502);
-   
-    if (ctx == NULL) {
-        fprintf(stderr, "Failed to create Modbus context.\n");
-        return;
-    }
-
-    int ServerId = pParentWnd->m_SystemPara.StationID;
-    modbus_set_slave(ctx, ServerId);
-
-    if (modbus_connect(ctx) == -1) {
-        fprintf(stderr, "Connection failed: %s\n", modbus_strerror(errno));
-        modbus_free(ctx);
-        return;
-    }
-
-    //Write bit to PLC
-    int rc = modbus_write_bit(ctx, 0, TRUE);
-
-    uint16_t index = 0;
-    while (index < sizeOfArray) 
-    {
-        int batchSize = (sizeOfArray - index > maxBatchSize) ? maxBatchSize : (sizeOfArray - index);
-        batchSize = (batchSize > maxModbusBatchSize) ? maxModbusBatchSize : batchSize;
-
-        //cout 100 items for debug
-		int iResult = 0;
-        for (int i = 0; i < 100; i++)
-        {
-            //output m_ToolPathData[i] for debug
-			iResult = m_ToolPathData[i];
-           // cout << m_ToolPathData[i] << " ";
+    if (!pParentWnd->m_modbusCtx) {
+        bool ok = pParentWnd->InitModbusWithRetry(pParentWnd->m_SystemPara.IpAddress, pParentWnd->Port, stationID, 3, 1000);
+        if (!ok) {
+            AfxMessageBox(_T("Failed to initialize Modbus connection."));
+            return;
         }
+    }
 
-        int rc = modbus_write_registers(ctx, index, batchSize, &m_ToolPathData[index]);
-     
-        if (rc == -1) 
-        {
-            fprintf(stderr, "Failed to write registers: %s\n", modbus_strerror(errno));
-            modbus_close(ctx);
-            modbus_free(ctx);
+    {
+        std::lock_guard<std::mutex> lock(pParentWnd->m_modbusMutex);
+        modbus_set_slave(pParentWnd->m_modbusCtx, stationID);
+
+        // write total count to PLC address 40026 (preserve original intent)
+        int rc = modbus_write_register(pParentWnd->m_modbusCtx, 40026, sizeOfArray);
+        if (rc == -1) {
+            CString err;
+            err.Format(_T("Failed to write total count: %S"), modbus_strerror(errno));
+            AfxMessageBox(err);
             return;
         }
 
-        index += batchSize;
-    }
+        uint16_t index = 0;
+        while (index < sizeOfArray)
+        {
+            int batchSize = (sizeOfArray - index > maxBatchSize) ? maxBatchSize : (sizeOfArray - index);
+            batchSize = std::min(batchSize, maxModbusBatchSize);
 
-    modbus_close(ctx);
-    modbus_free(ctx);
-}
+            // original logic wrote X block and Y block separately; here preserve addresses
+            int startAddressX = 0;
+            int startAddressY = 10000;
 
-//Send Tool Path Data to PLC with Modbus TCP
-//int* m_ToolPathData: Tool Path Data Array
-//int sizeOfArray: Size of the Tool Path Data Array
-//int stationID: Station ID
-//int startAddress: Start Address of the Tool Path Data Array
-void WorkTab::SendToolPathDataA(uint16_t* m_ToolPathData, int sizeOfArray, int stationID)
-{
-	const int maxBatchSize = 100;
-	const int maxModbusBatchSize = 123;
-	CYUFADlg* pParentWnd = (CYUFADlg*)GetParent();
-	if (pParentWnd == NULL) {
-		AfxMessageBox(_T("Parent window is NULL."));
-		return;
-	}
-	pParentWnd->m_SystemPara.IpAddress;
-	std::string ipAddress = pParentWnd->m_SystemPara.IpAddress;
-	modbus_t* ctx = modbus_new_tcp(ipAddress.c_str(), 502);
-	if (ctx == NULL) {
-		fprintf(stderr, "Failed to create Modbus context.\n");
-		return;
-	}
-	int ServerId = pParentWnd->m_SystemPara.StationID;
-	modbus_set_slave(ctx, ServerId);
-	if (modbus_connect(ctx) == -1) 
-    {
-		fprintf(stderr, "Connection failed: %s\n", modbus_strerror(errno));
-		modbus_free(ctx);
-		return;
-	}
+            // write X block
+            rc = modbus_write_registers(pParentWnd->m_modbusCtx, startAddressX + index, batchSize, &m_ToolPathData[index]);
+            if (rc == -1) {
+                CString err;
+                err.Format(_T("Failed to write X registers at %d: %S"), index, modbus_strerror(errno));
+                AfxMessageBox(err);
+                return;
+            }
 
-	//int rc = modbus_write_bit(ctx, 0, TRUE);
+            // write Y block (offset by 1 if original layout interleaved)
+            // Keep existing behavior: write starting from index+1 to represent odd index layout
+            rc = modbus_write_registers(pParentWnd->m_modbusCtx, startAddressY + index, batchSize, &m_ToolPathData[index + 1]);
+            if (rc == -1) {
+                CString err;
+                err.Format(_T("Failed to write Y registers at %d: %S"), index, modbus_strerror(errno));
+                AfxMessageBox(err);
+                return;
+            }
 
-     //write sizeOfArray to PLC address 40026 : 點位總步數
-	int rc = modbus_write_register(ctx, 40026, sizeOfArray);
-
-	uint16_t index = 0;
-	while (index < sizeOfArray)
-	{
-		int batchSize = (sizeOfArray - index > maxBatchSize) ? maxBatchSize : (sizeOfArray - index);
-		batchSize = (batchSize > maxModbusBatchSize) ? maxModbusBatchSize : batchSize;
-		//cout 100 items for debug
-		int iResult = 0;
-		for (int i = 0; i < 100; i++)
-		{
-			//output m_ToolPathData[i] for debug
-			iResult = m_ToolPathData[i];
-			//print m_ToolPathData[i] for debug
-			//TRACE(_T("%d "), m_ToolPathData[i]);
-			 cout << m_ToolPathData[i] << " ";
-		}
-
-		//int startAddressX : Start Address of the Tool Path Data Array even index
-		//int startAddressY : Start Address of the Tool Path Data Array odd index
-         
-		//Write the Tool Path Data Array to PLC
-		int startAddressX = 0;
-		int startAddressY = 10000;
-		int rc = modbus_write_registers(ctx, startAddressX + index, batchSize, &m_ToolPathData[index]);
-		rc = modbus_write_registers(ctx, startAddressY + index, batchSize, &m_ToolPathData[index + 1]);
-
-		//int rc = modbus_write_registers(ctx, startAddress + index, batchSize, &m_ToolPathData[index]);
-		if (rc == -1)
-		{
-			fprintf(stderr, "Failed to write registers: %s\n", modbus_strerror(errno));
-			modbus_close(ctx);
-			modbus_free(ctx);
-			return;
-		}
-		index += batchSize;
-	}
-	modbus_close(ctx);
-	modbus_free(ctx);
+            index += batchSize;
+        }
+    } // unlock
 }
 
 void WorkTab::SendToolPathData32(uint16_t* m_ToolPathData, int sizeOfArray, int stationID)
 {
-    const int maxBatchSize = 100; // 單批最多寫入的點數 (X 或 Y 各一半)
-    CYUFADlg* pParentWnd = (CYUFADlg*)GetParent();
-    if (!pParentWnd) { AfxMessageBox(_T("Parent window is NULL.")); return; }
+    const int maxBatchSize = 100; // 每批最多 100 個暫存器
+    CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
+    if (!pParentWnd) { 
+        AfxMessageBox(_T("Parent window is NULL.")); 
+        return; 
+    }
 
-    std::string ipAddress = pParentWnd->m_SystemPara.IpAddress;
-    modbus_t* ctx = modbus_new_tcp(ipAddress.c_str(), 502);
-    if (!ctx) return;
+    if (!pParentWnd->m_modbusCtx) {
+        bool ok = pParentWnd->InitModbusWithRetry(pParentWnd->m_SystemPara.IpAddress, pParentWnd->Port, stationID, 3, 1000);
+        if (!ok) {
+            AfxMessageBox(_T("Failed to initialize Modbus connection."));
+            return;
+        }
+    }
 
-    modbus_set_slave(ctx, pParentWnd->m_SystemPara.StationID);
-    if (modbus_connect(ctx) == -1) { modbus_free(ctx); return; }
+    std::lock_guard<std::mutex> lock(pParentWnd->m_modbusMutex);
+    modbus_set_slave(pParentWnd->m_modbusCtx, stationID);
 
-    // 寫入總步數
-    modbus_write_register(ctx, 40026, sizeOfArray / 2);
+    // 寫入總步數 (sizeOfArray 為 4 words per point, 原本寫 sizeOfArray/2)
+    int steps = sizeOfArray / 2;
+    if (modbus_write_register(pParentWnd->m_modbusCtx, 40026, steps) == -1) {
+        CString err; 
+        err.Format(_T("Failed to write total steps: %S"), modbus_strerror(errno));
+        AfxMessageBox(err);
+        return;
+    }
 
     uint16_t index = 0;
     while (index < sizeOfArray)
     {
-        int batchCount = std::min(maxBatchSize, (sizeOfArray - index) / 2); // 每批幾組 (X,Y)
+        // 計算本批處理的點數，每組佔 4 words (Xlow,Xhigh,Ylow,Yhigh)
+        int remainingPoints = (sizeOfArray - index) / 4;
+        int batchPoints = std::min(maxBatchSize / 4, remainingPoints); // 確保不超過 100/4 = 25 點
+        if (batchPoints <= 0) break;
 
-        // 建立 X 和 Y 暫存陣列
-        std::vector<uint16_t> xRegs(batchCount * 2);
-        std::vector<uint16_t> yRegs(batchCount * 2);
+        int batchSize = batchPoints * 2; // 每軸需要 2 個暫存器 (high + low)
 
-        for (int i = 0; i < batchCount; ++i)
+        std::vector<uint16_t> xRegs(batchSize);
+        std::vector<uint16_t> yRegs(batchSize);
+
+        // 重新組織資料：從 [Xlow, Xhigh, Ylow, Yhigh] 格式分離出 X 和 Y 陣列
+        for (int i = 0; i < batchPoints; ++i)
         {
-               // X 座標
-                 xRegs[i*2]   = m_ToolPathData[index + i*4 + 1]; // Low word
-                 xRegs[i*2+1] = m_ToolPathData[index + i*4];     // High word
-
-              // Y 座標
-                 yRegs[i*2]   = m_ToolPathData[index + i*4 + 3]; // Low word
-                 yRegs[i*2+1] = m_ToolPathData[index + i*4 + 2]; // High word
+            size_t base = index + i * 4;
+            xRegs[i*2]   = m_ToolPathData[base + 0]; // X low
+            xRegs[i*2+1] = m_ToolPathData[base + 1]; // X high
+            yRegs[i*2]   = m_ToolPathData[base + 2]; // Y low
+            yRegs[i*2+1] = m_ToolPathData[base + 3]; // Y high
         }
 
-        // 依起始地址寫入
+        // 寫入 X 座標資料
         int startAddressX = 0;
-        int startAddressY = 20000;
-        if (modbus_write_registers(ctx, startAddressX + (index / 2) * 2, xRegs.size(), xRegs.data()) == -1) break;
-        if (modbus_write_registers(ctx, startAddressY + (index / 2) * 2, yRegs.size(), yRegs.data()) == -1) break;
+        int writeIndexX = (index / 2); // 因為每 4 個元素對應 2 個座標位置
+        if (modbus_write_registers(pParentWnd->m_modbusCtx, startAddressX + writeIndexX, batchSize, xRegs.data()) == -1) {
+            CString err; 
+            err.Format(_T("Failed to write X block at %d: %S"), writeIndexX, modbus_strerror(errno));
+            AfxMessageBox(err);
+            return;
+        }
 
-        index += batchCount * 4; // 前進到下一批資料
+        // 寫入 Y 座標資料
+        int startAddressY = 20000;
+        int writeIndexY = (index / 2);
+        if (modbus_write_registers(pParentWnd->m_modbusCtx, startAddressY + writeIndexY, batchSize, yRegs.data()) == -1) {
+            CString err; 
+            err.Format(_T("Failed to write Y block at %d: %S"), writeIndexY, modbus_strerror(errno));
+            AfxMessageBox(err);
+            return;
+        }
+
+        index += batchPoints * 4; // 前進到下一批資料
     }
 
-    modbus_close(ctx);
-    modbus_free(ctx);
-}
+	//sizeOfArray : 值 分成 low, high , 寫入 40026, 40027 位置
+	// 不關閉或釋放 pParentWnd->m_modbusCtx（由主視窗管理）
 
+    
+}
 
 //Add Calibration Dialog
 void WorkTab::OnBnClickedIdcWorkCalibration()
@@ -1509,5 +1518,6 @@ BOOL WorkTab::PreTranslateMessage(MSG* pMsg)
 
 // 假設 InitTransformer 的正確宣告如下：
 // void InitTransformer(const std::vector<cv::Point2f>& imagePts, const std::vector<cv::Point2f>& worldPts, cv::Mat& affineMatrix);
+
 
 
