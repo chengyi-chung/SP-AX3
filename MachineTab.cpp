@@ -89,6 +89,10 @@ BOOL MachineTab::OnInitDialog()
 
 	UpdateControl();
 
+	// 初始化父視窗指標
+	m_pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
+	
+
 	return TRUE;  // return TRUE unless you set the focus to a control
 	// EXCEPTION: OCX Property Pages should return FALSE
 }
@@ -109,11 +113,17 @@ void MachineTab::OpenModBus()
 
 	// 呼叫 YUFADlg 的重試連線
 	bool ok = pParentWnd->InitModbusWithRetry(ip, port, slaveId, 3, 1000);
-	if (!ok) {
+
+	if (!ok) 
+	{
 		// 連線失敗，已顯示錯誤訊息
 		return;
 	}
+
 	// 之後可直接用 pParentWnd->m_modbusCtx 做 Modbus 操作
+	// 啟動座標讀取執行緒
+	StartCoordinateThread();
+
 }
 
 //Close Modbus TCP/IP server
@@ -1033,16 +1043,13 @@ LRESULT MachineTab::OnUpdateCoordinates(WPARAM wParam, LPARAM lParam)
 	return 0;
 }
 
-
 UINT MachineTab::ReadCoordinatesThread(LPVOID pParam)
 {
 	MachineTab* pThis = static_cast<MachineTab*>(pParam);
-	if (pThis == nullptr)
+	if (pThis == nullptr || pThis->m_pParentWnd == nullptr)
 		return 0;
 
-	CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(pThis->GetParent()->GetParent());
-	if (!pParentWnd)
-		return 0;
+	CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(pThis->m_pParentWnd);
 
 	constexpr int startAddress = 40010;
 	constexpr int numRegisters = 6;
