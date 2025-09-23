@@ -135,6 +135,14 @@ extern "C" UAX_API int LensCalibration(cv::Mat& src, cv::Mat& templ, cv::Mat& ds
 // Offset: the offse value of the tool path(Pixel)
 // ToolPath: the output tool path
 extern "C" UAX_API void GetToolPath(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpath);
+// Get Tool Path
+// Use Erosiong find the tool path
+// ImgSrc: the input image
+// Offset: the offse value of the tool path(Pixel)
+// ToolPath: the output tool path
+// With mask image to limit the area of tool path
+extern "C" UAX_API void GetToolPathWithMask(cv::Mat& ImgSrc, cv::Mat& Mask, cv::Point2d Offset, ToolPath& toolpath);
+
 
 
 //Find the area of image
