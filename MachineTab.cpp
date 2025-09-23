@@ -962,6 +962,7 @@ void MachineTab::OnOK()
 }
 
 //Update data in Edit control with SystemConfig m_SystemPara
+//由 PostMessage 呼叫
 void MachineTab::UpdateControl()
 {
 	// Get the parent dialog (CYUFADlg)
@@ -1021,6 +1022,7 @@ void MachineTab::UpdateControl()
 
 }
 
+// Custom message handler to update coordinates
 LRESULT MachineTab::OnUpdateCoordinates(WPARAM wParam, LPARAM lParam)
 {
 	float* coordinates = reinterpret_cast<float*>(lParam);
@@ -1053,7 +1055,8 @@ UINT MachineTab::ReadCoordinatesThread(LPVOID pParam)
 
 	constexpr int startAddress = 40010;
 	constexpr int numRegisters = 6;
-	const float scalingFactor = -1580.0f / -142606337.0f;
+	const float scalingFactor = 1;
+	//const float scalingFactor = -1580.0f / -142606337.0f;
 
 	while (pThis->m_bThreadRunning)
 	{
@@ -1076,7 +1079,8 @@ UINT MachineTab::ReadCoordinatesThread(LPVOID pParam)
 				float coordinates[3] = { 0.0f, 0.0f, 0.0f };
 				for (int i = 0; i < 3; ++i)
 				{
-					uint32_t raw = (static_cast<uint32_t>(registers[i * 2]) << 16) | registers[i * 2 + 1];
+					// 修正：registers[i*2] 是低位字，registers[i*2+1] 是高位字
+					uint32_t raw = (static_cast<uint32_t>(registers[i * 2 + 1]) << 16) | registers[i * 2];
 					int32_t signedValue = static_cast<int32_t>(raw);
 					coordinates[i] = static_cast<float>(signedValue) * scalingFactor;
 				}
