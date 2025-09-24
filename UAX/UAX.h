@@ -246,6 +246,10 @@ struct SystemConfig
 	float Z3;
 	float Z4;
 	float Z5;
+    int MaskX;
+	int MaskY;
+	int MaskWidth;
+	int MaskHeight;
 };
 
 // Write system configuration to ini file

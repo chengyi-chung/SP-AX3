@@ -872,7 +872,6 @@ int CloseDatabase(sqlite3* db)
 // Helper function to write configuration to file
 void WriteConfigToFile(const std::string& filename, SystemConfig &SysConfig)
 {
-	
 	std::ofstream file(filename);
 	if (!file.is_open()) {
 		std::cerr << "Error: Unable to open file " << filename << " for writing!" << std::endl;
@@ -884,9 +883,11 @@ void WriteConfigToFile(const std::string& filename, SystemConfig &SysConfig)
 	file << "IpAddress=" << SysConfig.IpAddress << "\n";
 	file << "Port=" << SysConfig.Port << "\n";
 	file << "StationID=" << SysConfig.StationID << "\n";
+	
 	file << "[ToolPath]\n";
 	file << "OffsetX=" << std::fixed << std::setprecision(4) << SysConfig.OffsetX << "\n";
 	file << "OffsetY=" << std::fixed << std::setprecision(4) << SysConfig.OffsetY << "\n";
+	
 	file << "[Camera]\n";
 	file << "CameraID=" << SysConfig.CameraID << "\n";
 	file << "MACKey=" << SysConfig.MACKey << "\n";
@@ -897,6 +898,14 @@ void WriteConfigToFile(const std::string& filename, SystemConfig &SysConfig)
 	file << "ImageFlip=" << SysConfig.ImageFlip << "\n";
 	file << "CenterX=" << std::fixed << std::setprecision(2) << SysConfig.CenterX << "\n";
 	file << "CenterY=" << std::fixed << std::setprecision(2) << SysConfig.CenterY << "\n";
+	
+	// 新增 Mask 區段
+	file << "[Mask]\n";
+	file << "MaskX=" << SysConfig.MaskX << "\n";
+	file << "MaskY=" << SysConfig.MaskY << "\n";
+	file << "MaskWidth=" << SysConfig.MaskWidth << "\n";
+	file << "MaskHeight=" << SysConfig.MaskHeight << "\n";
+	
 	file << "[Machine]\n";
 	file << "MachineType=" << SysConfig.MachineType << "\n";
 	file << "JogVelocity=" << SysConfig.JogVelocity << "\n";
@@ -904,11 +913,13 @@ void WriteConfigToFile(const std::string& filename, SystemConfig &SysConfig)
 	file << "DecAcceleration=" << SysConfig.DecAcceleration << "\n";
 	file << "IncAcceleration=" << SysConfig.IncAcceleration << "\n";
 	file << "Pitch=" << std::fixed << std::setprecision(2) << SysConfig.Pitch << "\n";
-	file << "Z1=" << SysConfig.Z1 << "\n";
-	file << "Z2=" << SysConfig.Z2 << "\n";
-	file << "Z3=" << SysConfig.Z3 << "\n";
-	file << "Z4=" << SysConfig.Z4 << "\n";
-	file << "Z5=" << SysConfig.Z5 << "\n";
+	file << "Z1=" << std::fixed << std::setprecision(2) << SysConfig.Z1 << "\n";
+	file << "Z2=" << std::fixed << std::setprecision(2) << SysConfig.Z2 << "\n";
+	file << "Z3=" << std::fixed << std::setprecision(2) << SysConfig.Z3 << "\n";
+	file << "Z4=" << std::fixed << std::setprecision(2) << SysConfig.Z4 << "\n";
+	file << "Z5=" << std::fixed << std::setprecision(2) << SysConfig.Z5 << "\n";
+
+	file.close();
 }
 
 // Initialize system configuration file
@@ -921,10 +932,15 @@ void InitialConfig(const std::string& filename, SystemConfig &SysConfig)
 // Read system configuration from INI file; initialize if file doesn't exist
 int ReadSystemConfig(const std::string& filename, SystemConfig &SysConfig)
 {
-	
 	std::ifstream file(filename);
 	if (!file.is_open()) {
 		// If file doesn't exist, initialize with default configuration
+		// 設定預設的 mask 值
+		SysConfig.MaskX = 0;
+		SysConfig.MaskY = 0;
+		SysConfig.MaskWidth = 0;
+		SysConfig.MaskHeight = 0;
+		
 		InitialConfig(filename, SysConfig);
 		return -1; // Indicate default configuration was used
 	}
@@ -936,6 +952,12 @@ int ReadSystemConfig(const std::string& filename, SystemConfig &SysConfig)
 		size_t end = s.find_last_not_of(ws);
 		s = s.substr(start, end - start + 1);
 	};
+
+	// 初始化 mask 預設值
+	SysConfig.MaskX = 0;
+	SysConfig.MaskY = 0;
+	SysConfig.MaskWidth = 0;
+	SysConfig.MaskHeight = 0;
 
 	std::string line;
 	while (std::getline(file, line)) {
@@ -995,6 +1017,19 @@ int ReadSystemConfig(const std::string& filename, SystemConfig &SysConfig)
 			else if (key == "CenterY") {
 				SysConfig.CenterY = val.empty() ? 0.0f : std::stof(val);
 			}
+			// 新增 mask 參數讀取
+			else if (key == "MaskX") {
+				SysConfig.MaskX = val.empty() ? 0 : std::stoi(val);
+			}
+			else if (key == "MaskY") {
+				SysConfig.MaskY = val.empty() ? 0 : std::stoi(val);
+			}
+			else if (key == "MaskWidth") {
+				SysConfig.MaskWidth = val.empty() ? 0 : std::stoi(val);
+			}
+			else if (key == "MaskHeight") {
+				SysConfig.MaskHeight = val.empty() ? 0 : std::stoi(val);
+			}
 			else if (key == "MachineType") {
 				SysConfig.MachineType = val;
 			}
@@ -1013,7 +1048,6 @@ int ReadSystemConfig(const std::string& filename, SystemConfig &SysConfig)
 			else if (key == "Pitch") {
 				SysConfig.Pitch = val.empty() ? 0.0f : std::stof(val);
 			}
-			// FIXED: Z1~Z5 都是 float，並且要從 '=' 之後整段取值 (substr index = 3 原先錯誤)
 			else if (key == "Z1") {
 				SysConfig.Z1 = val.empty() ? 0.0f : std::stof(val);
 			}
@@ -1037,6 +1071,7 @@ int ReadSystemConfig(const std::string& filename, SystemConfig &SysConfig)
 		}
 	}
 
+	file.close();
 	return 0; // Indicate successful read
 }
 

@@ -199,6 +199,11 @@ void SystemParaTab::UpdateControl()
 			_T("相機高度: %d\r\n")
 			_T("轉換因子: %.4f\r\n")
 			_T("影像方向: %d\r\n\r\n")
+			_T("遮罩配置:\r\n")
+			_T("遮罩 X: %.4f\r\n")
+			_T("遮罩 Y: %.4f\r\n")
+			_T("遮罩高度: %.4f\r\n")
+			_T("遮罩寬度: %.4f\r\n\r\n")
 			_T("機器配置:\r\n")
 			_T("機器類型: %s\r\n")
 			_T("點動速度: %d\r\n")
@@ -218,6 +223,10 @@ void SystemParaTab::UpdateControl()
 			pParentWnd->m_SystemPara.CameraHeight,
 			pParentWnd->m_SystemPara.TransferFactor,
 			pParentWnd->m_SystemPara.ImageFlip,
+			pParentWnd->m_SystemPara.MaskX,
+			pParentWnd->m_SystemPara.MaskY,
+			pParentWnd->m_SystemPara.MaskHeight,
+			pParentWnd->m_SystemPara.MaskWidth,
 			CString(pParentWnd->m_SystemPara.MachineType.c_str()),
 			pParentWnd->m_SystemPara.JogVelocity,
 			pParentWnd->m_SystemPara.AutoVelocity,
