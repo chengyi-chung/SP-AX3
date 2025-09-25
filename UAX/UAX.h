@@ -142,7 +142,7 @@ extern "C" UAX_API void GetToolPath(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPat
 // ToolPath: the output tool path
 // With mask image to limit the area of tool path
 extern "C" UAX_API void GetToolPathWithMask(cv::Mat& ImgSrc, cv::Mat& Mask, cv::Point2d Offset, ToolPath& toolpath);
-
+//extern "C" UAX_API void GetToolPathWithMask(cv::Mat& ImgSrc, cv::Mat& Mask, cv::Point2d Offset, ToolPath& toolpath);
 
 
 //Find the area of image

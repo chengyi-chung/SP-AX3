@@ -1102,7 +1102,7 @@ UINT MachineTab::ReadCoordinatesThread(LPVOID pParam)
 				Sleep(200);
 			}
 		}
-		Sleep(800);
+		Sleep(200);
 	}
 
 	return 0;

@@ -183,7 +183,7 @@ void  GetToolPath(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpath)
 // Offset: the offse value of the tool path(Pixel)
 // ToolPath: the output tool path
 // With mask image to limit the area of tool path
-static void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask,double offsetDistance, ToolPath& toolpath)
+void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask,double offsetDistance, ToolPath& toolpath)
 {
 	// 基本檢查
 	if (ImgSrc.empty()) throw std::invalid_argument("輸入圖像為空");
@@ -1126,4 +1126,61 @@ int SafeModbusWriteBit(modbus_t* ctx, int addr, int status)
 {
 	std::lock_guard<std::mutex> lock(plc_mutex);
 	return modbus_write_bit(ctx, addr, status);
+}
+
+//extern "C" UAX_API void GetToolPathWithMask(cv::Mat& ImgSrc, cv::Mat& Mask, cv::Point2d Offset, ToolPath& toolpath)
+void GetToolPathWithMask(cv::Mat& ImgSrc, cv::Mat& Mask, cv::Point2d Offset, ToolPath& toolpath)
+{
+	// 基本檢查
+	if (ImgSrc.empty()) throw std::invalid_argument("輸入圖像為空");
+	if (Mask.empty())   throw std::invalid_argument("掩膜圖像為空");
+	if (ImgSrc.size() != Mask.size())
+		throw std::invalid_argument("圖像與掩膜尺寸不一致");
+
+	// 保證Mask為單通道
+	cv::Mat maskGray;
+	if (Mask.type() != CV_8UC1)
+		cv::cvtColor(Mask, maskGray, cv::COLOR_BGR2GRAY);
+	else
+		maskGray = Mask.clone();
+
+	// 腐蝕內縮Mask（簡單內縮以近似 offset）
+	int nErode = (std::max)(1, int(Offset.x + Offset.y));
+	cv::Mat erodedMask;
+	cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3));
+	cv::erode(maskGray, erodedMask, kernel, cv::Point(-1, -1), nErode);
+
+	// 使用腐蝕後Mask提取區域
+	cv::Mat masked;
+	cv::bitwise_and(ImgSrc, ImgSrc, masked, erodedMask);
+
+	// 灰階化
+	cv::Mat gray;
+	if (masked.channels() != 1)
+		cv::cvtColor(masked, gray, cv::COLOR_BGR2GRAY);
+	else
+		gray = masked;
+
+	// 二值化
+	cv::Mat thresh;
+	cv::threshold(gray, thresh, 128, 255, cv::THRESH_BINARY);
+
+	// 抽取輪廓
+	std::vector<std::vector<cv::Point>> contours;
+	cv::findContours(thresh, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+
+	// 可選: 輪廓近似，減少冗餘點
+	for (auto& contour : contours)
+	{
+		std::vector<cv::Point> approx;
+		cv::approxPolyDP(contour, approx, 1.0, true);
+		for (auto& pt : approx)
+			toolpath.Path.emplace_back(pt.x, pt.y);
+	}
+	toolpath.Offset = cv::Point2d(0, 0);  // 已用腐蝕方式偏移
+
+	// 顯示結果
+	cv::Mat showImg = ImgSrc.clone();
+	cv::drawContours(showImg, contours, -1, cv::Scalar(0, 0, 255), 2);
+	ShowZoomedImage("Offset contours", showImg);
 }

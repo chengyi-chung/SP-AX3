@@ -842,7 +842,7 @@ void WorkTab::ShowImageOnPictureControl(bool flgCenter, cv::Scalar crossColor, i
 
 void WorkTab::OnBnClickedWorkStopGrab()
 {
-    // TODO: 在此加入控制項告知處理常式程式碼
+    // TODO: 在此加入控制項告知處理常式
 
     // If the grab thread is running, stop it
     if (m_bGrabThread)
@@ -936,7 +936,7 @@ void WorkTab::OnBnClickedWorkTempImg()
 
 void WorkTab::OnBnClickedWorkMatchTemp()
 {
-    // TODO: 在此加入控制項告知處理常式程式碼
+    // TODO: 在此加入控制項告知處理常式
 	//m_mat: Source Image
 	//m_matTemp: Template Image
 
@@ -1022,7 +1022,7 @@ void WorkTab::OnBnClickedWorkMatchTemp()
 
 void WorkTab::OnBnClickedIdcWorkToolPath()
 {
-    // TODO: 在此加入控制項告知處理常式程式碼
+    // TODO: 在此加入控制項告知處理常式
 
 	//Get the tool path from the image m_mat
 	//m_mat: Source Image m_mat
@@ -1049,7 +1049,7 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
 
     //直接把結果放到成員變數 toolPath，避免用區域變數後沒指派回來
     this->toolPath.Path.clear();
-    GetToolPathData(ImgSrc, Offset, this->toolPath);
+    //GetToolPathData(ImgSrc, Offset, this->toolPath);
 
 	//Get Mask of the tool path from the image m_mat
 	//ImgSrc: Source Image m_mat
@@ -1059,18 +1059,35 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
 	//Offset: Offset of the tool path, mm to pixel before call GetToolPathWithMask
 	//直接把結果放到成員變數 toolPath，避免用區域變數後沒指派回來
 
+	//cv::Rect roi(MaskX, MaskY, MaskWidth, MaskHeight);
+	//cv::Mat ROI_Mask = m_mat(roi);
+	//GetToolPathWithMask(ImgSrc, ROI_Mask, Offset, this->toolPath);
 
-	//GetToolPathWithMask(ImgSrc, Offset, this->toolPath);
+	// 檢查 m_mat 是否為空
+if (m_mat.empty()) {
+    AfxMessageBox(_T("Source image is empty."));
+    return;
+}
 
-    //
+// 檢查 ROI 是否在影像範圍內
+if (MaskX < 0 || MaskY < 0 ||
+    MaskWidth <= 0 || MaskHeight <= 0 ||
+    MaskX + MaskWidth > m_mat.cols ||
+    MaskY + MaskHeight > m_mat.rows) {
+    AfxMessageBox(_T("ROI is out of image bounds."));
+    return;
+}
 
-
+cv::Rect roi(MaskX, MaskY, MaskWidth, MaskHeight);
+cv::Mat ROI_Mask = m_mat(roi);
+	GetToolPathWithMask(ImgSrc, ROI_Mask, Offset, this->toolPath);
+	
 }
 
 
 void WorkTab::OnBnClickedIdcWorkLoadImg()
 {
-    // TODO: 在此加入控制項告知處理常式程式碼
+    // TODO: 在此加入控制項告知處理常式
 	//Add Dialog Box to load image
 	CString strFilter = _T("Image Files (*.bmp;*.jpg;*.jpeg;*.png;*.tif;*.tiff)|*.bmp;*.jpg;*.jpeg;*.png;*.tif;*.tiff|All Files (*.*)|*.*||");
 	CFileDialog dlg(TRUE, NULL, NULL, OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_HIDEREADONLY, strFilter, this);
@@ -1084,7 +1101,7 @@ void WorkTab::OnBnClickedIdcWorkLoadImg()
 		// Display the image
 		//ShowImageOnPictureControl();
         // 紅色實線
-        ShowImageOnPictureControl(true, cv::Scalar(0, 0, 255, 255), 2, CrossStyle::Solid);
+        ShowImageOnPictureControl(false, cv::Scalar(0, 0, 255, 255), 2, CrossStyle::Solid);
 
 	}
 }
@@ -1092,7 +1109,7 @@ void WorkTab::OnBnClickedIdcWorkLoadImg()
 
 void WorkTab::OnBnClickedIdcWorkSaveImg()
 {
-    // TODO: 在此加入控制項告知處理常式程式碼
+    // TODO: 在此加入控制項告知處理常式
 	//Add Dialog Box to save image
 	CString strFilter = _T("Image Files (*.bmp;*.jpg;*.jpeg;*.png;*.tif;*.tiff)|*.bmp;*.jpg;*.jpeg;*.png;*.tif;*.tiff|All Files (*.*)|*.*||");
 	CFileDialog dlg(FALSE, NULL, NULL, OFN_PATHMUSTEXIST | OFN_HIDEREADONLY, strFilter, this);
@@ -1124,7 +1141,7 @@ void WorkTab::GetToolPathData(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& too
 
 void WorkTab::OnBnClickedIdcWorkGo()
 {
-    // TODO: 在此加入控制項告知處理常式程式碼
+    // TODO: 在此加入控制項告知處理常式
 	//Convert toolPath to m_ToolPathData[20000]
 	//toolPath: Tool Path
 	//m_ToolPathData: Tool Path Data Array
