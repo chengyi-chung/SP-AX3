@@ -141,7 +141,8 @@ extern "C" UAX_API void GetToolPath(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPat
 // Offset: the offse value of the tool path(Pixel)
 // ToolPath: the output tool path
 // With mask image to limit the area of tool path
-extern "C" UAX_API void GetToolPathWithMask(cv::Mat& ImgSrc, cv::Mat& Mask, cv::Point2d Offset, ToolPath& toolpath);
+//extern "C" UAX_API void GetToolPathWithMask(cv::Mat& ImgSrc, cv::Mat& Mask, cv::Point2d Offset, ToolPath& toolpath);
+extern "C" UAX_API void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offsetDistance, ToolPath& toolpath);
 //extern "C" UAX_API void GetToolPathWithMask(cv::Mat& ImgSrc, cv::Mat& Mask, cv::Point2d Offset, ToolPath& toolpath);
 
 

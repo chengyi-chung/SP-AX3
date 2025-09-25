@@ -173,72 +173,87 @@ void  GetToolPath(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpath)
 	cv::waitKey(0);
 	cv::destroyAllWindows();
 }
-//UAX_API void GetToolPathWithMask(cv::Mat& ImgSrc, cv::Mat& Mask, cv::Point2d Offset, ToolPath& toolpath)
-//{
-//	return UAX_API void();
-//}
+
 // Get Tool Path
 // Use Erosiong find the tool path
 // ImgSrc: the input image
 // Offset: the offse value of the tool path(Pixel)
 // ToolPath: the output tool path
 // With mask image to limit the area of tool path
-void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask,double offsetDistance, ToolPath& toolpath)
+void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offsetDistance, ToolPath& toolpath)
 {
-	// 基本檢查
-	if (ImgSrc.empty()) throw std::invalid_argument("輸入圖像為空");
-	if (Mask.empty())   throw std::invalid_argument("掩膜圖像為空");
-	if (ImgSrc.size() != Mask.size())
-		throw std::invalid_argument("圖像與掩膜尺寸不一致");
-
-	// 保證Mask為單通道
-	cv::Mat maskGray;
-	if (Mask.type() != CV_8UC1)
-		cv::cvtColor(Mask, maskGray, cv::COLOR_BGR2GRAY);
-	else
-		maskGray = Mask.clone();
-
-	// 腐蝕內縮Mask（簡單內縮以近似 offset）
-	int nErode = (std::max)(1, int(offsetDistance));
-	cv::Mat erodedMask;
-	cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3));
-	cv::erode(maskGray, erodedMask, kernel, cv::Point(-1, -1), nErode);
-
-	// 使用腐蝕後Mask提取區域
-	cv::Mat masked;
-	cv::bitwise_and(ImgSrc, ImgSrc, masked, erodedMask);
-
-	// 灰階化
-	cv::Mat gray;
-	if (masked.channels() != 1)
-		cv::cvtColor(masked, gray, cv::COLOR_BGR2GRAY);
-	else
-		gray = masked;
-
-	// 二值化
-	cv::Mat thresh;
-	cv::threshold(gray, thresh, 0, 255, cv::THRESH_BINARY | cv::THRESH_OTSU);
-
-	// 抽取輪廓
-	std::vector<std::vector<cv::Point>> contours;
-	cv::findContours(thresh, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-
-	// 可選: 輪廓近似，減少冗餘點
-	for (auto& contour : contours)
+	// Input validation
+	if (ImgSrc.empty() || Mask.empty())
 	{
-		std::vector<cv::Point> approx;
-		cv::approxPolyDP(contour, approx, 1.0, true);
-		for (auto& pt : approx)
-			toolpath.Path.emplace_back(pt.x, pt.y);
+		throw std::invalid_argument("Input image or mask is empty.");
 	}
-	toolpath.Offset = cv::Point2d(0, 0);  // 已用腐蝕方式偏移
+	if (ImgSrc.size() != Mask.size())
+	{
+		throw std::invalid_argument("Image and mask sizes do not match.");
+	}
 
-	// 顯示結果
-	cv::Mat showImg = ImgSrc.clone();
-	cv::drawContours(showImg, contours, -1, cv::Scalar(0, 0, 255), 2);
-	ShowZoomedImage("Offset contours", showImg);
+	// Apply mask to source image
+	cv::Mat maskedImage;
+	if (ImgSrc.channels() == 3)
+	{
+		maskedImage = cv::Mat::zeros(ImgSrc.size(), ImgSrc.type());
+		ImgSrc.copyTo(maskedImage, Mask);
+	}
+	else
+	{
+		maskedImage = ImgSrc.clone();
+		maskedImage.setTo(0, Mask == 0);
+	}
+
+	// Perform erosion for offset
+	cv::Mat result = maskedImage.clone();
+	int numPixelsToErode = static_cast<int>(offsetDistance);
+	cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
+
+	for (int i = 0; i < numPixelsToErode; ++i)
+	{
+		cv::erode(result, result, kernel);
+	}
+
+	// Convert to grayscale if needed
+	cv::Mat gray;
+	if (result.channels() != 1)
+	{
+		cv::cvtColor(result, gray, cv::COLOR_BGR2GRAY);
+	}
+	else
+	{
+		gray = result;
+	}
+
+	// Apply threshold
+	cv::Mat thresh;
+	cv::threshold(gray, thresh, 128, 255, cv::THRESH_BINARY);
+
+	// Find contours in masked region
+	std::vector<std::vector<cv::Point>> contours;
+	std::vector<cv::Vec4i> hierarchy;
+	cv::findContours(thresh, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+
+	// Store results in toolpath
+	toolpath.Offset = cv::Point2d(offsetDistance, offsetDistance);
+	for (const auto& contour : contours)
+	{
+		for (const auto& point : contour)
+		{
+			toolpath.Path.push_back(cv::Point2d(point));
+		}
+	}
+
+	// Draw contours on original image
+	cv::Mat outputImage = ImgSrc.clone();
+	cv::drawContours(outputImage, contours, -1, cv::Scalar(0, 255, 0), 2);
+
+	// Display result
+	ShowZoomedImage("Masked Tool Path", outputImage);
+	cv::waitKey(0);
+	cv::destroyAllWindows();
 }
-
 
 
 
@@ -1128,59 +1143,4 @@ int SafeModbusWriteBit(modbus_t* ctx, int addr, int status)
 	return modbus_write_bit(ctx, addr, status);
 }
 
-//extern "C" UAX_API void GetToolPathWithMask(cv::Mat& ImgSrc, cv::Mat& Mask, cv::Point2d Offset, ToolPath& toolpath)
-void GetToolPathWithMask(cv::Mat& ImgSrc, cv::Mat& Mask, cv::Point2d Offset, ToolPath& toolpath)
-{
-	// 基本檢查
-	if (ImgSrc.empty()) throw std::invalid_argument("輸入圖像為空");
-	if (Mask.empty())   throw std::invalid_argument("掩膜圖像為空");
-	if (ImgSrc.size() != Mask.size())
-		throw std::invalid_argument("圖像與掩膜尺寸不一致");
 
-	// 保證Mask為單通道
-	cv::Mat maskGray;
-	if (Mask.type() != CV_8UC1)
-		cv::cvtColor(Mask, maskGray, cv::COLOR_BGR2GRAY);
-	else
-		maskGray = Mask.clone();
-
-	// 腐蝕內縮Mask（簡單內縮以近似 offset）
-	int nErode = (std::max)(1, int(Offset.x + Offset.y));
-	cv::Mat erodedMask;
-	cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3));
-	cv::erode(maskGray, erodedMask, kernel, cv::Point(-1, -1), nErode);
-
-	// 使用腐蝕後Mask提取區域
-	cv::Mat masked;
-	cv::bitwise_and(ImgSrc, ImgSrc, masked, erodedMask);
-
-	// 灰階化
-	cv::Mat gray;
-	if (masked.channels() != 1)
-		cv::cvtColor(masked, gray, cv::COLOR_BGR2GRAY);
-	else
-		gray = masked;
-
-	// 二值化
-	cv::Mat thresh;
-	cv::threshold(gray, thresh, 128, 255, cv::THRESH_BINARY);
-
-	// 抽取輪廓
-	std::vector<std::vector<cv::Point>> contours;
-	cv::findContours(thresh, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-
-	// 可選: 輪廓近似，減少冗餘點
-	for (auto& contour : contours)
-	{
-		std::vector<cv::Point> approx;
-		cv::approxPolyDP(contour, approx, 1.0, true);
-		for (auto& pt : approx)
-			toolpath.Path.emplace_back(pt.x, pt.y);
-	}
-	toolpath.Offset = cv::Point2d(0, 0);  // 已用腐蝕方式偏移
-
-	// 顯示結果
-	cv::Mat showImg = ImgSrc.clone();
-	cv::drawContours(showImg, contours, -1, cv::Scalar(0, 0, 255), 2);
-	ShowZoomedImage("Offset contours", showImg);
-}

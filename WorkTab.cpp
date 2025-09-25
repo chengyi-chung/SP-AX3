@@ -1078,9 +1078,28 @@ if (MaskX < 0 || MaskY < 0 ||
     return;
 }
 
+// 1. 建立一張與 ImgSrc 一樣大小的全黑 Mask（8位元單通道）
+cv::Mat mask = cv::Mat::zeros(ImgSrc.size(), CV_8UC1);
+
+// 2. 設定 ROI 區域：左上角(X, Y)，寬度Width，高度Height
 cv::Rect roi(MaskX, MaskY, MaskWidth, MaskHeight);
-cv::Mat ROI_Mask = m_mat(roi);
-	GetToolPathWithMask(ImgSrc, ROI_Mask, Offset, this->toolPath);
+
+// 3. 檢查 ROI 是否在 ImgSrc 範圍內，以避免 out-of-bounds 問題
+if ((MaskX >= 0) && (MaskY >= 0) &&
+    (MaskY + MaskWidth <= ImgSrc.cols) &&
+    (MaskY + MaskHeight <= ImgSrc.rows))
+{
+    // 4. 設定 ROI 區域像素為 255（白色，有效區域）
+    mask(roi) = cv::Scalar(255);
+}
+else
+{
+    throw std::invalid_argument("ROI超出原圖範圍");
+}
+
+//cv::Mat ROI_Mask = m_mat(roi);
+
+GetToolPathWithMask(ImgSrc, mask, 10, this->toolPath);
 	
 }
 
