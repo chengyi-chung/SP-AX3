@@ -62,6 +62,12 @@ protected:
 	int oriImageHeight;
 	int imgFlip;
 
+	int MaskX;
+	int MaskY;
+	int MaskWidth;
+	int MaskHeight;
+
+
 	void ToolPathTransform(ToolPath& toolpath, uint16_t* m_ToolPathData);
 	void ToolPathTransform32(ToolPath ToolPapath_Ori, uint16_t* m_ToolPathData);
 

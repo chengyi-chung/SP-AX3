@@ -265,6 +265,10 @@ BOOL WorkTab::OnInitDialog()
 	//Example按鈕
 	//設定按鈕字型與大小
 
+	MaskX = pParentWnd->m_SystemPara.MaskX;
+	MaskY = pParentWnd->m_SystemPara.MaskY;
+	MaskWidth = pParentWnd->m_SystemPara.MaskWidth;
+	MaskHeight = pParentWnd->m_SystemPara.MaskHeight;
 
 
     return 0;
@@ -1046,6 +1050,17 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
     //直接把結果放到成員變數 toolPath，避免用區域變數後沒指派回來
     this->toolPath.Path.clear();
     GetToolPathData(ImgSrc, Offset, this->toolPath);
+
+	//Get Mask of the tool path from the image m_mat
+	//ImgSrc: Source Image m_mat
+	//Offset: Offset of the tool path
+	//toolpath: Tool Path
+	//ImgSrc: Source Image
+	//Offset: Offset of the tool path, mm to pixel before call GetToolPathWithMask
+	//直接把結果放到成員變數 toolPath，避免用區域變數後沒指派回來
+
+
+	//GetToolPathWithMask(ImgSrc, Offset, this->toolPath);
 
     //
 
