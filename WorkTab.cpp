@@ -1453,7 +1453,12 @@ void WorkTab::SendToolPathData32(uint16_t* m_ToolPathData, int sizeOfArray, int 
     }
 
 	//sizeOfArray : 值 分成 low, high , 寫入 40026, 40027 位置
-	// 不關閉或釋放 pParentWnd->m_modbusCtx（由主視窗管理）
+
+    uint16_t sizeRegister[2];
+	// 將 sizeOfArray 拆成兩個 16 位元暫存器
+	sizeRegister[0] = static_cast<uint16_t>(sizeOfArray & 0xFFFF); // low
+	sizeRegister[1] = static_cast<uint16_t>((sizeOfArray >> 16) & 0xFFFF); // high
+	modbus_write_registers(pParentWnd->m_modbusCtx, 40026, 2, sizeRegister);
 
     
 }

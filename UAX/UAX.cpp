@@ -228,7 +228,8 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
 
 	// Apply threshold
 	cv::Mat thresh;
-	cv::threshold(gray, thresh, 128, 255, cv::THRESH_BINARY);
+	//cv::threshold(gray, thresh, 150, 255, cv::THRESH_BINARY);
+	cv::threshold(gray, thresh, 200, 255, cv::THRESH_BINARY);
 
 	// Find contours in masked region
 	std::vector<std::vector<cv::Point>> contours;
