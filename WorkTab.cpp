@@ -784,6 +784,10 @@ void WorkTab::ShowImageOnPictureControl(bool flgCenter, cv::Scalar crossColor, i
         int centerX = imageToShow.cols / 2;
         int centerY = imageToShow.rows / 2;
 
+        //ROI
+        cv::Point2d pointOne;
+        cv::Point2d pointTwo;
+
         auto drawDashedLine = [&](cv::Point start, cv::Point end, int dashLength)
             {
                 double totalLength = cv::norm(end - start);
@@ -798,6 +802,7 @@ void WorkTab::ShowImageOnPictureControl(bool flgCenter, cv::Scalar crossColor, i
                         cv::Point(cvRound(p2f.x), cvRound(p2f.y)),
                         crossColor, lineThickness);
                 }
+
             };
 
         if (style == CrossStyle::Solid)
@@ -818,6 +823,9 @@ void WorkTab::ShowImageOnPictureControl(bool flgCenter, cv::Scalar crossColor, i
             drawDashedLine(cv::Point(centerX, 0),
                 cv::Point(centerX, imageToShow.rows - 1), dashLength);
         }
+
+      
+
     }
 
     BITMAPINFO bitmapInfo;
@@ -1097,9 +1105,11 @@ else
     throw std::invalid_argument("ROI超出原圖範圍");
 }
 
-//cv::Mat ROI_Mask = m_mat(roi);
+//Get offsetDist with offsetDist and distX, distY
+int distOffset = sqrt(pow(Offset.x,2) +pow(Offset.y,2));
 
-GetToolPathWithMask(ImgSrc, mask, 10, this->toolPath);
+
+GetToolPathWithMask(ImgSrc, mask, distOffset, this->toolPath);
 	
 }
 
