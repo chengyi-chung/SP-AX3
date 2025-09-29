@@ -1389,11 +1389,11 @@ void WorkTab::SendToolPathDataA(uint16_t* m_ToolPathData, int sizeOfArray, int s
 
 void WorkTab::SendToolPathData32(uint16_t* m_ToolPathData, int sizeOfArray, int stationID)
 {
-    const int maxBatchSize = 100; // 每批最多 100 個暫存器
+    const int maxBatchSize = 100; // Maximum 100 registers per Modbus write
     CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
-    if (!pParentWnd) { 
-        AfxMessageBox(_T("Parent window is NULL.")); 
-        return; 
+    if (!pParentWnd) {
+        AfxMessageBox(_T("Parent window is NULL."));
+        return;
     }
 
     if (!pParentWnd->m_modbusCtx) {
@@ -1407,70 +1407,59 @@ void WorkTab::SendToolPathData32(uint16_t* m_ToolPathData, int sizeOfArray, int 
     std::lock_guard<std::mutex> lock(pParentWnd->m_modbusMutex);
     modbus_set_slave(pParentWnd->m_modbusCtx, stationID);
 
-    // 寫入總步數 (sizeOfArray 為 4 words per point, 原本寫 sizeOfArray/2)
-    int steps = sizeOfArray / 2;
-    if (modbus_write_register(pParentWnd->m_modbusCtx, 40026, steps) == -1) {
-        CString err; 
-        err.Format(_T("Failed to write total steps: %S"), modbus_strerror(errno));
+    // Write total number of points (each point is 4 registers: Xlow, Xhigh, Ylow, Yhigh)
+    int totalPoints = sizeOfArray / 4;
+    if (modbus_write_register(pParentWnd->m_modbusCtx, 40026, totalPoints) == -1) {
+        CString err;
+        err.Format(_T("Failed to write total points: %S"), modbus_strerror(errno));
         AfxMessageBox(err);
         return;
     }
 
+    // Process data in batches
     uint16_t index = 0;
     while (index < sizeOfArray)
     {
-        // 計算本批處理的點數，每組佔 4 words (Xlow,Xhigh,Ylow,Yhigh)
+        // Calculate number of points to process in this batch
         int remainingPoints = (sizeOfArray - index) / 4;
-        int batchPoints = std::min(maxBatchSize / 4, remainingPoints); // 確保不超過 100/4 = 25 點
+        int batchPoints = std::min(maxBatchSize / 2, remainingPoints); // 100 registers = 50 points (2 registers per coordinate)
         if (batchPoints <= 0) break;
 
-        int batchSize = batchPoints * 2; // 每軸需要 2 個暫存器 (high + low)
+        int batchSize = batchPoints * 2; // Number of registers for X or Y (2 per point)
 
+        // Prepare X and Y register arrays
         std::vector<uint16_t> xRegs(batchSize);
         std::vector<uint16_t> yRegs(batchSize);
 
-        // 重新組織資料：從 [Xlow, Xhigh, Ylow, Yhigh] 格式分離出 X 和 Y 陣列
+        // Extract X and Y coordinates
         for (int i = 0; i < batchPoints; ++i)
         {
             size_t base = index + i * 4;
-            xRegs[i*2]   = m_ToolPathData[base + 0]; // X low
-            xRegs[i*2+1] = m_ToolPathData[base + 1]; // X high
-            yRegs[i*2]   = m_ToolPathData[base + 2]; // Y low
-            yRegs[i*2+1] = m_ToolPathData[base + 3]; // Y high
+            xRegs[i * 2] = m_ToolPathData[base + 0]; // X low
+            xRegs[i * 2 + 1] = m_ToolPathData[base + 1]; // X high
+            yRegs[i * 2] = m_ToolPathData[base + 2]; // Y low
+            yRegs[i * 2 + 1] = m_ToolPathData[base + 3]; // Y high
         }
 
-        // 寫入 X 座標資料
-        int startAddressX = 0;
-        int writeIndexX = (index / 2); // 因為每 4 個元素對應 2 個座標位置
-        if (modbus_write_registers(pParentWnd->m_modbusCtx, startAddressX + writeIndexX, batchSize, xRegs.data()) == -1) {
-            CString err; 
-            err.Format(_T("Failed to write X block at %d: %S"), writeIndexX, modbus_strerror(errno));
+        // Write X coordinates to registers 0–19999
+        int writeIndex = (index / 4) * 2; // Each point contributes 2 registers
+        if (modbus_write_registers(pParentWnd->m_modbusCtx, writeIndex, batchSize, xRegs.data()) == -1) {
+            CString err;
+            err.Format(_T("Failed to write X block at address %d: %S"), writeIndex, modbus_strerror(errno));
             AfxMessageBox(err);
             return;
         }
 
-        // 寫入 Y 座標資料
-        int startAddressY = 20000;
-        int writeIndexY = (index / 2);
-        if (modbus_write_registers(pParentWnd->m_modbusCtx, startAddressY + writeIndexY, batchSize, yRegs.data()) == -1) {
-            CString err; 
-            err.Format(_T("Failed to write Y block at %d: %S"), writeIndexY, modbus_strerror(errno));
+        // Write Y coordinates to registers 20000–39999
+        if (modbus_write_registers(pParentWnd->m_modbusCtx, 20000 + writeIndex, batchSize, yRegs.data()) == -1) {
+            CString err;
+            err.Format(_T("Failed to write Y block at address %d: %S"), 20000 + writeIndex, modbus_strerror(errno));
             AfxMessageBox(err);
             return;
         }
 
-        index += batchPoints * 4; // 前進到下一批資料
+        index += batchPoints * 4; // Advance to next batch (4 registers per point)
     }
-
-	//sizeOfArray : 值 分成 low, high , 寫入 40026, 40027 位置
-
-    uint16_t sizeRegister[2];
-	// 將 sizeOfArray 拆成兩個 16 位元暫存器
-	sizeRegister[0] = static_cast<uint16_t>(sizeOfArray & 0xFFFF); // low
-	sizeRegister[1] = static_cast<uint16_t>((sizeOfArray >> 16) & 0xFFFF); // high
-	modbus_write_registers(pParentWnd->m_modbusCtx, 40026, 2, sizeRegister);
-
-    
 }
 
 //Add Calibration Dialog
