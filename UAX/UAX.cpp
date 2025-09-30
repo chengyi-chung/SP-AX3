@@ -238,11 +238,13 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
 
 	// Store results in toolpath
 	toolpath.Offset = cv::Point2d(offsetDistance, offsetDistance);
+	int indexPath = 0;
 	for (const auto& contour : contours)
 	{
 		for (const auto& point : contour)
 		{
 			toolpath.Path.push_back(cv::Point2d(point));
+			indexPath++;
 		}
 	}
 
