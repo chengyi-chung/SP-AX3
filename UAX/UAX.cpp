@@ -250,7 +250,7 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
 
 	//Print tool path data to a file indebug mode
 #ifdef _DEBUG
-	std::ofstream outFile("ToolPathData.txt");
+	std::ofstream outFile("C:\\Temp\\ToolPathData.txt");
 	if (outFile.is_open())
 	{
 		for (const auto& point : toolpath.Path)

@@ -41,8 +41,8 @@ D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(192,3): warning C4297: 'GetTool
       D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(192,3):
       已在函式指定 __declspec(nothrow)、throw()、noexcept(true) 或 noexcept
   
-D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(898,3): warning C4297: 'WriteConfigToFile': 函式預設並不會擲回例外狀況，但卻擲回例外狀況
-      D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(898,3):
+D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(913,3): warning C4297: 'WriteConfigToFile': 函式預設並不會擲回例外狀況，但卻擲回例外狀況
+      D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(913,3):
       已在函式指定 __declspec(nothrow)、throw()、noexcept(true) 或 noexcept
   
      正在建立程式庫 D:\Git Repository\chengyi-chung\YUFA\x64\Release\UAX.lib 和物件 D:\Git Repository\chengyi-chung\YUFA\x64\Release\UAX.exp

@@ -1108,7 +1108,6 @@ else
 //Get offsetDist with offsetDist and distX, distY
 int distOffset = sqrt(pow(Offset.x,2) +pow(Offset.y,2));
 
-
 GetToolPathWithMask(ImgSrc, mask, distOffset, this->toolPath);
 	
 }
@@ -1178,8 +1177,6 @@ void WorkTab::OnBnClickedIdcWorkGo()
 	//Convert toolPath.Path to m_ToolPathData[20000]
 	int sizeOfToolPath = this->toolPath.Path.size();
 
-   
-
 	// int m_ToolPathData[20000];
     //uint16_t* m_ToolPathData = new uint16_t[20000];
     //call ToolPathTransform(ToolPath& toolpath, int* m_ToolPathData)
@@ -1209,6 +1206,8 @@ void WorkTab::OnBnClickedIdcWorkGo()
     //toolPath_world.Path : Path of the tool in world coordinate
     //Convert toolPath_world.Path to m_ToolPathData[20000]
 	//ToolPathTransform(toolPath_world, m_ToolPathData);
+
+    //定義最高10000點(DINT)，m_ToolPathData矩陣尺寸要大4倍
 	ToolPathTransform32(this->toolPath, m_ToolPathData);  //轉換 toolPath到 m_ToolPathData[40000] 矩陣
 
 
@@ -1216,6 +1215,11 @@ void WorkTab::OnBnClickedIdcWorkGo()
 	//call SendToolPathData(int* m_ToolPathData, int sizeOfArray, int stationID)
 
 	//send m_ToolPathData to PLC with modbus tcp
+	//一個點4個uint16_t Point(x_low, x_high, y_low, y_high)
+    sizeOfToolPath = sizeOfToolPath * 4;
+    //Get m_ToolPathData
+
+    //
 	SendToolPathData32(m_ToolPathData, sizeOfToolPath, 1);
 
 }
@@ -1248,8 +1252,8 @@ void WorkTab::ToolPathTransform32(ToolPath ToolPapath_Ori, uint16_t* m_ToolPathD
         size_t base = i * 4;
         m_ToolPathData[base + 0] = static_cast<uint16_t>(x_u & 0xFFFFu); // X low
         m_ToolPathData[base + 1] = static_cast<uint16_t>((x_u >> 16) & 0xFFFFu); // X high
-        m_ToolPathData[base + 2] = static_cast<uint16_t>(y_u & 0xFFFFu);  
-        m_ToolPathData[base + 3] = static_cast<uint16_t>((y_u >> 16) & 0xFFFFu);
+        m_ToolPathData[base + 2] = static_cast<uint16_t>(y_u & 0xFFFFu);  // Y low
+        m_ToolPathData[base + 3] = static_cast<uint16_t>((y_u >> 16) & 0xFFFFu);  //Y hight
     }
 }
 
@@ -1387,15 +1391,19 @@ void WorkTab::SendToolPathDataA(uint16_t* m_ToolPathData, int sizeOfArray, int s
     } // unlock
 }
 
+// 將工具路徑資料 m_ToolPathData 寫入 PLC，使用 Modbus 通訊
 void WorkTab::SendToolPathData32(uint16_t* m_ToolPathData, int sizeOfArray, int stationID)
 {
-    const int maxBatchSize = 100; // Maximum 100 registers per Modbus write
+    const int maxBatchSize = 100; // 每次最多寫入 100 個暫存器（Modbus 限制）
+
+    // 取得主視窗指標（用於存取 Modbus 相關設定）
     CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
     if (!pParentWnd) {
         AfxMessageBox(_T("Parent window is NULL."));
         return;
     }
 
+    // 若尚未建立 Modbus 連線，則嘗試初始化
     if (!pParentWnd->m_modbusCtx) {
         bool ok = pParentWnd->InitModbusWithRetry(pParentWnd->m_SystemPara.IpAddress, pParentWnd->Port, stationID, 3, 1000);
         if (!ok) {
@@ -1404,11 +1412,14 @@ void WorkTab::SendToolPathData32(uint16_t* m_ToolPathData, int sizeOfArray, int 
         }
     }
 
+    // 加鎖，確保 Modbus 操作執行緒安全
     std::lock_guard<std::mutex> lock(pParentWnd->m_modbusMutex);
-    modbus_set_slave(pParentWnd->m_modbusCtx, stationID);
+    modbus_set_slave(pParentWnd->m_modbusCtx, stationID); // 設定目標站號
 
-    // Write total number of points (each point is 4 registers: Xlow, Xhigh, Ylow, Yhigh)
+    // 每個點佔 4 個暫存器（X低、X高、Y低、Y高）
     int totalPoints = sizeOfArray / 4;
+
+    // 將總點數寫入 PLC 的 40026 暫存器
     if (modbus_write_register(pParentWnd->m_modbusCtx, 40026, totalPoints) == -1) {
         CString err;
         err.Format(_T("Failed to write total points: %S"), modbus_strerror(errno));
@@ -1416,33 +1427,33 @@ void WorkTab::SendToolPathData32(uint16_t* m_ToolPathData, int sizeOfArray, int 
         return;
     }
 
-    // Process data in batches
-    uint16_t index = 0;
-    while (index < sizeOfArray)
+    // 開始分批寫入資料
+    int pointIndex = 0;
+    while (pointIndex < totalPoints)
     {
-        // Calculate number of points to process in this batch
-        int remainingPoints = (sizeOfArray - index) / 4;
-        int batchPoints = std::min(maxBatchSize / 2, remainingPoints); // 100 registers = 50 points (2 registers per coordinate)
-        if (batchPoints <= 0) break;
+        // 計算剩餘點數與本批次要處理的點數（最多 50 點）
+        int remainingPoints = totalPoints - pointIndex;
+        int batchPoints = std::min(maxBatchSize / 2, remainingPoints); // 每批最多 50 點
+        int batchSize = batchPoints * 2; // 每個座標佔 2 個暫存器（低位、高位）
 
-        int batchSize = batchPoints * 2; // Number of registers for X or Y (2 per point)
-
-        // Prepare X and Y register arrays
+        // 建立 X/Y 暫存器資料陣列
         std::vector<uint16_t> xRegs(batchSize);
         std::vector<uint16_t> yRegs(batchSize);
 
-        // Extract X and Y coordinates
+        // 從 m_ToolPathData 中擷取 X/Y 座標資料
         for (int i = 0; i < batchPoints; ++i)
         {
-            size_t base = index + i * 4;
-            xRegs[i * 2] = m_ToolPathData[base + 0]; // X low
-            xRegs[i * 2 + 1] = m_ToolPathData[base + 1]; // X high
-            yRegs[i * 2] = m_ToolPathData[base + 2]; // Y low
-            yRegs[i * 2 + 1] = m_ToolPathData[base + 3]; // Y high
+            size_t base = (pointIndex + i) * 4;
+            xRegs[i * 2] = m_ToolPathData[base + 0]; // X 低位
+            xRegs[i * 2 + 1] = m_ToolPathData[base + 1]; // X 高位
+            yRegs[i * 2] = m_ToolPathData[base + 2]; // Y 低位
+            yRegs[i * 2 + 1] = m_ToolPathData[base + 3]; // Y 高位
         }
 
-        // Write X coordinates to registers 0–19999
-        int writeIndex = (index / 4) * 2; // Each point contributes 2 registers
+        // 計算寫入暫存器的起始位置（每點佔 2 個暫存器）
+        int writeIndex = pointIndex * 2;
+
+        // 寫入 X 座標資料到暫存器區段 0–19999
         if (modbus_write_registers(pParentWnd->m_modbusCtx, writeIndex, batchSize, xRegs.data()) == -1) {
             CString err;
             err.Format(_T("Failed to write X block at address %d: %S"), writeIndex, modbus_strerror(errno));
@@ -1450,7 +1461,7 @@ void WorkTab::SendToolPathData32(uint16_t* m_ToolPathData, int sizeOfArray, int 
             return;
         }
 
-        // Write Y coordinates to registers 20000–39999
+        // 寫入 Y 座標資料到暫存器區段 20000–39999
         if (modbus_write_registers(pParentWnd->m_modbusCtx, 20000 + writeIndex, batchSize, yRegs.data()) == -1) {
             CString err;
             err.Format(_T("Failed to write Y block at address %d: %S"), 20000 + writeIndex, modbus_strerror(errno));
@@ -1458,9 +1469,11 @@ void WorkTab::SendToolPathData32(uint16_t* m_ToolPathData, int sizeOfArray, int 
             return;
         }
 
-        index += batchPoints * 4; // Advance to next batch (4 registers per point)
+        // 移動到下一批點資料
+        pointIndex += batchPoints;
     }
 }
+
 
 //Add Calibration Dialog
 void WorkTab::OnBnClickedIdcWorkCalibration()
