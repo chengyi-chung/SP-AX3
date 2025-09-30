@@ -248,6 +248,19 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
 		}
 	}
 
+	//Print tool path data to a file indebug mode
+#ifdef _DEBUG
+	std::ofstream outFile("ToolPathData.txt");
+	if (outFile.is_open())
+	{
+		for (const auto& point : toolpath.Path)
+		{
+			outFile << point.x << ", " << point.y << std::endl;
+		}
+		outFile.close();
+	}
+#endif
+
 	// Draw contours on original image
 	cv::Mat outputImage = ImgSrc.clone();
 	cv::drawContours(outputImage, contours, -1, cv::Scalar(0, 255, 0), 2);
