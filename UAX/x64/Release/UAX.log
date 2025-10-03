@@ -22,7 +22,7 @@ D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.h(107,28): warning C4190: 'fitImage
   
 D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.h(264,32): warning C4190: 'GetAppPath' 已指定 C-連結，但傳回與 C 不相容的 'std::basic_string<char,std::char_traits<char>,std::allocator<char>>'
   (編譯來源檔案 'UAX.cpp')
-      C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\include\xstring(541,7):
+      C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.50.35503\include\xstring(584,7):
       請參閱 'std::basic_string<char,std::char_traits<char>,std::allocator<char>>' 的宣告
   
 D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(25,9): warning C4005: '_T': 巨集重複定義
@@ -48,6 +48,6 @@ D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(913,3): warning C4297: 'WriteCo
      正在建立程式庫 D:\Git Repository\chengyi-chung\YUFA\x64\Release\UAX.lib 和物件 D:\Git Repository\chengyi-chung\YUFA\x64\Release\UAX.exp
   正在產生程式碼
   Previous IPDB not found, fall back to full compilation.
-  All 739 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+  All 785 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
   已完成程式碼產生
   UAX.vcxproj -> D:\Git Repository\chengyi-chung\YUFA\x64\Release\UAX.dll

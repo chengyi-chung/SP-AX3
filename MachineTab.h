@@ -175,6 +175,11 @@ public:
 
 		std::mutex m_modbusMutex;
 
-		
+		// 在 MachineTab 類別中新增 m_bModbusError 成員變數
+    BOOL m_bModbusError = FALSE; // Modbus 錯誤旗標，預設為 FALSE
+	 bool m_IsModbusWrite= FALSE; // 是否使用 Modbus 旗標，預設為 false
+
+public:
+	afx_msg void OnTimer(UINT_PTR nIDEvent);
 };
 

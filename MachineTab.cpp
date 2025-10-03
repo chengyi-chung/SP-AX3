@@ -18,6 +18,7 @@ MachineTab::MachineTab(CWnd* pParent /*=nullptr*/)
 	, m_pCoordinateThread(nullptr)
 	, m_bThreadRunning(FALSE)
 	, m_hStopThreadEvent(nullptr)
+	, m_bModbusError(false) // 初始化 m_bModbusError
 {
 
 }
@@ -62,7 +63,7 @@ BEGIN_MESSAGE_MAP(MachineTab, CDialog)
 
 	// ... 現有消息映射 ...
 	ON_MESSAGE(WM_UPDATE_COORDINATES, &MachineTab::OnUpdateCoordinates)
-
+	ON_WM_TIMER()
 END_MESSAGE_MAP()
 
 
@@ -92,6 +93,9 @@ BOOL MachineTab::OnInitDialog()
 	// 初始化父視窗指標
 	m_pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
 	
+
+	// 新增：每 30 秒執行一次 Modbus keep-alive
+    //SetTimer(200, 30000, NULL); // Timer ID 200, 30 秒
 
 	return TRUE;  // return TRUE unless you set the focus to a control
 	// EXCEPTION: OCX Property Pages should return FALSE
@@ -136,6 +140,7 @@ void MachineTab::CloseModBus()
 	m_strReportData += "\r\nModbus connection closed (由主視窗管理).";
 	SetDlgItemText(IDC_EDIT_REPORT, CString(m_strReportData.c_str()));
 }
+
 
 //send data to modbus server
 void MachineTab::SendDataToModBus()
@@ -191,6 +196,11 @@ void MachineTab::Discrete3000Change(int intType, int BitAdress, int BitValue, in
     m_strReportData = m_strReportData + "\r\n" + "Reg[30000]." + std::to_string(BitAdress) + " = " +
         std::to_string(Discrete3000Word) + " " + Discrete3000.to_string();
     SetDlgItemText(IDC_EDIT_REPORT, CString(m_strReportData.c_str()));
+	CEdit* pEdit = (CEdit*)GetDlgItem(IDC_EDIT_REPORT);
+	if (pEdit) {
+		int nLen = pEdit->GetWindowTextLength();
+		pEdit->SetSel(nLen, nLen);
+	}
 
     if (rc == -1)
     {
@@ -219,6 +229,11 @@ void MachineTab::ClearDiscrete3000(int iStartAdress, int iEndAdress)
 	int rc = modbus_write_register(pParentWnd->m_modbusCtx, 30000, Discrete3000Word);
 	m_strReportData = m_strReportData + "\r\n" + "Reg[30000]." + std::to_string(iStartAdress) + "  = " + std::to_string(Discrete3000Word) + " " + Discrete3000.to_string();
 	SetDlgItemText(IDC_EDIT_REPORT, CString(m_strReportData.c_str()));
+	CEdit* pEdit = (CEdit*)GetDlgItem(IDC_EDIT_REPORT);
+	if (pEdit) {
+		int nLen = pEdit->GetWindowTextLength();
+		pEdit->SetSel(nLen, nLen);
+	}
 	if (rc == -1)
 	{
 		CString errorMessage;
@@ -232,6 +247,7 @@ void MachineTab::ClearDiscrete5000(int iStartAdress, int iEndAdress)
 	CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
 	if (!pParentWnd || !pParentWnd->m_modbusCtx) {
 		AfxMessageBox(_T("Modbus 尚未連線，請先建立連線。"));
+		//建立連線
 		return;
 	}
 	std::lock_guard<std::mutex> lock(pParentWnd->m_modbusMutex);
@@ -244,6 +260,11 @@ void MachineTab::ClearDiscrete5000(int iStartAdress, int iEndAdress)
 	int rc = modbus_write_register(pParentWnd->m_modbusCtx, 50000, Discrete5000Word);
 	m_strReportData = m_strReportData + "\r\n" + "Reg[50000]." + std::to_string(iStartAdress) + "  = " + std::to_string(Discrete5000Word) + " " + Discrete5000.to_string();
 	SetDlgItemText(IDC_EDIT_REPORT, CString(m_strReportData.c_str()));
+	CEdit* pEdit = (CEdit*)GetDlgItem(IDC_EDIT_REPORT);
+	if (pEdit) {
+		int nLen = pEdit->GetWindowTextLength();
+		pEdit->SetSel(nLen, nLen);
+	}
 	if (rc == -1)
 	{
 		CString errorMessage;
@@ -599,9 +620,13 @@ void MachineTab::SetHoldingRegisteDInt(int iStartAdress, int iEndAdress, uint16_
 
 BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 {
-	// 範例：攔截 X+ 按鈕的 Mouse Down/Up
+	// 攔截按鈕的 Mouse Down 和 Mouse Up 事件
 	if (pMsg->message == WM_LBUTTONDOWN || pMsg->message == WM_LBUTTONUP)
 	{
+
+		m_IsModbusWrite = TRUE;
+
+		// 攔截 X + 按鈕的 Mouse Down / Up
 		CWnd* pBtnXPlus = GetDlgItem(IDC_BTN_JOG_X_PLUS);
 		if (pBtnXPlus && pBtnXPlus->m_hWnd == pMsg->hwnd)
 		{
@@ -620,7 +645,7 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 				int nID = IDC_BTN_JOG_X_PLUS;
 
 				flgGetCoord = FALSE;
-				this->ClearDiscrete5000(0, 8);
+				//this->ClearDiscrete5000(0, 8);
 				Discrete5000Change(1, bitAdress, bitValue, nID);
 				
 			}
@@ -636,7 +661,7 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 				flgGetCoord = TRUE;
 			}
 		}
-		//Add similar checks for IDC_BTN_JOG_X_PLUS
+		//攔截 X - 按鈕的 Mouse Down / Up
 		CWnd* pBtnXMinus = GetDlgItem(IDC_BTN_JOG_X_MINUS);
 		if (pBtnXMinus && pBtnXMinus->m_hWnd == pMsg->hwnd)
 		{
@@ -648,7 +673,7 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 			 int bitValue = 1;
 			 int nID = IDC_BTN_JOG_X_MINUS;
 			 flgGetCoord = FALSE;
-			 ClearDiscrete5000(0, 8);
+			 //ClearDiscrete5000(0, 8);
 			 Discrete5000Change(1, bitAdress, bitValue, nID);
 			}
 			else if (pMsg->message == WM_LBUTTONUP)
@@ -676,7 +701,7 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 			 int nID = IDC_BTN_JOG_Y_PLUS;
 
 			 flgGetCoord = FALSE;
-			 ClearDiscrete5000(0, 8);
+			 //ClearDiscrete5000(0, 8);
 			 Discrete5000Change(1, bitAdress, bitValue, nID);
 			}
 			else if (pMsg->message == WM_LBUTTONUP)
@@ -705,7 +730,7 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 			 int nID = IDC_BTN_JOG_Y_MINUS;
 
 			 flgGetCoord = FALSE;
-			 ClearDiscrete5000(0, 8);
+			 //ClearDiscrete5000(0, 8);
 			 Discrete5000Change(1, bitAdress, bitValue, nID);
 			}
 			else if (pMsg->message == WM_LBUTTONUP)
@@ -735,7 +760,7 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 			 int nID = IDC_BTN_JOG_Z_PLUS;
 
 			 flgGetCoord = FALSE;
-			 ClearDiscrete5000(0, 8);
+			 //ClearDiscrete5000(0, 8);
 			 Discrete5000Change(1, bitAdress, bitValue, nID);
 			}
 			else if (pMsg->message == WM_LBUTTONUP)
@@ -764,7 +789,7 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 			    int nID = IDC_BTN_JOG_Z_MINUS;
 
 			    flgGetCoord = FALSE;
-			    ClearDiscrete5000(0, 8);
+			    //ClearDiscrete5000(0, 8);
 			    Discrete5000Change(1, bitAdress, bitValue, nID);
 			}
 			else if (pMsg->message == WM_LBUTTONUP)
@@ -779,8 +804,13 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 				flgGetCoord = TRUE;
 			}
 		}
+
+
+
+		m_IsModbusWrite = FALSE;
 	}
 
+	// 攔截 Enter 鍵
 	if (pMsg->message == WM_KEYDOWN && pMsg->wParam == VK_RETURN)
 	{
 		// 攔截 Enter 鍵，不做任何事
@@ -999,27 +1029,22 @@ void MachineTab::UpdateControl()
 	// TransferFactor (assuming float, adjust if int)
 	cStr.Format(_T("%.4f"), pParentWnd->m_SystemPara.TransferFactor);
 	SetDlgItemText(IDC_EDIT_TRANSFER_FACTOR, cStr);
-	// Z1 (assuming int, adjust if float)
-	//cStr.Format(_T("%d"), pParentWnd->m_SystemPara.Z1);
-    // 原本的寫法會有 C6273 警告，因為 pParentWnd->m_SystemPara.Z1 是 float 型別
-    // cStr.Format(_T("%d"), pParentWnd->m_SystemPara.Z1);
-
-    // 修正方式：先將 float 轉為 int，再傳給 Format
-    cStr.Format(_T("%d"), static_cast<int>(pParentWnd->m_SystemPara.Z1));
+	
+	// Z1-Z5 位置值 - 修正 C6273 警告
+	cStr.Format(_T("%d"), static_cast<int>(pParentWnd->m_SystemPara.Z1));
 	SetDlgItemText(IDC_EDIT_Z1, cStr);
-	// Z2 (assuming int, adjust if float)
+	
 	cStr.Format(_T("%d"), static_cast<int>(pParentWnd->m_SystemPara.Z2));
 	SetDlgItemText(IDC_EDIT_Z2, cStr);
-	// Z3 (assuming int, adjust if float)
+	
 	cStr.Format(_T("%d"), static_cast<int>(pParentWnd->m_SystemPara.Z3));
 	SetDlgItemText(IDC_EDIT_Z3, cStr);
-	// Z4 (assuming int, adjust if float)
+	
 	cStr.Format(_T("%d"), static_cast<int>(pParentWnd->m_SystemPara.Z4));
 	SetDlgItemText(IDC_EDIT_Z4, cStr);
-	// Z5 (assuming int, adjust if float)
+	
 	cStr.Format(_T("%d"), static_cast<int>(pParentWnd->m_SystemPara.Z5));
 	SetDlgItemText(IDC_EDIT_Z5, cStr);
-
 }
 
 // Custom message handler to update coordinates
@@ -1069,40 +1094,68 @@ UINT MachineTab::ReadCoordinatesThread(LPVOID pParam)
 			continue;
 		}
 
-		uint16_t registers[numRegisters] = { 0 };
+		if (!pThis->m_IsModbusWrite)
 		{
-			std::lock_guard<std::mutex> lock(pParentWnd->m_modbusMutex);
-			int rc = modbus_read_registers(pParentWnd->m_modbusCtx, startAddress, numRegisters, registers);
 
-			if (rc == numRegisters)
+			uint16_t registers[numRegisters] = { 0 };
 			{
-				float coordinates[3] = { 0.0f, 0.0f, 0.0f };
-				for (int i = 0; i < 3; ++i)
+				std::lock_guard<std::mutex> lock(pParentWnd->m_modbusMutex);
+
+				int rc = modbus_read_registers(pParentWnd->m_modbusCtx, startAddress, numRegisters, registers);
+
+				if (rc == numRegisters)
 				{
-					// 修正：registers[i*2] 是低位字，registers[i*2+1] 是高位字
-					uint32_t raw = (static_cast<uint32_t>(registers[i * 2 + 1]) << 16) | registers[i * 2];
-					int32_t signedValue = static_cast<int32_t>(raw);
-					coordinates[i] = static_cast<float>(signedValue) * scalingFactor;
+					// 成功，m_bModbusError 設為 false
+					pThis->m_bModbusError = false;
+				}
+				else {
+					if (!pThis->m_bModbusError) {
+						// 失敗且尚未標記錯誤，設為 true
+						pThis->m_bModbusError = true;
+					}
+					// ...其他錯誤處理...
 				}
 
-				float* coordPtr = new float[3];
-				coordPtr[0] = coordinates[0];
-				coordPtr[1] = coordinates[1];
-				coordPtr[2] = coordinates[2];
+				if (rc == numRegisters)
+				{
+					float coordinates[3] = { 0.0f, 0.0f, 0.0f };
+					for (int i = 0; i < 3; ++i)
+					{
+						// 修正：registers[i*2] 是低位字，registers[i*2+1] 是高位字
+						uint32_t raw = (static_cast<uint32_t>(registers[i * 2 + 1]) << 16) | registers[i * 2];
+						int32_t signedValue = static_cast<int32_t>(raw);
+						coordinates[i] = static_cast<float>(signedValue) * scalingFactor;
+					}
 
-				pThis->PostMessage(WM_UPDATE_COORDINATES, 0, reinterpret_cast<LPARAM>(coordPtr));
+					float* coordPtr = new float[3];
+					coordPtr[0] = coordinates[0];
+					coordPtr[1] = coordinates[1];
+					coordPtr[2] = coordinates[2];
+
+					pThis->PostMessage(WM_UPDATE_COORDINATES, 0, reinterpret_cast<LPARAM>(coordPtr));
+					pThis->m_bModbusError = false; // 成功時清除錯誤旗標
+				}
+				else
+				{
+					if (!pThis->m_bModbusError) {
+						CString errorMessage;
+						errorMessage.Format(_T("Failed to read coordinates: %S"), modbus_strerror(errno));
+						pThis->m_strReportData += "\r\n" + std::string(CT2A(errorMessage));
+						pThis->PostMessage(WM_UPDATE_REPORT, 0, reinterpret_cast<LPARAM>(new std::string(pThis->m_strReportData)));
+						AfxMessageBox(errorMessage);
+						pThis->m_bModbusError = true;
+					}
+					//pThis->ClearDiscrete5000(0, 8);
+					//Sleep(200);
+				}
 			}
-			else
-			{
-				CString errorMessage;
-				errorMessage.Format(_T("Failed to read coordinates: %S"), modbus_strerror(errno));
-				pThis->m_strReportData += "\r\n" + std::string(CT2A(errorMessage));
-				pThis->PostMessage(WM_UPDATE_REPORT, 0, reinterpret_cast<LPARAM>(new std::string(pThis->m_strReportData)));
-				pThis->ClearDiscrete5000(0, 8);
-				Sleep(200);
-			}
+			Sleep(200);
+
 		}
-		Sleep(200);
+		else
+		{
+			int test = 0;
+		}
 	}
 
 	return 0;
@@ -1188,4 +1241,30 @@ void MachineTab::StopCoordinateThread()
     }
 
     return true;
+}
+
+void MachineTab::OnTimer(UINT_PTR nIDEvent)
+{
+	CDialog::OnTimer(nIDEvent);
+
+	if (nIDEvent == 200) // Timer ID 200
+	{
+		// 執行 Modbus keep-alive，這裡簡單讀取一個寄存器作為範例
+		CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
+		if (pParentWnd && pParentWnd->m_modbusCtx)
+		{
+			uint16_t dummy;
+			std::lock_guard<std::mutex> lock(pParentWnd->m_modbusMutex);
+			int rc = modbus_read_registers(pParentWnd->m_modbusCtx, 0, 1, &dummy);
+
+			if (rc == -1)
+			{
+				CString errorMessage;
+				errorMessage.Format(_T("Modbus keep-alive failed: %S"), modbus_strerror(errno));
+				AfxMessageBox(errorMessage);
+			}
+		}
+	}
+
+	// 可加入其他定時任務
 }

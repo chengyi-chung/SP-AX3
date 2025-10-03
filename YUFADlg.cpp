@@ -173,7 +173,7 @@ BOOL CYUFADlg::OnInitDialog()
 	}
 
     // Set Timer
-	SetTimer(100, 1000, NULL);
+	//SetTimer(100, 1000, NULL);
 
 	//Set Dialog Maximize and Minimize icon
 	ModifyStyle(0, WS_MAXIMIZEBOX | WS_MINIMIZEBOX, 0);
@@ -346,6 +346,19 @@ void CYUFADlg::OnTimer(UINT_PTR nIDEvent)
 	CTime t1;
 	t1 = CTime::GetCurrentTime();
 	m_Status_Bar.SetPaneText(1, t1.Format("%H:%M:%S"));
+
+	// 每 30 秒執行一次 Modbus 心跳
+	static int keepAliveCounter = 0;
+	keepAliveCounter++;
+	if (keepAliveCounter >= 30) { // 30 秒
+		keepAliveCounter = 0;
+		if (m_modbusCtx) {
+			uint16_t buffer[1] = {0};
+			// 讀取暫存器 0 作為心跳
+			SafeModbusReadRegisters(m_modbusCtx, 0, 1, buffer);
+			// 可忽略回傳值，只為保持連線
+		}
+	}
 
 	CDialogEx::OnTimer(nIDEvent);
 }
@@ -635,6 +648,7 @@ bool CYUFADlg::InitModbusWithRetry(const std::string& ip, int port, int slaveId,
     // 最終失敗
     modbus_free(m_modbusCtx);
     m_modbusCtx = nullptr;
+    // 將 MB_ICON_ERROR 改為 MessageBox 的標準錯誤圖示 MB_ICONERROR
     AfxMessageBox(_T("Modbus 連線多次失敗，請檢查網路或 PLC 狀態。"), MB_ICONERROR);
     return false;
 }
