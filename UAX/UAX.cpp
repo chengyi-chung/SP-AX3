@@ -228,7 +228,6 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
 
 	// Apply threshold
 	cv::Mat thresh;
-	//cv::threshold(gray, thresh, 150, 255, cv::THRESH_BINARY);
 	cv::threshold(gray, thresh, 200, 255, cv::THRESH_BINARY);
 
 	// Find contours in masked region
@@ -236,19 +235,67 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
 	std::vector<cv::Vec4i> hierarchy;
 	cv::findContours(thresh, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
+	// Smooth contours
+	std::vector<std::vector<cv::Point2d>> smoothedContours;
+	for (const auto& contour : contours)
+	{
+		// Convert contour to Point2d for smoothing
+		std::vector<cv::Point2d> points;
+		for (const auto& point : contour)
+		{
+			points.push_back(cv::Point2d(point.x, point.y));
+		}
+
+		// Apply Gaussian smoothing to the points
+		std::vector<cv::Point2d> smoothedPoints;
+		int smoothingSize = 5; // Kernel size for smoothing (must be odd)
+		double sigma = 1.5; // Standard deviation for Gaussian kernel
+		if (points.size() >= smoothingSize)
+		{
+			std::vector<double> xCoords(points.size()), yCoords(points.size());
+			for (size_t i = 0; i < points.size(); ++i)
+			{
+				xCoords[i] = points[i].x;
+				yCoords[i] = points[i].y;
+			}
+
+			// Create Gaussian kernel
+			cv::Mat kernel1D = cv::getGaussianKernel(smoothingSize, sigma, CV_64F);
+			cv::Mat xMat(1, xCoords.size(), CV_64F, xCoords.data());
+			cv::Mat yMat(1, yCoords.size(), CV_64F, yCoords.data());
+			cv::Mat smoothedX, smoothedY;
+
+			// Apply convolution for smoothing
+			cv::filter2D(xMat, smoothedX, -1, kernel1D, cv::Point(-1, -1), 0, cv::BORDER_REFLECT);
+			cv::filter2D(yMat, smoothedY, -1, kernel1D, cv::Point(-1, -1), 0, cv::BORDER_REFLECT);
+
+			// Store smoothed points
+			for (size_t i = 0; i < points.size(); ++i)
+			{
+				smoothedPoints.push_back(cv::Point2d(smoothedX.at<double>(0, i), smoothedY.at<double>(0, i)));
+			}
+		}
+		else
+		{
+			smoothedPoints = points; // Skip smoothing if contour is too small
+		}
+
+		smoothedContours.push_back(smoothedPoints);
+	}
+
 	// Store results in toolpath
 	toolpath.Offset = cv::Point2d(offsetDistance, offsetDistance);
 	int indexPath = 0;
-	for (const auto& contour : contours)
+	for (const auto& contour : smoothedContours)
 	{
 		for (const auto& point : contour)
 		{
-			toolpath.Path.push_back(cv::Point2d(point));
+			toolpath.Path.push_back(point);
 			indexPath++;
 		}
 	}
 
-	//Print tool path data to a file indebug mode
+	// Print tool path data to a file in debug mode
 #ifdef _DEBUG
 	std::ofstream outFile("C:\\Temp\\ToolPathData.txt");
 	if (outFile.is_open())
@@ -261,12 +308,22 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
 	}
 #endif
 
-	// Draw contours on original image
+	// Draw smoothed contours on original image
 	cv::Mat outputImage = ImgSrc.clone();
-	cv::drawContours(outputImage, contours, -1, cv::Scalar(0, 255, 0), 2);
+	std::vector<std::vector<cv::Point>> contoursToDraw;
+	for (const auto& smoothedContour : smoothedContours)
+	{
+		std::vector<cv::Point> contourInt;
+		for (const auto& point : smoothedContour)
+		{
+			contourInt.push_back(cv::Point(static_cast<int>(point.x), static_cast<int>(point.y)));
+		}
+		contoursToDraw.push_back(contourInt);
+	}
+	cv::drawContours(outputImage, contoursToDraw, -1, cv::Scalar(0, 255, 0), 2);
 
 	// Display result
-	ShowZoomedImage("Masked Tool Path", outputImage);
+	ShowZoomedImage("Smoothed Tool Path", outputImage);
 	cv::waitKey(0);
 	cv::destroyAllWindows();
 }
