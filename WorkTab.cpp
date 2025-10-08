@@ -779,14 +779,22 @@ void WorkTab::ShowImageOnPictureControl(bool flgCenter, cv::Scalar crossColor, i
     cv::Mat imageToShow;
     cv::cvtColor(resizedImage, imageToShow, cv::COLOR_BGR2BGRA);
 
+    // --- 新增：繪製 Mask 矩形 ---
+    if (MaskWidth > 0 && MaskHeight > 0) {
+        double scaleX = static_cast<double>(rect.Width()) / m_mat.cols;
+        double scaleY = static_cast<double>(rect.Height()) / m_mat.rows;
+        int x = static_cast<int>(MaskX * scaleX);
+        int y = static_cast<int>(MaskY * scaleY);
+        int w = static_cast<int>(MaskWidth * scaleX);
+        int h = static_cast<int>(MaskHeight * scaleY);
+        cv::rectangle(imageToShow, cv::Rect(x, y, w, h), cv::Scalar(0, 255, 0, 255), 2);
+    }
+    // --- End ---
+
     if (flgCenter)
     {
         int centerX = imageToShow.cols / 2;
         int centerY = imageToShow.rows / 2;
-
-        //ROI
-        cv::Point2d pointOne;
-        cv::Point2d pointTwo;
 
         auto drawDashedLine = [&](cv::Point start, cv::Point end, int dashLength)
             {
@@ -802,7 +810,6 @@ void WorkTab::ShowImageOnPictureControl(bool flgCenter, cv::Scalar crossColor, i
                         cv::Point(cvRound(p2f.x), cvRound(p2f.y)),
                         crossColor, lineThickness);
                 }
-
             };
 
         if (style == CrossStyle::Solid)
@@ -817,15 +824,12 @@ void WorkTab::ShowImageOnPictureControl(bool flgCenter, cv::Scalar crossColor, i
         }
         else if (style == CrossStyle::Dashed)
         {
-            int dashLength = 10; // 可調整虛線段長度
+            int dashLength = 10;
             drawDashedLine(cv::Point(0, centerY),
                 cv::Point(imageToShow.cols - 1, centerY), dashLength);
             drawDashedLine(cv::Point(centerX, 0),
                 cv::Point(centerX, imageToShow.rows - 1), dashLength);
         }
-
-      
-
     }
 
     BITMAPINFO bitmapInfo;
@@ -1473,7 +1477,6 @@ void WorkTab::SendToolPathData32(uint16_t* m_ToolPathData, int sizeOfArray, int 
         pointIndex += batchPoints;
     }
 }
-
 
 //Add Calibration Dialog
 void WorkTab::OnBnClickedIdcWorkCalibration()

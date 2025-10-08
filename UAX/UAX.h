@@ -98,6 +98,11 @@ struct YUFA
 	cv::Point2d Position; // Position of the template in the image
 };
 
+
+//
+// OpenCV function for UAX
+//
+
 // Function to resize the image to fit the screen
 // inputImage: the input image
 // screenWidth: the width of the screen
@@ -106,6 +111,9 @@ struct YUFA
 // return: the resized image
 extern "C" UAX_API cv::Mat fitImageToScreen(const cv::Mat& inputImage, int screenWidth, int screenHeight, ImageScaleFactor& scalefactor);
 //extern "C" UAX_API cv::Mat fitImageToScreen(const cv::Mat& inputImage, int screenWidth, int screenHeight, );
+
+//Convert Image to subpixel
+//extern "C" UAX_API void ImageToSubPixel(const cv::Mat& src, cv::Mat &dstImg);
 
 // Display the image with image scale factor imgscl
 extern "C" UAX_API void DisplayImage(cv::Mat & src, cv::String window_name, float imgscl);
@@ -155,6 +163,8 @@ extern "C" UAX_API void FindArea(cv::Mat& src, ContourArea& contourarea);
 //Convert contour to tool path
 //
 extern "C" UAX_API void ContourToToolPath(cv::Mat& src, ToolPath& toolpath);
+
+
 
 //Convert Coordinate to real world coordinate with
 
