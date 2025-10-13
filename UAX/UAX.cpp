@@ -330,7 +330,6 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
 
 
 
-
 //Convert contour to tool path
 // cv::Mat& src: the input image
 // ToolPath: the output tool path
