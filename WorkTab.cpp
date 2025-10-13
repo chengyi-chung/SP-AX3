@@ -779,26 +779,31 @@ void WorkTab::ShowImageOnPictureControl(bool flgCenter, cv::Scalar crossColor, i
     cv::Mat imageToShow;
     cv::cvtColor(resizedImage, imageToShow, cv::COLOR_BGR2BGRA);
 
-    // --- 新增：繪製 Mask 矩形 ---
-	// Calculate scale factors
-	// Draw the rectangle if MaskWidth and MaskHeight are greater than 0
 
 
-    if (MaskWidth > 0 && MaskHeight > 0) {
-        double scaleX = static_cast<double>(rect.Width()) / m_mat.cols;
-        double scaleY = static_cast<double>(rect.Height()) / m_mat.rows;
+	//取得 ROI checkbox 狀態，決定是否繪製 Mask 矩形
 
-		//double scaleX = static_cast<double>(imageToShow.cols) / rect.Width();
-        //double scaleY = static_cast<double>(imageToShow.rows) / rect.Height();
+	if (IsDlgButtonChecked(IDC_CHECK_WORK_ROI))
+    {
+        // --- 新增：繪製 Mask 矩形 ---
+     // Calculate scale factors
+     // Draw the rectangle if MaskWidth and MaskHeight are greater than 0
+        if (MaskWidth > 0 && MaskHeight > 0) {
+            double scaleX = static_cast<double>(rect.Width()) / m_mat.cols;
+            double scaleY = static_cast<double>(rect.Height()) / m_mat.rows;
 
-        int x = static_cast<int>(MaskX * scaleX);
-        int y = static_cast<int>(MaskY * scaleY);
-        int w = static_cast<int>(MaskWidth * scaleX);
-        int h = static_cast<int>(MaskHeight * scaleY);
-        cv::rectangle(imageToShow, cv::Rect(x, y, w, h), cv::Scalar(0, 255, 0, 255), 1);
+            //double scaleX = static_cast<double>(imageToShow.cols) / rect.Width();
+            //double scaleY = static_cast<double>(imageToShow.rows) / rect.Height();
+
+            int x = static_cast<int>(MaskX * scaleX);
+            int y = static_cast<int>(MaskY * scaleY);
+            int w = static_cast<int>(MaskWidth * scaleX);
+            int h = static_cast<int>(MaskHeight * scaleY);
+            cv::rectangle(imageToShow, cv::Rect(x, y, w, h), cv::Scalar(0, 255, 0, 255), 1);
+        }
+        // --- End ---
     }
-    // --- End ---
-
+    
     if (flgCenter)
     {
         int centerX = imageToShow.cols / 2;

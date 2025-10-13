@@ -182,76 +182,79 @@ void  GetToolPath(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpath)
 // With mask image to limit the area of tool path
 void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offsetDistance, ToolPath& toolpath)
 {
-	// Input validation
+	// ======= 輸入檢查 ========
+	// 如果來源影像或遮罩為空，拋出例外
 	if (ImgSrc.empty() || Mask.empty())
 	{
 		throw std::invalid_argument("Input image or mask is empty.");
 	}
+	// 來源影像與遮罩尺寸必須一致
 	if (ImgSrc.size() != Mask.size())
 	{
 		throw std::invalid_argument("Image and mask sizes do not match.");
 	}
 
-	// Apply mask to source image
+	// ======= 套用遮罩到原影像 ========
 	cv::Mat maskedImage;
-	if (ImgSrc.channels() == 3)
+	if (ImgSrc.channels() == 3) // RGB彩色圖
 	{
-		maskedImage = cv::Mat::zeros(ImgSrc.size(), ImgSrc.type());
-		ImgSrc.copyTo(maskedImage, Mask);
+		maskedImage = cv::Mat::zeros(ImgSrc.size(), ImgSrc.type()); // 建立空白影像（全黑）
+		ImgSrc.copyTo(maskedImage, Mask); // 根據遮罩複製影像內容
 	}
-	else
+	else // 灰階圖
 	{
 		maskedImage = ImgSrc.clone();
-		maskedImage.setTo(0, Mask == 0);
+		maskedImage.setTo(0, Mask == 0); // 遮罩為 0 的地方設為黑
 	}
 
-	// Perform erosion for offset
+	// ======= 依 offsetDistance 做腐蝕(縮小區域) ========
 	cv::Mat result = maskedImage.clone();
-	int numPixelsToErode = static_cast<int>(offsetDistance);
-	cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
+	int numPixelsToErode = static_cast<int>(offsetDistance); // 轉為像素數
+	cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3)); // 3x3矩形核
 
 	for (int i = 0; i < numPixelsToErode; ++i)
 	{
-		cv::erode(result, result, kernel);
+		cv::erode(result, result, kernel); // 重複腐蝕，縮小區域
 	}
 
-	// Convert to grayscale if needed
+	// ======= 轉灰階以後做二值化 ========
 	cv::Mat gray;
 	if (result.channels() != 1)
 	{
-		cv::cvtColor(result, gray, cv::COLOR_BGR2GRAY);
+		cv::cvtColor(result, gray, cv::COLOR_BGR2GRAY); // 彩色轉灰階
 	}
 	else
 	{
 		gray = result;
 	}
 
-	// Apply threshold
 	cv::Mat thresh;
-	cv::threshold(gray, thresh, 200, 255, cv::THRESH_BINARY);
+	cv::threshold(gray, thresh, 200, 255, cv::THRESH_BINARY); // 閾值200以上白色，其他黑色
 
-	// Find contours in masked region
+	// ======= 找輪廓 ========
 	std::vector<std::vector<cv::Point>> contours;
 	std::vector<cv::Vec4i> hierarchy;
-	cv::findContours(thresh, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+	cv::findContours(thresh, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE); // 只取外部輪廓
 
-	// Smooth contours
+	// ======= 對輪廓座標做平滑處理 ========
 	std::vector<std::vector<cv::Point2d>> smoothedContours;
 	for (const auto& contour : contours)
 	{
-		// Convert contour to Point2d for smoothing
+		// 將輪廓轉成 double 型的 Point2d
 		std::vector<cv::Point2d> points;
 		for (const auto& point : contour)
 		{
 			points.push_back(cv::Point2d(point.x, point.y));
 		}
 
-		// Apply Gaussian smoothing to the points
+		// 平滑參數
+		int smoothingSize = 5; // 平滑的卷積核大小（必須是奇數）
+		double sigma = 1.5; // 高斯標準差
+
 		std::vector<cv::Point2d> smoothedPoints;
-		int smoothingSize = 5; // Kernel size for smoothing (must be odd)
-		double sigma = 1.5; // Standard deviation for Gaussian kernel
 		if (points.size() >= smoothingSize)
 		{
+			// 分別存放 X 與 Y 座標
 			std::vector<double> xCoords(points.size()), yCoords(points.size());
 			for (size_t i = 0; i < points.size(); ++i)
 			{
@@ -259,17 +262,17 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
 				yCoords[i] = points[i].y;
 			}
 
-			// Create Gaussian kernel
+			// 建立高斯核
 			cv::Mat kernel1D = cv::getGaussianKernel(smoothingSize, sigma, CV_64F);
 			cv::Mat xMat(1, xCoords.size(), CV_64F, xCoords.data());
 			cv::Mat yMat(1, yCoords.size(), CV_64F, yCoords.data());
 			cv::Mat smoothedX, smoothedY;
 
-			// Apply convolution for smoothing
+			// 對 X/Y 做濾波平滑
 			cv::filter2D(xMat, smoothedX, -1, kernel1D, cv::Point(-1, -1), 0, cv::BORDER_REFLECT);
 			cv::filter2D(yMat, smoothedY, -1, kernel1D, cv::Point(-1, -1), 0, cv::BORDER_REFLECT);
 
-			// Store smoothed points
+			// 合併平滑後的座標成 Point2d
 			for (size_t i = 0; i < points.size(); ++i)
 			{
 				smoothedPoints.push_back(cv::Point2d(smoothedX.at<double>(0, i), smoothedY.at<double>(0, i)));
@@ -277,25 +280,23 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
 		}
 		else
 		{
-			smoothedPoints = points; // Skip smoothing if contour is too small
+			smoothedPoints = points; // 如果座標太少，就不平滑
 		}
 
 		smoothedContours.push_back(smoothedPoints);
 	}
 
-	// Store results in toolpath
+	// ======= 存到 toolpath 結構 ========
 	toolpath.Offset = cv::Point2d(offsetDistance, offsetDistance);
-	int indexPath = 0;
 	for (const auto& contour : smoothedContours)
 	{
 		for (const auto& point : contour)
 		{
 			toolpath.Path.push_back(point);
-			indexPath++;
 		}
 	}
 
-	// Print tool path data to a file in debug mode
+	// ======= 除錯模式下輸出座標到檔案 ========
 #ifdef _DEBUG
 	std::ofstream outFile("C:\\Temp\\ToolPathData.txt");
 	if (outFile.is_open())
@@ -308,7 +309,7 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
 	}
 #endif
 
-	// Draw smoothed contours on original image
+	// ======= 顯示平滑輪廓 ========
 	cv::Mat outputImage = ImgSrc.clone();
 	std::vector<std::vector<cv::Point>> contoursToDraw;
 	for (const auto& smoothedContour : smoothedContours)
@@ -322,11 +323,11 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
 	}
 	cv::drawContours(outputImage, contoursToDraw, -1, cv::Scalar(0, 255, 0), 2);
 
-	// Display result
 	ShowZoomedImage("Smoothed Tool Path", outputImage);
 	cv::waitKey(0);
 	cv::destroyAllWindows();
 }
+
 
 
 
