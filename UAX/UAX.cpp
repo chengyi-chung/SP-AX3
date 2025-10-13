@@ -174,6 +174,72 @@ void  GetToolPath(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpath)
 	cv::destroyAllWindows();
 }
 
+
+// 計算曲率
+static double ComputeCurvature(
+	const cv::Point2d& p1,
+	const cv::Point2d& p2,
+	const cv::Point2d& p3)
+{
+	double area = std::abs(
+		(p1.x * (p2.y - p3.y) +
+			p2.x * (p3.y - p1.y) +
+			p3.x * (p1.y - p2.y)) / 2.0);
+	double len1 = cv::norm(p1 - p2);
+	double len2 = cv::norm(p2 - p3);
+	double len3 = cv::norm(p1 - p3);
+	if (len1 * len2 * len3 == 0) return 0.0;
+	return (4.0 * area) / (len1 * len2 * len3);
+}
+
+// 曲率降點
+static std::vector<cv::Point2d> ReducePointsByCurvature(
+	const std::vector<cv::Point2d>& points,
+	double curvatureThreshold)
+{
+	std::vector<cv::Point2d> result;
+	if (points.size() < 3) return points;
+
+	result.push_back(points.front());
+	for (size_t i = 1; i < points.size() - 1; ++i)
+	{
+		double curvature = ComputeCurvature(points[i - 1], points[i], points[i + 1]);
+		if (curvature >= curvatureThreshold)
+			result.push_back(points[i]);
+	}
+	result.push_back(points.back());
+	return result;
+}
+
+// 平滑化 (移動平均法)
+static std::vector<cv::Point2d> SmoothPoints(
+	const std::vector<cv::Point2d>& points,
+	int windowSize)
+{
+	std::vector<cv::Point2d> result;
+	if (points.empty()) return result;
+	int halfWin = windowSize / 2;
+
+	for (size_t i = 0; i < points.size(); ++i)
+	{
+		double sumX = 0.0, sumY = 0.0;
+		int count = 0;
+		for (int j = -halfWin; j <= halfWin; ++j)
+		{
+			int idx = static_cast<int>(i) + j;
+			if (idx >= 0 && idx < (int)points.size())
+			{
+				sumX += points[idx].x;
+				sumY += points[idx].y;
+				count++;
+			}
+		}
+		result.push_back(cv::Point2d(sumX / count, sumY / count));
+	}
+	return result;
+}
+
+
 // Get Tool Path
 // Use Erosiong find the tool path
 // ImgSrc: the input image
@@ -328,6 +394,101 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
 	cv::destroyAllWindows();
 }
 
+
+/*
+//新增 ReducePointsByCurvature()
+//計算輪廓曲率，刪掉曲率低於閾值的點。
+//新增 SmoothPoints()
+//用移動平均法平滑曲線，可換成 Gaussian 或 Savitzky–Golay。
+//直接在輪廓迴圈內套用降點 + 平滑化
+//最終輸出的是優化後的路徑。
+void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offsetDistance, ToolPath& toolpath)
+{
+	if (ImgSrc.empty() || Mask.empty())
+		throw std::invalid_argument("Input image or mask is empty.");
+	if (ImgSrc.size() != Mask.size())
+		throw std::invalid_argument("Image and mask sizes do not match.");
+
+	// 套用 Mask
+	cv::Mat maskedImage;
+	if (ImgSrc.channels() == 3)
+	{
+		maskedImage = cv::Mat::zeros(ImgSrc.size(), ImgSrc.type());
+		ImgSrc.copyTo(maskedImage, Mask);
+	}
+	else
+	{
+		maskedImage = ImgSrc.clone();
+		maskedImage.setTo(0, Mask == 0);
+	}
+
+	// 腐蝕
+	cv::Mat result = maskedImage.clone();
+	int numPixelsToErode = static_cast<int>(offsetDistance);
+	cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
+	for (int i = 0; i < numPixelsToErode; ++i)
+	{
+		cv::erode(result, result, kernel);
+	}
+
+	// 灰階 + 二值化
+	cv::Mat gray;
+	if (result.channels() != 1)
+		cv::cvtColor(result, gray, cv::COLOR_BGR2GRAY);
+	else
+		gray = result;
+
+	cv::Mat thresh;
+	cv::threshold(gray, thresh, 200, 255, cv::THRESH_BINARY);
+
+	// 找輪廓
+	std::vector<std::vector<cv::Point>> contours;
+	std::vector<cv::Vec4i> hierarchy;
+	cv::findContours(thresh, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+
+	// 對每個輪廓：曲率降點 + 平滑化
+	std::vector<std::vector<cv::Point2d>> optimizedContours;
+	for (const auto& contour : contours)
+	{
+		// 轉成 double 型座標
+		std::vector<cv::Point2d> points;
+		for (const auto& p : contour)
+			points.push_back(cv::Point2d(p.x, p.y));
+
+		// 曲率降點
+		auto reduced = ReducePointsByCurvature(points, 0.01); // 閾值可調
+
+		// 平滑化
+		auto smoothed = SmoothPoints(reduced, 5); // 窗口大小可調
+
+		optimizedContours.push_back(smoothed);
+	}
+
+	// 存路徑
+	toolpath.Offset = cv::Point2d(offsetDistance, offsetDistance);
+	for (const auto& contour : optimizedContours)
+		for (const auto& point : contour)
+			toolpath.Path.push_back(point);
+
+	// 繪製結果
+	cv::Mat outputImage = ImgSrc.clone();
+	std::vector<std::vector<cv::Point>> contoursToDraw;
+	for (const auto& optContour : optimizedContours)
+	{
+		std::vector<cv::Point> contourInt;
+		for (const auto& point : optContour)
+			contourInt.push_back(cv::Point(static_cast<int>(point.x), static_cast<int>(point.y)));
+		contoursToDraw.push_back(contourInt);
+	}
+	cv::drawContours(outputImage, contoursToDraw, -1, cv::Scalar(0, 255, 0), 2);
+
+	ShowZoomedImage("Optimized Tool Path", outputImage);
+	cv::waitKey(0);
+	cv::destroyAllWindows();
+}
+
+
+*/
 
 
 //Convert contour to tool path
