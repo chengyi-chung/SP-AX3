@@ -39,12 +39,14 @@ using namespace cv;
 
 
 
-byte key[16] = { 0x2b, 0x7e, 0x15, 0x16,
+// 修正：明確指定 byte 型別，避免模稜兩可
+// 方法一：使用 unsigned char 替代 byte
+unsigned char key[16] = { 0x2b, 0x7e, 0x15, 0x16,
 			0x28, 0xae, 0xd2, 0xa6,
 			0xab, 0xf7, 0x15, 0x88,
 			0x09, 0xcf, 0x4f, 0x3c };
 
-byte plain[4 * 4] = { 0x32, 0x88, 0x31, 0xe0,
+unsigned char plain[4 * 4] = { 0x32, 0x88, 0x31, 0xe0,
 				0x43, 0x5a, 0x31, 0x37,
 				0xf6, 0x30, 0x98, 0x07,
 				0xa8, 0x8d, 0xa2, 0x34 };
@@ -195,21 +197,66 @@ static double ComputeCurvature(
 // 曲率降點
 static std::vector<cv::Point2d> ReducePointsByCurvature(
 	const std::vector<cv::Point2d>& points,
-	double curvatureThreshold)
+	double curvatureThreshold,
+	int minDistancePixels = 1)
 {
-	std::vector<cv::Point2d> result;
+	// ===== 檢查輸入 =====
 	if (points.size() < 3) return points;
 
-	result.push_back(points.front());
-	for (size_t i = 1; i < points.size() - 1; ++i)
+	std::vector<cv::Point2d> reduced;
+	reduced.reserve(points.size());
+	reduced.push_back(points.front());
+
+	auto getDistance = [](const cv::Point2d& p1, const cv::Point2d& p2) {
+		return std::hypot(p1.x - p2.x, p1.y - p2.y);
+		};
+
+	auto computeCurvature = [](const cv::Point2d& prev,
+		const cv::Point2d& curr,
+		const cv::Point2d& next) {
+			// 使用角度法計算曲率（對噪點更穩定）
+			cv::Point2d v1 = curr - prev;
+			cv::Point2d v2 = next - curr;
+			double mag1 = std::hypot(v1.x, v1.y);
+			double mag2 = std::hypot(v2.x, v2.y);
+
+			if (mag1 < 1e-8 || mag2 < 1e-8) return 0.0; // 除零保護
+
+			double dot = v1.x * v2.x + v1.y * v2.y;
+			double cosTheta = dot / (mag1 * mag2);
+			cosTheta = std::clamp(cosTheta, -1.0, 1.0);
+
+			double angle = std::acos(cosTheta); // 弧度
+			return angle; // 曲率近似值（弧度）}
+		};
+
+	// 迭代點集
+	for (size_t i = 1; i + 1 < points.size(); ++i)
 	{
-		double curvature = ComputeCurvature(points[i - 1], points[i], points[i + 1]);
-		if (curvature >= curvatureThreshold)
-			result.push_back(points[i]);
+		const cv::Point2d& prev = reduced.back();       // 上次保留的點
+		const cv::Point2d& curr = points[i];
+		const cv::Point2d& next = points[i + 1];
+
+		double dist = getDistance(prev, curr);
+		double curvature = computeCurvature(prev, curr, next);
+
+		// 保留條件：曲率高於閾值 或 與上一保留點距離超過 minDistancePixels
+		if (curvature >= curvatureThreshold || dist >= minDistancePixels)
+			reduced.push_back(curr);
 	}
-	result.push_back(points.back());
-	return result;
+
+	// 確保最後一點保留
+	if (reduced.back() != points.back())
+		reduced.push_back(points.back());
+
+	return reduced;
 }
+
+
+
+
+
+
 
 // 平滑化 (移動平均法)
 static std::vector<cv::Point2d> SmoothPoints(
@@ -314,8 +361,8 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
 		}
 
 		// 平滑參數
-		int smoothingSize = 5; // 平滑的卷積核大小（必須是奇數）
-		double sigma = 1.5; // 高斯標準差
+		int smoothingSize = 7; // 平滑的卷積核大小（必須是奇數）
+		double sigma = 2.5; // 1.5; // 高斯標準差
 
 		std::vector<cv::Point2d> smoothedPoints;
 		if (points.size() >= smoothingSize)
@@ -352,9 +399,18 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
 		smoothedContours.push_back(smoothedPoints);
 	}
 
+	// ======= smoothedContours 進行曲率降點 ========
+	double curvatureThreshold = 0.1; // 曲率閾值，可調整
+	std::vector<std::vector<cv::Point2d>> finalContours;
+	for (const auto& contour : smoothedContours)
+	{
+		auto reduced = ReducePointsByCurvature(contour, curvatureThreshold);
+		finalContours.push_back(reduced);
+	}
+
 	// ======= 存到 toolpath 結構 ========
 	toolpath.Offset = cv::Point2d(offsetDistance, offsetDistance);
-	for (const auto& contour : smoothedContours)
+	for (const auto& contour : finalContours)
 	{
 		for (const auto& point : contour)
 		{
@@ -1099,7 +1155,7 @@ int DeleteData(sqlite3* db, const char* db_name, const char* table_name, const c
 	{
 		//std::cerr << "Error: Can't open database: " << sqlite3_errmsg(db) << std::endl;
 		MessageBox(NULL, _T("Error: Can't open database"), _T("Error"), MB_OK);
-		return -1;                                                             
+		return -1;
 	}
 
 	// Delete data from the table
@@ -1391,5 +1447,6 @@ int SafeModbusWriteBit(modbus_t* ctx, int addr, int status)
 	std::lock_guard<std::mutex> lock(plc_mutex);
 	return modbus_write_bit(ctx, addr, status);
 }
+
 
 

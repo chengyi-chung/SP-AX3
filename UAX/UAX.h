@@ -53,9 +53,9 @@ extern "C" UAX_API  float Add(float a, float b);
 
 //extern "C" UAX_API float Add(float a, float b);
 
-extern "C" UAX_API void Encrypt(byte * input, byte * output, byte * key);
+extern "C" UAX_API void Encrypt(unsigned char* input, unsigned char* output, unsigned char* key);
 
-extern "C" UAX_API void Decrypt(byte * input, byte * output, byte * key);
+extern "C" UAX_API void Decrypt(unsigned char* input, unsigned char* output, unsigned char* key);
 
 //Modbus TCP/IP
 
@@ -287,3 +287,7 @@ extern "C" UAX_API int SafeModbusWriteRegisters(modbus_t* ctx, int addr, int nb,
 extern "C" UAX_API int SafeModbusWriteRegister(modbus_t* ctx, int addr, uint16_t value);
 extern "C" UAX_API int SafeModbusReadBits(modbus_t* ctx, int addr, int nb, uint8_t* dest);
 extern "C" UAX_API int SafeModbusWriteBit(modbus_t* ctx, int addr, int status);
+extern "C" UAX_API void foo(unsigned char* data, int len);
+// 或
+#include <cstdint>
+void foo(std::uint8_t* data, int len);
