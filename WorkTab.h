@@ -4,7 +4,6 @@
 #include <opencv2/opencv.hpp>
 #include <pylon/PylonIncludes.h>
 #include "UAX.h"
-#include "Calibration.h"
 #include "afxcmn.h"
 #include "afxbutton.h" // 加入 MFC Button 支援
 
@@ -62,6 +61,7 @@ protected:
 	int oriImageHeight;
 	int imgFlip;
 
+
 	int MaskX;
 	int MaskY;
 	int MaskWidth;
@@ -92,7 +92,6 @@ protected:
 	CMFCButton m_Work_LoadImg;        // MFC Button
 	CMFCButton m_Work_SaveImg;        // MFC Button
 	CMFCButton m_Work_Go;             // MFC Button
-	CMFCButton m_Btn_Calibration;     // MFC Button
 	CMFCButton m_btnExample;          // 範例 MFC Button
 
 	CFont m_btnFont;                 // 按鈕字型
@@ -130,6 +129,5 @@ public:
 	afx_msg void OnBnClickedIdcWorkLoadImg();
 	afx_msg void OnBnClickedIdcWorkSaveImg();
 	afx_msg void OnBnClickedIdcWorkGo();
-	afx_msg void OnBnClickedIdcWorkCalibration();
 	afx_msg void OnBnClickedCheckWorkCenter();
 };

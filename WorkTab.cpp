@@ -133,7 +133,7 @@ void WorkTab::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_IDC_WORK_LOAD_IMG, m_Work_LoadImg);
 	DDX_Control(pDX, IDC_IDC_WORK_SAVE_IMG, m_Work_SaveImg);
 	DDX_Control(pDX, IDC_IDC_WORK_GO, m_Work_Go);
-	DDX_Control(pDX, IDC_BTN_CALIBRATION, m_Btn_Calibration);
+	//DDX_Control(pDX, IDC_BTN_CALIBRATION, m_Btn_Calibration);
 }
          
 BEGIN_MESSAGE_MAP(WorkTab, CDialogEx)
@@ -152,7 +152,7 @@ BEGIN_MESSAGE_MAP(WorkTab, CDialogEx)
     ON_BN_CLICKED(IDC_IDC_WORK_LOAD_IMG, &WorkTab::OnBnClickedIdcWorkLoadImg)
     ON_BN_CLICKED(IDC_IDC_WORK_SAVE_IMG, &WorkTab::OnBnClickedIdcWorkSaveImg)
     ON_BN_CLICKED(IDC_IDC_WORK_GO, &WorkTab::OnBnClickedIdcWorkGo)
-	ON_BN_CLICKED(IDC_BTN_CALIBRATION, &WorkTab::OnBnClickedIdcWorkCalibration)
+	//ON_BN_CLICKED(IDC_BTN_CALIBRATION, &WorkTab::OnBnClickedIdcWorkCalibration)
     ON_BN_CLICKED(IDC_CHECK_WORK_CENTER, &WorkTab::OnBnClickedCheckWorkCenter)
 END_MESSAGE_MAP()
 
@@ -259,9 +259,9 @@ BOOL WorkTab::OnInitDialog()
 	m_Work_SaveImg.SetFont(&m_fontBoldBig);
 
 	//Calibration按鈕
-	m_Btn_Calibration.SetFaceColor(RGB(255, 212, 253));      
-	m_Btn_Calibration.SetTextColor(RGB(0, 0, 0));    //黑色字
-	m_Btn_Calibration.SetFont(&m_fontBoldBig);
+	//m_Btn_Calibration.SetFaceColor(RGB(255, 212, 253));      
+	//m_Btn_Calibration.SetTextColor(RGB(0, 0, 0));    //黑色字
+	//m_Btn_Calibration.SetFont(&m_fontBoldBig);
 
 	//Example按鈕
 	//設定按鈕字型與大小
@@ -1500,41 +1500,6 @@ void WorkTab::SendToolPathData32(uint16_t* m_ToolPathData, int sizeOfArray, int 
     }
 }
 
-//Add Calibration Dialog
-void WorkTab::OnBnClickedIdcWorkCalibration()
-{
-	//Call Calibration Dialog
-    /*
-     Calibration dlg;
-    if (dlg.DoModal() == IDOK)
-    {
-        //Get the calibration data from the dialog
-        //CalibrationData calibrationData = dlg.GetCalibrationData();
-        //Do something with the calibration data
-        //For example, save it to a file or use it in the application
-        
-        //Show Calibration Dialog
-		dlg.DoModal();
-
-    }
-    else
-    {
-        //User cancelled the dialog
-	}
-    
-    */
-	//switch flgCenter to true if false, to false if true
-    if (flgCenter)
-    {
-        flgCenter = false;
-    }
-    else
-    {
-        flgCenter = true;
-    }
-   
-  
-}
 
 BOOL WorkTab::PreTranslateMessage(MSG* pMsg)
 {
