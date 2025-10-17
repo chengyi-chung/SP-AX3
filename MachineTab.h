@@ -165,7 +165,7 @@ public:
 
 	// 新增的消息處理函數，用於更新 UI
 	afx_msg LRESULT OnUpdateCoordinates(WPARAM wParam, LPARAM lParam);
-	//afx_msg LRESULT WM_UPDATE_REPORT(WPARAM wParam, LPARAM lParam);
+	afx_msg LRESULT WM_UPDATE_REPORT(WPARAM wParam, LPARAM lParam);
 
 	protected:
 		// 執行緒控制
@@ -182,4 +182,7 @@ public:
 public:
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
 };
+
+#define WM_UPDATE_COORDINATES (WM_USER + 1)
+#define WM_UPDATE_REPORT (WM_USER + 2)
 

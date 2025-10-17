@@ -131,4 +131,5 @@ public:
 	afx_msg void OnBnClickedIdcWorkSaveImg();
 	afx_msg void OnBnClickedIdcWorkGo();
 	afx_msg void OnBnClickedIdcWorkCalibration();
+	afx_msg void OnBnClickedCheckWorkCenter();
 };

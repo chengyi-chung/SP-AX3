@@ -1268,3 +1268,5 @@ void MachineTab::OnTimer(UINT_PTR nIDEvent)
 
 	// 可加入其他定時任務
 }
+
+//#define WM_UPDATE_REPORT (WM_USER + 2)

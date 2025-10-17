@@ -153,6 +153,7 @@ BEGIN_MESSAGE_MAP(WorkTab, CDialogEx)
     ON_BN_CLICKED(IDC_IDC_WORK_SAVE_IMG, &WorkTab::OnBnClickedIdcWorkSaveImg)
     ON_BN_CLICKED(IDC_IDC_WORK_GO, &WorkTab::OnBnClickedIdcWorkGo)
 	ON_BN_CLICKED(IDC_BTN_CALIBRATION, &WorkTab::OnBnClickedIdcWorkCalibration)
+    ON_BN_CLICKED(IDC_CHECK_WORK_CENTER, &WorkTab::OnBnClickedCheckWorkCenter)
 END_MESSAGE_MAP()
 
 
@@ -1612,4 +1613,18 @@ BOOL WorkTab::PreTranslateMessage(MSG* pMsg)
 // void InitTransformer(const std::vector<cv::Point2f>& imagePts, const std::vector<cv::Point2f>& worldPts, cv::Mat& affineMatrix);
 
 
+void WorkTab::OnBnClickedCheckWorkCenter()
+{
+    // TODO: 在此加入控制項告知處理常式程式碼
+	// assign value of IDC_CHECK_WORK_CENTER to flgCenter
+	CButton* pCheckBox = (CButton*)GetDlgItem(IDC_CHECK_WORK_CENTER);
+    if (pCheckBox->GetCheck() == BST_CHECKED)
+    {
+        flgCenter = true;
+    }
+    else
+    {
+        flgCenter = false;
+	}
 
+}
