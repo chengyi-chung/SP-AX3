@@ -1246,10 +1246,18 @@ void WorkTab::ToolPathTransform32(ToolPath ToolPapath_Ori, uint16_t* m_ToolPathD
     if (!m_ToolPathData || ToolPapath_Ori.Path.empty()) return;
 
     // 三點對應（像素 → 世界）
-    float imagePts[] = { 1097, 1063, 1373, 1063, 1371, 945 };
-    float worldPts[] = { 34.79f, 205.19f, 187.19f, 205.19f, 187.19f, 141.79f };
+    //float imagePts[] = { 1097, 1063, 1373, 1063, 1371, 945 };
+    //float worldPts[] = { 34.79f, 205.19f, 187.19f, 205.19f, 187.19f, 141.79f };
+
+	// imagePts (1035, 844) → worldPts (-0.01,67.59)
+	// imagePts (1311, 1247) → worldPts (150.79, 288.83)
+	// imagePts (1511, 963) → worldPts (259.71, 134.03)
+	float imagePts[] = { 1035.0f, 844.0f, 1311.0f, 1247.0f, 1511.0f, 963.0f };
+	float worldPts[] = { -0.01f, 67.59f, 150.79f, 288.83f, 259.71f, 134.03f };
+
     constexpr float scaleFactor = 100.0f; // mm → 整數
 
+    // 計算仿射矩陣
     cv::Mat AffineMatrix;
     InitTransformer(imagePts, worldPts, 3, AffineMatrix);
 

@@ -22,7 +22,7 @@ D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.h(112,28): warning C4190: 'fitImage
   
 D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.h(274,32): warning C4190: 'GetAppPath' 已指定 C-連結，但傳回與 C 不相容的 'std::basic_string<char,std::char_traits<char>,std::allocator<char>>'
   (編譯來源檔案 'UAX.cpp')
-      C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.50.35615\include\xstring(589,7):
+      C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.50.35702\include\xstring(589,7):
       請參閱 'std::basic_string<char,std::char_traits<char>,std::allocator<char>>' 的宣告
   
 D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(25,9): warning C4005: '_T': 巨集重複定義
@@ -45,8 +45,8 @@ D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(260,3): warning C4297: 'GetTool
       D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(260,3):
       已在函式指定 __declspec(nothrow)、throw()、noexcept(true) 或 noexcept
   
-D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(1131,3): warning C4297: 'WriteConfigToFile': 函式預設並不會擲回例外狀況，但卻擲回例外狀況
-      D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(1131,3):
+D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(1146,3): warning C4297: 'WriteConfigToFile': 函式預設並不會擲回例外狀況，但卻擲回例外狀況
+      D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(1146,3):
       已在函式指定 __declspec(nothrow)、throw()、noexcept(true) 或 noexcept
   
      正在建立程式庫 D:\Git Repository\chengyi-chung\YUFA\x64\Release\UAX.lib 和物件 D:\Git Repository\chengyi-chung\YUFA\x64\Release\UAX.exp
