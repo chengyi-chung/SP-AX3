@@ -47,7 +47,7 @@ public:
 	uint16_t m_ToolPathData[20000];
 	bool flgCenter;
 
-protected:
+	protected:
 	CBrush m_brush;
 	static UINT GrabThread(LPVOID pParam);
 	cv::Mat m_mat;
@@ -93,6 +93,7 @@ protected:
 	CMFCButton m_Work_SaveImg;        // MFC Button
 	CMFCButton m_Work_Go;             // MFC Button
 	CMFCButton m_btnExample;          // 範例 MFC Button
+	CMFCButton m_Work_ImageProcess;   // 圖像處理 MFC Button
 
 	CFont m_btnFont;                 // 按鈕字型
 	COLORREF m_btnTextColor;         // 文字顏色
@@ -130,4 +131,5 @@ public:
 	afx_msg void OnBnClickedIdcWorkSaveImg();
 	afx_msg void OnBnClickedIdcWorkGo();
 	afx_msg void OnBnClickedCheckWorkCenter();
+	afx_msg void OnBnClickedWorkImageProcess();
 };

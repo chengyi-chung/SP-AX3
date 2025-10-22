@@ -13,6 +13,8 @@
 #define IDD_TAB_MODBUS                  134
 #define IDD_TAB_MACHINE                 136
 #define IDD_DLG_CALIBRATION             140
+#define IDD_DIALOG1                     142
+#define IDD_DLG_IMG_PROCESS             142
 #define IDC_BTN_QUIT                    1000
 #define IDC_BTN_WORKING                 1003
 #define IDC_BTN_SYS_PARA                1004
@@ -91,7 +93,7 @@
 #define IDC_EDIT_Z4                     1069
 #define IDC_EDIT_Z5                     1070
 #define IDC_CHECK_WORK_CENTER           1071
-
+#define IDC_MFCBTN_WORK_IMG_PROCESS     1072
 
 
 #define IDC_EDIT_MACHINE_X              11001
@@ -101,13 +103,14 @@
 #define ID_INDICATOR_TIME               59142
 #define ID_INDICATOR_FILE               59143
 
+
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        142
+#define _APS_NEXT_RESOURCE_VALUE        144
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1069
+#define _APS_NEXT_CONTROL_VALUE         1070
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
