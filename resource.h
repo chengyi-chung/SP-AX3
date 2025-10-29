@@ -14,7 +14,6 @@
 #define IDD_TAB_MACHINE                 136
 #define IDD_DLG_CALIBRATION             140
 #define IDD_DIALOG1                     142
-#define IDD_DLG_IMG_PROCESS             142
 #define IDC_BTN_QUIT                    1000
 #define IDC_BTN_WORKING                 1003
 #define IDC_BTN_SYS_PARA                1004
@@ -94,15 +93,12 @@
 #define IDC_EDIT_Z5                     1070
 #define IDC_CHECK_WORK_CENTER           1071
 #define IDC_MFCBTN_WORK_IMG_PROCESS     1072
-
-
 #define IDC_EDIT_MACHINE_X              11001
 #define IDC_EDIT_MACHINE_Y              11002
 #define IDC_EDIT_MACHINE_Z              11003
 #define IDC_MFCBTN_EXAMPLE              11010
 #define ID_INDICATOR_TIME               59142
 #define ID_INDICATOR_FILE               59143
-
 
 // Next default values for new objects
 // 
