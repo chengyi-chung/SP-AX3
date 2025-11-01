@@ -191,6 +191,7 @@
   <ItemGroup>
     <ClInclude Include="Calibration.h" />
     <ClInclude Include="framework.h" />
+    <ClInclude Include="ImagePro.h" />
     <ClInclude Include="MachineTab.h" />
     <ClInclude Include="modbus.h" />
     <ClInclude Include="pch.h" />
@@ -204,6 +205,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Calibration.cpp" />
+    <ClCompile Include="ImagePro.cpp" />
     <ClCompile Include="MachineTab.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
