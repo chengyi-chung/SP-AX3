@@ -78,7 +78,7 @@ void ShowZoomedImage(const std::string& windowName, const cv::Mat& image)
 
 	// 顯示影像
 	cv::imshow(windowName, resized);
-   
+
 }
 
 
@@ -431,21 +431,36 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
 	}
 #endif
 
-	// ======= 顯示平滑輪廓 ========
+	// ======= 顯示曲率降點的所有點並加線段 ========
 	cv::Mat outputImage = ImgSrc.clone();
 	std::vector<std::vector<cv::Point>> contoursToDraw;
-	for (const auto& smoothedContour : smoothedContours)
+
+	for (const auto& finalContour : finalContours)
 	{
 		std::vector<cv::Point> contourInt;
-		for (const auto& point : smoothedContour)
+		for (size_t i = 0; i < finalContour.size(); ++i)
 		{
-			contourInt.push_back(cv::Point(static_cast<int>(point.x), static_cast<int>(point.y)));
+			cv::Point p(static_cast<int>(finalContour[i].x), static_cast<int>(finalContour[i].y));
+			contourInt.push_back(p);
+
+			// 畫點 - 半徑 8 的綠色圓
+			cv::circle(outputImage, p, 8, cv::Scalar(0, 255, 0), cv::FILLED);
+
+			// 畫線段連接到下一個點
+			if (i < finalContour.size() - 1)
+			{
+				cv::Point nextP(static_cast<int>(finalContour[i + 1].x), static_cast<int>(finalContour[i + 1].y));
+				cv::line(outputImage, p, nextP, cv::Scalar(0, 255, 255), 2, cv::LINE_AA); // 黃色線
+			}
 		}
 		contoursToDraw.push_back(contourInt);
 	}
-	cv::drawContours(outputImage, contoursToDraw, -1, cv::Scalar(0, 255, 0), 2);
 
-	ShowZoomedImage("Smoothed Tool Path", outputImage);
+	// 如果還要整體輪廓線可加
+	cv::drawContours(outputImage, contoursToDraw, -1, cv::Scalar(255, 0, 0), 1);
+
+	// 顯示影像
+	ShowZoomedImage("Curvature Reduced Points with Lines", outputImage);
 	cv::waitKey(0);
 	cv::destroyAllWindows();
 }
@@ -669,7 +684,7 @@ void mouseCallback(int event, int x, int y, int, void* userdata)
 // rect: output rectangle
 // display the image and select the area
 // use mouse to select the area
-void CreateTemplate(cv::Mat & src, cv::Mat & templ, cv::Rect & rect)
+void CreateTemplate(cv::Mat& src, cv::Mat& templ, cv::Rect& rect)
 {
 	// check if the image is empty
 	if (src.empty())
@@ -850,8 +865,8 @@ void GetMacAddress(char* macAddress)
 void InitTransformer(float* imagePts, float* worldPts, int count, cv::Mat& affineMatrix)
 {
 	std::vector<cv::Point2f> img, world;
-    // 在檔案開頭（全域區域）宣告 affineMatrix 變數
-    //cv::Mat affineMatrix;
+	// 在檔案開頭（全域區域）宣告 affineMatrix 變數
+	//cv::Mat affineMatrix;
 	for (int i = 0; i < count; ++i) {
 		img.emplace_back(imagePts[i * 2], imagePts[i * 2 + 1]);
 		world.emplace_back(worldPts[i * 2], worldPts[i * 2 + 1]);
@@ -948,7 +963,7 @@ inline void PixelToWorld(float x_pixel, float y_pixel, float& x_mm, float& y_mm,
 
 
 /*  以上 InitTransformer、TransformPixel 使用範例
-int main() 
+int main()
 {
 	float imagePts[] = {1097,1063, 1373,1063, 1371,945};
 	float worldPts[] = {34.79f,205.19f, 187.19f,205.19f, 187.19f,141.79f};
@@ -960,7 +975,7 @@ int main()
 		std::cout << "World Coord: (" << x_mm << ", " << y_mm << ") mm\n";
 	} else {
 		std::cerr << "Transform failed.\n";
-	}                                                                                                       
+	}
 }
 */
 
@@ -1194,7 +1209,7 @@ int CloseDatabase(sqlite3* db)
 
 
 // Helper function to write configuration to file
-void WriteConfigToFile(const std::string& filename, SystemConfig &SysConfig)
+void WriteConfigToFile(const std::string& filename, SystemConfig& SysConfig)
 {
 	std::ofstream file(filename);
 	if (!file.is_open()) {
@@ -1207,11 +1222,11 @@ void WriteConfigToFile(const std::string& filename, SystemConfig &SysConfig)
 	file << "IpAddress=" << SysConfig.IpAddress << "\n";
 	file << "Port=" << SysConfig.Port << "\n";
 	file << "StationID=" << SysConfig.StationID << "\n";
-	
+
 	file << "[ToolPath]\n";
 	file << "OffsetX=" << std::fixed << std::setprecision(4) << SysConfig.OffsetX << "\n";
 	file << "OffsetY=" << std::fixed << std::setprecision(4) << SysConfig.OffsetY << "\n";
-	
+
 	file << "[Camera]\n";
 	file << "CameraID=" << SysConfig.CameraID << "\n";
 	file << "MACKey=" << SysConfig.MACKey << "\n";
@@ -1222,14 +1237,14 @@ void WriteConfigToFile(const std::string& filename, SystemConfig &SysConfig)
 	file << "ImageFlip=" << SysConfig.ImageFlip << "\n";
 	file << "CenterX=" << std::fixed << std::setprecision(2) << SysConfig.CenterX << "\n";
 	file << "CenterY=" << std::fixed << std::setprecision(2) << SysConfig.CenterY << "\n";
-	
+
 	// 新增 Mask 區段
 	file << "[Mask]\n";
 	file << "MaskX=" << SysConfig.MaskX << "\n";
 	file << "MaskY=" << SysConfig.MaskY << "\n";
 	file << "MaskWidth=" << SysConfig.MaskWidth << "\n";
 	file << "MaskHeight=" << SysConfig.MaskHeight << "\n";
-	
+
 	file << "[Machine]\n";
 	file << "MachineType=" << SysConfig.MachineType << "\n";
 	file << "JogVelocity=" << SysConfig.JogVelocity << "\n";
@@ -1247,14 +1262,14 @@ void WriteConfigToFile(const std::string& filename, SystemConfig &SysConfig)
 }
 
 // Initialize system configuration file
-void InitialConfig(const std::string& filename, SystemConfig &SysConfig)
+void InitialConfig(const std::string& filename, SystemConfig& SysConfig)
 {
-	
+
 	WriteConfigToFile(filename, SysConfig);
 }
 
 // Read system configuration from INI file; initialize if file doesn't exist
-int ReadSystemConfig(const std::string& filename, SystemConfig &SysConfig)
+int ReadSystemConfig(const std::string& filename, SystemConfig& SysConfig)
 {
 	std::ifstream file(filename);
 	if (!file.is_open()) {
@@ -1264,18 +1279,18 @@ int ReadSystemConfig(const std::string& filename, SystemConfig &SysConfig)
 		SysConfig.MaskY = 0;
 		SysConfig.MaskWidth = 0;
 		SysConfig.MaskHeight = 0;
-		
+
 		InitialConfig(filename, SysConfig);
 		return -1; // Indicate default configuration was used
 	}
 
-	auto trim = [](std::string &s) {
+	auto trim = [](std::string& s) {
 		const char* ws = " \t\r\n";
 		size_t start = s.find_first_not_of(ws);
 		if (start == std::string::npos) { s.clear(); return; }
 		size_t end = s.find_last_not_of(ws);
 		s = s.substr(start, end - start + 1);
-	};
+		};
 
 	// 初始化 mask 預設值
 	SysConfig.MaskX = 0;
@@ -1400,10 +1415,10 @@ int ReadSystemConfig(const std::string& filename, SystemConfig &SysConfig)
 }
 
 // 更新系統配置到 INI 檔案
-void UpdateSystemConfig(const std::string& filename,  SystemConfig &SysConfig)
+void UpdateSystemConfig(const std::string& filename, SystemConfig& SysConfig)
 {
-    // 將 const SystemConfig* 轉為 SystemConfig*，以符合 WriteConfigToFile 的參數型別
-    WriteConfigToFile(filename, SysConfig);
+	// 將 const SystemConfig* 轉為 SystemConfig*，以符合 WriteConfigToFile 的參數型別
+	WriteConfigToFile(filename, SysConfig);
 }
 
 
@@ -1411,15 +1426,15 @@ void UpdateSystemConfig(const std::string& filename,  SystemConfig &SysConfig)
 // UModbus thread safety
 std::mutex plc_mutex;
 
-void SafeModbusRead(/*...*/) 
+void SafeModbusRead(/*...*/)
 {
-    std::lock_guard<std::mutex> lock(plc_mutex);
-    // 呼叫 UModbus 讀取函式
+	std::lock_guard<std::mutex> lock(plc_mutex);
+	// 呼叫 UModbus 讀取函式
 }
 
 void SafeModbusWrite(/*...*/) {
-    std::lock_guard<std::mutex> lock(plc_mutex);
-    // 呼叫 UModbus 寫入函式
+	std::lock_guard<std::mutex> lock(plc_mutex);
+	// 呼叫 UModbus 寫入函式
 }
 
 int SafeModbusReadRegisters(modbus_t* ctx, int addr, int nb, uint16_t* dest)

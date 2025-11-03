@@ -5,6 +5,7 @@
 #endif
 
 #pragma once
+#include <cstdint>
 #include <atlimage.h>
 //#include <opencv2/core/core.hpp>
 //#include <opencv2/highgui/highgui.hpp>
@@ -65,37 +66,37 @@ extern "C" UAX_API void Decrypt(unsigned char* input, unsigned char* output, uns
 // struct fo scale factor of image
 struct ImageScaleFactor
 {
-	float X;
-	float Y;
+    float X;
+    float Y;
 };
 
 //Struct for contoure area and perimeter
 struct ContourArea
 {
-	double Area;
-	double Perimeter;
+    double Area;
+    double Perimeter;
 };
 
 
 struct ImageLocation
 {
-	cv::Point2d Position; // Position of the template in the image
-	cv::Rect Rect;           // Rectangle of the template in the image
-	float Angle;			     // Angle of the template in the image 
+    cv::Point2d Position; // Position of the template in the image
+    cv::Rect Rect;           // Rectangle of the template in the image
+    float Angle;			     // Angle of the template in the image 
 };
 
 //Original tool path of image
 struct ToolPath
 {
-	cv::Point2d Offset; // Offset of the tool path
-	std::vector<cv::Point2d> Path; // Tool path
+    cv::Point2d Offset; // Offset of the tool path
+    std::vector<cv::Point2d> Path; // Tool path
 };
 
 struct YUFA
 {
     // 0 or 1 data type
-	int type;
-	cv::Point2d Position; // Position of the template in the image
+    int type;
+    cv::Point2d Position; // Position of the template in the image
 };
 
 
@@ -116,15 +117,15 @@ extern "C" UAX_API cv::Mat fitImageToScreen(const cv::Mat& inputImage, int scree
 //extern "C" UAX_API void ImageToSubPixel(const cv::Mat& src, cv::Mat &dstImg);
 
 // Display the image with image scale factor imgscl
-extern "C" UAX_API void DisplayImage(cv::Mat & src, cv::String window_name, float imgscl);
+extern "C" UAX_API void DisplayImage(cv::Mat& src, cv::String window_name, float imgscl);
 
 //Create a template image
-extern "C" UAX_API void CreateTemplate(cv::Mat & src, cv::Mat & templ, cv::Rect & rect);
+extern "C" UAX_API void CreateTemplate(cv::Mat& src, cv::Mat& templ, cv::Rect& rect);
 //extern "C" UAX_API void DisplayImage(cv::Mat & src, cv::String window_name);
 
 //match template
 // Get the position of the template in the image
-extern "C" UAX_API int MatchTemplate(cv::Mat& src, cv::Mat& templ, cv::Mat& dst, int match_method, ImageLocation &Location);
+extern "C" UAX_API int MatchTemplate(cv::Mat& src, cv::Mat& templ, cv::Mat& dst, int match_method, ImageLocation& Location);
 
 extern "C" UAX_API int MatchTemplateFLANN(cv::Mat& src, cv::Mat& templ, cv::Mat& dst, int match_method, ImageLocation& Location, cv::Point2d Offset);
 
@@ -220,7 +221,7 @@ extern "C" UAX_API void splitDoubleWord(uint32_t doubleWord, uint16_t& highWord,
 // worldPts: 指向對應世界座標點陣列的指標（長度至少6，3點）
 //cv::Mat & affineMatrix: the affine matrix of the transformation form pixel to world
 
-extern "C" UAX_API void InitTransformer(float* imagePts, float* worldPts, int numPoints, cv::Mat &affineMatrix);
+extern "C" UAX_API void InitTransformer(float* imagePts, float* worldPts, int numPoints, cv::Mat& affineMatrix);
 //extern "C" UAX_API void PixelToWorld(float x_pixel, float y_pixel, float& x_mm, float& y_mm, float* imagePts, float* worldPts);
 //extern "C" UAX_API void PixelToWorld(float x_pixel, float y_pixel, float& x_mm, float& y_mm, cv::Mat affineMatrix);
 extern "C" UAX_API void PixelToWorld(float x_pixel, float y_pixel, float& x_mm, float& y_mm, const cv::Mat& affineMatrix);
@@ -242,7 +243,7 @@ struct SystemConfig
     float OffsetY;
     int CameraID;
     char MACKey[18];    // 128 bit key
-	char GoldenKey[18]; // 128 bit key
+    char GoldenKey[18]; // 128 bit key
     int CameraWidth;
     int CameraHeight;
     float TransferFactor;
@@ -256,20 +257,20 @@ struct SystemConfig
     int IncAcceleration;
     float Pitch;
     float Z1;
-	float Z2;
-	float Z3;
-	float Z4;
-	float Z5;
+    float Z2;
+    float Z3;
+    float Z4;
+    float Z5;
     int MaskX;
-	int MaskY;
-	int MaskWidth;
-	int MaskHeight;
+    int MaskY;
+    int MaskWidth;
+    int MaskHeight;
 };
 
 // Write system configuration to ini file
-extern "C" UAX_API void WriteConfigToFile(const std::string& filename,  SystemConfig &SysConfig);
+extern "C" UAX_API void WriteConfigToFile(const std::string& filename, SystemConfig& SysConfig);
 // Read System Configuration from ini file
-extern "C" UAX_API int ReadSystemConfig(const std::string& filename, SystemConfig &SysConfig);
+extern "C" UAX_API int ReadSystemConfig(const std::string& filename, SystemConfig& SysConfig);
 // Initialize the system configuration ini file
 //extern "C" UAX_API void InitialConfig(const std::string& filename, const SystemConfig& SysConfig);
 
@@ -290,7 +291,7 @@ extern "C" UAX_API int SafeModbusWriteRegisters(modbus_t* ctx, int addr, int nb,
 extern "C" UAX_API int SafeModbusWriteRegister(modbus_t* ctx, int addr, uint16_t value);
 extern "C" UAX_API int SafeModbusReadBits(modbus_t* ctx, int addr, int nb, uint8_t* dest);
 extern "C" UAX_API int SafeModbusWriteBit(modbus_t* ctx, int addr, int status);
-extern "C" UAX_API void foo(unsigned char* data, int len);
+//extern "C" UAX_API void foo(unsigned char* data, int len);
 // 或
-#include <cstdint>
-void foo(std::uint8_t* data, int len);
+
+//void foo(std::uint8_t* data, int len);
