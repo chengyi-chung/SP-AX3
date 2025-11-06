@@ -1197,8 +1197,8 @@ void WorkTab::OnBnClickedIdcWorkGo()
     //call ToolPathTransform(ToolPath& toolpath, int* m_ToolPathData)
 	//ToolPathTransform(toolPath, m_ToolPathData);
 
-    // int m_ToolPathData[40000];
-    uint16_t* m_ToolPathData = new uint16_t[40000];
+    // int m_ToolPathData[60000];
+	uint16_t* m_ToolPathData = new uint16_t[60000];  //增加陣列大小到60000 --> +Z
 
     //測試機修正參數
     float imagePts[] = { 1097,1063, 1373,1063, 1371,945 };
@@ -1213,7 +1213,7 @@ void WorkTab::OnBnClickedIdcWorkGo()
     //    cv::Point2d Offset; // Offset of the tool path
     //    std::vector<cv::Point2d> Path; // Tool path
    // };
-	toolPath_world = toolPath; // copy toolPath to toolPath_world
+	//toolPath_world = toolPath; // copy toolPath to toolPath_world
    
     //Convert toolPath_world to m_ToolPathData[20000], 轉換
     //toolPath_world: Tool Path in world coordinate
@@ -1222,8 +1222,12 @@ void WorkTab::OnBnClickedIdcWorkGo()
     //Convert toolPath_world.Path to m_ToolPathData[20000]
 	//ToolPathTransform(toolPath_world, m_ToolPathData);
 
+    //插入檢查ToolPathTransform32 執行速度功能
+
+
+
     //定義最高10000點(DINT)，m_ToolPathData矩陣尺寸要大4倍
-	ToolPathTransform32(this->toolPath, m_ToolPathData);  //轉換 toolPath到 m_ToolPathData[40000] 矩陣
+	ToolPathTransform32(this->toolPath, m_ToolPathData);  //轉換 toolPath到 m_ToolPathData[60000] 矩陣
 
 
     //Send m_ToolPathData to PLC with modbus tcp
@@ -1252,6 +1256,60 @@ void WorkTab::ToolPathTransform32(ToolPath ToolPapath_Ori, uint16_t* m_ToolPathD
 	// imagePts (1511, 963) → worldPts (259.71, 134.03)
 	float imagePts[] = { 1035.0f, 844.0f, 1311.0f, 1247.0f, 1511.0f, 963.0f };
 	float worldPts[] = { -0.01f, 67.59f, 150.79f, 288.83f, 259.71f, 134.03f };
+
+    constexpr float scaleFactor = 100.0f; // mm → 整數
+
+    // 計算仿射矩陣
+    cv::Mat AffineMatrix;
+    InitTransformer(imagePts, worldPts, 3, AffineMatrix);
+
+    for (size_t i = 0; i < ToolPapath_Ori.Path.size(); ++i)
+    {
+        float x_mm = 0.0f, y_mm = 0.0f;
+        PixelToWorld(ToolPapath_Ori.Path[i].x, ToolPapath_Ori.Path[i].y, x_mm, y_mm, AffineMatrix);
+
+        // 放大並取整
+        int32_t x_int = static_cast<int32_t>(std::lround(x_mm * scaleFactor));
+        int32_t y_int = static_cast<int32_t>(std::lround(y_mm * scaleFactor));
+
+        // 維持二補數(負數可正確拆分)
+        uint32_t x_u = static_cast<uint32_t>(x_int);
+        uint32_t y_u = static_cast<uint32_t>(y_int);
+
+        size_t base = i * 4;
+        m_ToolPathData[base + 0] = static_cast<uint16_t>(x_u & 0xFFFFu); // X low
+        m_ToolPathData[base + 1] = static_cast<uint16_t>((x_u >> 16) & 0xFFFFu); // X high
+        m_ToolPathData[base + 2] = static_cast<uint16_t>(y_u & 0xFFFFu);  // Y low
+        m_ToolPathData[base + 3] = static_cast<uint16_t>((y_u >> 16) & 0xFFFFu);  //Y hight
+    }
+}
+
+
+void WorkTab::ToolPathTransform32A(ToolPath ToolPapath_Ori, uint16_t* m_ToolPathData, float z_Machining, float z_Retract)
+{
+    if (!m_ToolPathData || ToolPapath_Ori.Path.empty()) return;
+
+	ToolPath ToolPapath_Temp = ToolPapath_Ori;
+
+	float toolPathTemp[20000]; //暫存陣列
+
+
+
+
+
+
+
+
+
+    // 三點對應（像素 → 世界）
+    //float imagePts[] = { 1097, 1063, 1373, 1063, 1371, 945 };
+    //float worldPts[] = { 34.79f, 205.19f, 187.19f, 205.19f, 187.19f, 141.79f };
+
+    // imagePts (1035, 844) → worldPts (-0.01,67.59)
+    // imagePts (1311, 1247) → worldPts (150.79, 288.83)
+    // imagePts (1511, 963) → worldPts (259.71, 134.03)
+    float imagePts[] = { 1035.0f, 844.0f, 1311.0f, 1247.0f, 1511.0f, 963.0f };
+    float worldPts[] = { -0.01f, 67.59f, 150.79f, 288.83f, 259.71f, 134.03f };
 
     constexpr float scaleFactor = 100.0f; // mm → 整數
 

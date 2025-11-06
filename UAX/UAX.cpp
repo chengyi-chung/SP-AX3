@@ -468,11 +468,8 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
 // Enhanced version with curvature-based point reduction and smoothing
 // std::vector<cv::Point2d> points;
 // std::vector<cv::Point2d> pointsOut;
-void ReduceAndSmoothPoints(
-	const std::vector<cv::Point2d>& points,
-	std::vector<cv::Point2d>& pointsOut,
-	double curvatureThreshold,
-	int smoothingWindowSize)
+void ReduceAndSmoothPoints(const std::vector<cv::Point2d>& points, std::vector<cv::Point2d>& pointsOut,
+	                                                   double curvatureThreshold, int smoothingWindowSize)
 {
 	// Step 1: Reduce points based on curvature
 	auto reducedPoints = ReducePointsByCurvature(points, curvatureThreshold);
