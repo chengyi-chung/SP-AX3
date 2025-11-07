@@ -14,8 +14,12 @@
 #include <windows.h>
 #include <tchar.h>
 #include <strsafe.h>
-#include <iphlpapi.h>
-#include <stdio.h>
+#include <opencv2/flann.hpp>
+#include <cmath>
+#include <cstring>
+#include <algorithm>
+
+
 
 //Add UAX.h
 #include "UAX.h"
@@ -27,11 +31,6 @@
 #pragma comment(lib, "iphlpapi.lib")  // Link with iphlpapi.lib
 #pragma comment(lib, "ws2_32.lib")  // Link with ws2_32.lib : Winsock2 Library for Windows Sockets programming 
 //定義  PIP_ADAPTER_ADDRESSES
-
-
-
-//
-#include <iostream>
 
 
 using namespace std;
@@ -161,6 +160,7 @@ void  GetToolPath(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpath)
 	cv::drawContours(outputImage, contours, -1, cv::Scalar(0, 255, 0), 2);
 
 	toolpath.Offset = Offset;
+	int numCounts = static_cast<int>(contours.size());
 	for (const auto& contour : contours)
 	{
 		for (const auto& point : contour)
@@ -257,7 +257,6 @@ static std::vector<cv::Point2d> ReducePointsByCurvature(
 
 
 
-
 // 平滑化 (移動平均法)
 static std::vector<cv::Point2d> SmoothPoints(
 	const std::vector<cv::Point2d>& points,
@@ -285,6 +284,134 @@ static std::vector<cv::Point2d> SmoothPoints(
 	}
 	return result;
 }
+
+
+// 2025 /06/12  BEGIN
+
+
+// KD-Tree 分群
+int ClusterKDTree(const Point2D* input, int inputSize, double radius,
+	Cluster** outputClusters, int* clusterCount) {
+	if (!input || inputSize <= 0 || !outputClusters || !clusterCount) return -1;
+
+	std::vector<cv::Point2d> points;
+	for (int i = 0; i < inputSize; ++i)
+		points.emplace_back(input[i].x, input[i].y);
+
+	cv::Mat data(inputSize, 2, CV_32F);
+	for (int i = 0; i < inputSize; ++i) {
+		data.at<float>(i, 0) = static_cast<float>(points[i].x);
+		data.at<float>(i, 1) = static_cast<float>(points[i].y);
+	}
+
+	cv::flann::Index kdtree(data, cv::flann::KDTreeIndexParams(1));
+	std::vector<bool> visited(inputSize, false);
+	std::vector<std::vector<cv::Point2d>> clusters;
+
+	for (int i = 0; i < inputSize; ++i) {
+		if (visited[i]) continue;
+		std::vector<cv::Point2d> cluster;
+		std::vector<int> queue = { i };
+		visited[i] = true;
+
+		while (!queue.empty()) {
+			int idx = queue.back(); queue.pop_back();
+			cluster.push_back(points[idx]);
+
+			std::vector<int> indices;
+			std::vector<float> dists;
+			kdtree.radiusSearch(data.row(idx), indices, dists, radius * radius, inputSize);
+
+			for (int j : indices) {
+				if (!visited[j]) {
+					visited[j] = true;
+					queue.push_back(j);
+				}
+			}
+		}
+
+		clusters.push_back(cluster);
+	}
+
+	*clusterCount = static_cast<int>(clusters.size());
+	*outputClusters = new Cluster[*clusterCount];
+
+	for (int i = 0; i < *clusterCount; ++i) {
+		int n = static_cast<int>(clusters[i].size());
+		(*outputClusters)[i].points = new Point2D[n];
+		(*outputClusters)[i].count = n;
+		for (int j = 0; j < n; ++j) {
+			(*outputClusters)[i].points[j].x = clusters[i][j].x;
+			(*outputClusters)[i].points[j].y = clusters[i][j].y;
+		}
+	}
+
+	return 0;
+}
+
+// Savitzky-Golay 平滑
+int SmoothPath(const Point2D* input, int inputSize, int windowSize, Point2D* output) {
+	if (!input || inputSize <= 0 || windowSize < 3 || !output) return -1;
+	if (windowSize % 2 == 0) windowSize++; // 必須為奇數
+
+	int half = windowSize / 2;
+	std::vector<double> coeff(windowSize);
+	double sum = 0;
+	for (int i = -half; i <= half; ++i) {
+		coeff[i + half] = 1.0; // 簡化版權重
+		sum += coeff[i + half];
+	}
+
+	for (int i = 0; i < inputSize; ++i) {
+		double sx = 0, sy = 0;
+		for (int j = -half; j <= half; ++j) {
+			int idx = std::min<int>(std::max<int>(i + j, 0), inputSize - 1);
+			sx += input[idx].x * coeff[j + half];
+			sy += input[idx].y * coeff[j + half];
+		}
+		output[i].x = sx / sum;
+		output[i].y = sy / sum;
+	}
+
+	return 0;
+}
+
+// B-spline 擬合（簡化版：線性插值）
+int FitBSpline(const Point2D* input, int inputSize, int degree,
+	Point2D* output, int* outputSize) {
+	if (!input || inputSize < 2 || !output || !outputSize) return -1;
+
+	int segments = inputSize - 1;
+	int samplesPerSegment = 10;
+	*outputSize = segments * samplesPerSegment;
+
+	for (int i = 0; i < segments; ++i) {
+		for (int j = 0; j < samplesPerSegment; ++j) {
+			double t = static_cast<double>(j) / samplesPerSegment;
+			output[i * samplesPerSegment + j].x =
+				(1 - t) * input[i].x + t * input[i + 1].x;
+			output[i * samplesPerSegment + j].y =
+				(1 - t) * input[i].y + t * input[i + 1].y;
+		}
+	}
+
+	return 0;
+}
+
+// 釋放記憶體
+void FreeClusters(Cluster* clusters, int clusterCount) {
+	if (!clusters || clusterCount <= 0) return;
+	for (int i = 0; i < clusterCount; ++i)
+		delete[] clusters[i].points;
+	delete[] clusters;
+}
+
+
+// 2025  END
+
+
+
+
 
 
 // Get Tool Path
@@ -351,6 +478,10 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
 
 	// ======= 對輪廓座標做平滑處理 ========
 	std::vector<std::vector<cv::Point2d>> smoothedContours;
+
+	//2025/06/12 cluster 數目
+	int numContours = static_cast<int>(contours.size());
+
 	for (const auto& contour : contours)
 	{
 		// 將輪廓轉成 double 型的 Point2d

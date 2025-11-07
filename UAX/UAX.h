@@ -100,6 +100,19 @@ struct YUFA
 };
 
 
+// 基本點結構
+typedef struct {
+    double x;
+    double y;
+} Point2D;
+
+// 分群結果結構
+typedef struct {
+    Point2D* points;
+    int count;
+} Cluster;
+
+
 //
 // OpenCV function for UAX
 //
@@ -128,6 +141,24 @@ extern "C" UAX_API void CreateTemplate(cv::Mat& src, cv::Mat& templ, cv::Rect& r
 extern "C" UAX_API int MatchTemplate(cv::Mat& src, cv::Mat& templ, cv::Mat& dst, int match_method, ImageLocation& Location);
 
 extern "C" UAX_API int MatchTemplateFLANN(cv::Mat& src, cv::Mat& templ, cv::Mat& dst, int match_method, ImageLocation& Location, cv::Point2d Offset);
+
+// 分群主函式（KD-Tree）
+extern "C" UAX_API int ClusterKDTree(const Point2D* input, int inputSize, double radius,
+    Cluster** outputClusters, int* clusterCount);
+
+// 平滑處理（Savitzky-Golay）
+extern "C" UAX_API int SmoothPath(const Point2D* input, int inputSize, int windowSize,
+    Point2D* output);
+
+// B-spline 擬合
+extern "C" UAX_API  int FitBSpline(const Point2D* input, int inputSize, int degree,
+    Point2D* output, int* outputSize);
+
+// 釋放記憶體
+extern "C" UAX_API void FreeClusters(Cluster* clusters, int clusterCount);
+
+
+
 
 //Lens calibration function with  Mutiple images for huge FOV
 // Use the images in the folder to calibrate the lens

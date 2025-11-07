@@ -1226,7 +1226,7 @@ void WorkTab::OnBnClickedIdcWorkGo()
 
 
 
-    //定義最高10000點(DINT)，m_ToolPathData矩陣尺寸要大4倍
+    //定義最高10000點(DINT)，m_ToolPathData矩陣尺寸要大4倍+
 	ToolPathTransform32(this->toolPath, m_ToolPathData);  //轉換 toolPath到 m_ToolPathData[60000] 矩陣
 
 
