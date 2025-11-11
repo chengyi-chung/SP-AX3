@@ -86,10 +86,14 @@ struct ImageLocation
 };
 
 //Original tool path of image
+// Offset: the offset of the tool path
+// Path: the tool path
+// numClusters: number of clusters in the tool path
 struct ToolPath
 {
-    cv::Point2d Offset; // Offset of the tool path
-    std::vector<cv::Point2d> Path; // Tool path
+    cv::Point2d Offset;                // Offset of the tool path
+    std::vector<cv::Point2d> Path;     // Tool path
+    std::vector<int> numClusters;      // 對應 Path 每個點的分群編號（依 contour 分群）
 };
 
 struct YUFA

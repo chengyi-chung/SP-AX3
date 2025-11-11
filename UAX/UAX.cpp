@@ -406,7 +406,6 @@ void FreeClusters(Cluster* clusters, int clusterCount) {
 	delete[] clusters;
 }
 
-
 // 2025  END
 
 
@@ -422,178 +421,195 @@ void FreeClusters(Cluster* clusters, int clusterCount) {
 // With mask image to limit the area of tool path
 void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offsetDistance, ToolPath& toolpath)
 {
-	// ======= 輸入檢查 ========
-	// 如果來源影像或遮罩為空，拋出例外
-	if (ImgSrc.empty() || Mask.empty())
-	{
-		throw std::invalid_argument("Input image or mask is empty.");
-	}
-	// 來源影像與遮罩尺寸必須一致
-	if (ImgSrc.size() != Mask.size())
-	{
-		throw std::invalid_argument("Image and mask sizes do not match.");
-	}
+    // ======= 輸入檢查 ========
+    if (ImgSrc.empty() || Mask.empty())
+    {
+        throw std::invalid_argument("Input image or mask is empty.");
+    }
+    if (ImgSrc.size() != Mask.size())
+    {
+        throw std::invalid_argument("Image and mask sizes do not match.");
+    }
 
-	// ======= 套用遮罩到原影像 ========
-	cv::Mat maskedImage;
-	if (ImgSrc.channels() == 3) // RGB彩色圖
-	{
-		maskedImage = cv::Mat::zeros(ImgSrc.size(), ImgSrc.type()); // 建立空白影像（全黑）
-		ImgSrc.copyTo(maskedImage, Mask); // 根據遮罩複製影像內容
-	}
-	else // 灰階圖
-	{
-		maskedImage = ImgSrc.clone();
-		maskedImage.setTo(0, Mask == 0); // 遮罩為 0 的地方設為黑
-	}
+    // ======= 套用遮罩到原影像 ========
+    cv::Mat maskedImage;
+    if (ImgSrc.channels() == 3)
+    {
+        maskedImage = cv::Mat::zeros(ImgSrc.size(), ImgSrc.type());
+        ImgSrc.copyTo(maskedImage, Mask);
+    }
+    else
+    {
+        maskedImage = ImgSrc.clone();
+        maskedImage.setTo(0, Mask == 0);
+    }
 
-	// ======= 依 offsetDistance 做腐蝕(縮小區域) ========
-	cv::Mat result = maskedImage.clone();
-	int numPixelsToErode = static_cast<int>(offsetDistance); // 轉為像素數
-	cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3)); // 3x3矩形核
+    // ======= 依 offsetDistance 做腐蝕(縮小區域) ========
+    cv::Mat result = maskedImage.clone();
+    int numPixelsToErode = static_cast<int>(offsetDistance);
+    cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
 
-	for (int i = 0; i < numPixelsToErode; ++i)
-	{
-		cv::erode(result, result, kernel); // 重複腐蝕，縮小區域
-	}
+    for (int i = 0; i < numPixelsToErode; ++i)
+    {
+        cv::erode(result, result, kernel);
+    }
 
-	// ======= 轉灰階以後做二值化 ========
-	cv::Mat gray;
-	if (result.channels() != 1)
-	{
-		cv::cvtColor(result, gray, cv::COLOR_BGR2GRAY); // 彩色轉灰階
-	}
-	else
-	{
-		gray = result;
-	}
+    // ======= 轉灰階以後做二值化 ========
+    cv::Mat gray;
+    if (result.channels() != 1)
+    {
+        cv::cvtColor(result, gray, cv::COLOR_BGR2GRAY);
+    }
+    else
+    {
+        gray = result;
+    }
 
-	cv::Mat thresh;
-	cv::threshold(gray, thresh, 200, 255, cv::THRESH_BINARY); // 閾值200以上白色，其他黑色
+    cv::Mat thresh;
+    cv::threshold(gray, thresh, 200, 255, cv::THRESH_BINARY);
 
-	// ======= 找輪廓 ========
-	std::vector<std::vector<cv::Point>> contours;
-	std::vector<cv::Vec4i> hierarchy;
-	cv::findContours(thresh, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE); // 只取外部輪廓
+    // ======= 找輪廓 ========
+    std::vector<std::vector<cv::Point>> contours;
+    std::vector<cv::Vec4i> hierarchy;
+    cv::findContours(thresh, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
-	// ======= 對輪廓座標做平滑處理 ========
-	std::vector<std::vector<cv::Point2d>> smoothedContours;
+    // ======= 對輪廓座標做平滑處理 ========
+    std::vector<std::vector<cv::Point2d>> smoothedContours;
+    int numContours = static_cast<int>(contours.size());
 
-	//2025/06/12 cluster 數目
-	int numContours = static_cast<int>(contours.size());
+    for (const auto& contour : contours)
+    {
+        std::vector<cv::Point2d> points;
+        points.reserve(contour.size());
+        for (const auto& point : contour)
+        {
+            points.emplace_back(point.x, point.y);
+        }
 
-	for (const auto& contour : contours)
-	{
-		// 將輪廓轉成 double 型的 Point2d
-		std::vector<cv::Point2d> points;
-		for (const auto& point : contour)
-		{
-			points.push_back(cv::Point2d(point.x, point.y));
-		}
+        int smoothingSize = 7;
+        double sigma = 2.5;
 
-		// 平滑參數
-		int smoothingSize = 7; // 平滑的卷積核大小（必須是奇數）
-		double sigma = 2.5; // 1.5; // 高斯標準差
+        std::vector<cv::Point2d> smoothedPoints;
+        if (points.size() >= static_cast<size_t>(smoothingSize))
+        {
+            std::vector<double> xCoords(points.size()), yCoords(points.size());
+            for (size_t i = 0; i < points.size(); ++i)
+            {
+                xCoords[i] = points[i].x;
+                yCoords[i] = points[i].y;
+            }
 
-		std::vector<cv::Point2d> smoothedPoints;
-		if (points.size() >= smoothingSize)
-		{
-			// 分別存放 X 與 Y 座標
-			std::vector<double> xCoords(points.size()), yCoords(points.size());
-			for (size_t i = 0; i < points.size(); ++i)
-			{
-				xCoords[i] = points[i].x;
-				yCoords[i] = points[i].y;
-			}
+            cv::Mat kernel1D = cv::getGaussianKernel(smoothingSize, sigma, CV_64F);
+            cv::Mat xMat(1, static_cast<int>(xCoords.size()), CV_64F, xCoords.data());
+            cv::Mat yMat(1, static_cast<int>(yCoords.size()), CV_64F, yCoords.data());
+            cv::Mat smoothedX, smoothedY;
 
-			// 建立高斯核
-			cv::Mat kernel1D = cv::getGaussianKernel(smoothingSize, sigma, CV_64F);
-			cv::Mat xMat(1, xCoords.size(), CV_64F, xCoords.data());
-			cv::Mat yMat(1, yCoords.size(), CV_64F, yCoords.data());
-			cv::Mat smoothedX, smoothedY;
+            cv::filter2D(xMat, smoothedX, -1, kernel1D, cv::Point(-1, -1), 0, cv::BORDER_REFLECT);
+            cv::filter2D(yMat, smoothedY, -1, kernel1D, cv::Point(-1, -1), 0, cv::BORDER_REFLECT);
 
-			// 對 X/Y 做濾波平滑
-			cv::filter2D(xMat, smoothedX, -1, kernel1D, cv::Point(-1, -1), 0, cv::BORDER_REFLECT);
-			cv::filter2D(yMat, smoothedY, -1, kernel1D, cv::Point(-1, -1), 0, cv::BORDER_REFLECT);
+            smoothedPoints.reserve(points.size());
+            for (size_t i = 0; i < points.size(); ++i)
+            {
+                smoothedPoints.emplace_back(smoothedX.at<double>(0, static_cast<int>(i)),
+                                            smoothedY.at<double>(0, static_cast<int>(i)));
+            }
+        }
+        else
+        {
+            smoothedPoints = points;
+        }
 
-			// 合併平滑後的座標成 Point2d
-			for (size_t i = 0; i < points.size(); ++i)
-			{
-				smoothedPoints.push_back(cv::Point2d(smoothedX.at<double>(0, i), smoothedY.at<double>(0, i)));
-			}
-		}
-		else
-		{
-			smoothedPoints = points; // 如果座標太少，就不平滑
-		}
+        smoothedContours.push_back(std::move(smoothedPoints));
+    }
 
-		smoothedContours.push_back(smoothedPoints);
-	}
+    // ======= smoothedContours 進行曲率降點 ========
+    double curvatureThreshold = 0.1;
+    std::vector<std::vector<cv::Point2d>> finalContours;
+    finalContours.reserve(smoothedContours.size());
+    for (const auto& contour : smoothedContours)
+    {
+        finalContours.push_back(ReducePointsByCurvature(contour, curvatureThreshold));
+    }
 
-	// ======= smoothedContours 進行曲率降點 ========
-	double curvatureThreshold = 0.1; // 曲率閾值，可調整
-	std::vector<std::vector<cv::Point2d>> finalContours;
-	for (const auto& contour : smoothedContours)
-	{
-		auto reduced = ReducePointsByCurvature(contour, curvatureThreshold);
-		finalContours.push_back(reduced);
-	}
+    // ======= 存到 toolpath 結構（包含 clusters 編號） ========
+    toolpath.Offset = cv::Point2d(offsetDistance, offsetDistance);
+    toolpath.Path.clear();
+    toolpath.numClusters.clear();
 
-	// ======= 存到 toolpath 結構 ========
-	toolpath.Offset = cv::Point2d(offsetDistance, offsetDistance);
-	for (const auto& contour : finalContours)
-	{
-		for (const auto& point : contour)
-		{
-			toolpath.Path.push_back(point);
-		}
-	}
+    for (size_t cIdx = 0; cIdx < finalContours.size(); ++cIdx)
+    {
+        const auto& contour = finalContours[cIdx];
+        for (const auto& point : contour)
+        {
+            toolpath.Path.push_back(point);
+            toolpath.numClusters.push_back(static_cast<int>(cIdx)); // 以輪廓索引作為分群號碼
+        }
+    }
 
-	// ======= 除錯模式下輸出座標到檔案 ========
+	int pathSize = toolpath.Path.size();
+	int clusterCount = toolpath.numClusters.size();
+
+
 #ifdef _DEBUG
-	std::ofstream outFile("C:\\Temp\\ToolPathData.txt");
-	if (outFile.is_open())
-	{
-		for (const auto& point : toolpath.Path)
-		{
-			outFile << point.x << ", " << point.y << std::endl;
-		}
-		outFile.close();
-	}
+{
+    const size_t total = toolpath.Path.size();
+    const size_t totalClusters = toolpath.numClusters.size();
+
+    // 先輸出總數與長度是否一致
+    {
+        std::ostringstream head;
+        head << "[ToolPath] points=" << total
+             << ", clusters=" << totalClusters
+             << (total == totalClusters ? " (OK)" : " (MISMATCH)") << "\n";
+        OutputDebugStringA(head.str().c_str());
+    }
+
+    // 逐筆輸出所有點與對應 cluster（分段避免訊息太長被截斷）
+    const size_t chunk = 512; // 每批輸出行數
+    for (size_t start = 0; start < total; start += chunk)
+    {
+        std::ostringstream oss;
+        size_t end = std::min<size_t>(total, start + chunk);
+        for (size_t i = start; i < end; ++i)
+        {
+            const auto& p = toolpath.Path[i];
+            int cid = (i < totalClusters) ? toolpath.numClusters[i] : -1;
+            oss << i << ": (" << p.x << ", " << p.y << "), cluster=" << cid << "\n";
+        }
+        OutputDebugStringA(oss.str().c_str());
+    }
+}
 #endif
 
-	// ======= 顯示曲率降點的所有點並加線段 ========
-	cv::Mat outputImage = ImgSrc.clone();
-	std::vector<std::vector<cv::Point>> contoursToDraw;
+    // ======= 顯示曲率降點的所有點並加線段 ========
+    cv::Mat outputImage = ImgSrc.clone();
+    std::vector<std::vector<cv::Point>> contoursToDraw;
 
-	for (const auto& finalContour : finalContours)
-	{
-		std::vector<cv::Point> contourInt;
-		for (size_t i = 0; i < finalContour.size(); ++i)
-		{
-			cv::Point p(static_cast<int>(finalContour[i].x), static_cast<int>(finalContour[i].y));
-			contourInt.push_back(p);
+    for (const auto& finalContour : finalContours)
+    {
+        std::vector<cv::Point> contourInt;
+        contourInt.reserve(finalContour.size());
+        for (size_t i = 0; i < finalContour.size(); ++i)
+        {
+            cv::Point p(static_cast<int>(finalContour[i].x), static_cast<int>(finalContour[i].y));
+            contourInt.push_back(p);
 
-			// 畫點 - 半徑 8 的綠色圓
-			cv::circle(outputImage, p, 8, cv::Scalar(0, 255, 0), cv::FILLED);
+            cv::circle(outputImage, p, 8, cv::Scalar(0, 255, 0), cv::FILLED);
 
-			// 畫線段連接到下一個點
-			if (i < finalContour.size() - 1)
-			{
-				cv::Point nextP(static_cast<int>(finalContour[i + 1].x), static_cast<int>(finalContour[i + 1].y));
-				cv::line(outputImage, p, nextP, cv::Scalar(0, 255, 255), 2, cv::LINE_AA); // 黃色線
-			}
-		}
-		contoursToDraw.push_back(contourInt);
-	}
+            if (i < finalContour.size() - 1)
+            {
+                cv::Point nextP(static_cast<int>(finalContour[i + 1].x), static_cast<int>(finalContour[i + 1].y));
+                cv::line(outputImage, p, nextP, cv::Scalar(0, 255, 255), 2, cv::LINE_AA);
+            }
+        }
+        contoursToDraw.push_back(std::move(contourInt));
+    }
 
-	// 如果還要整體輪廓線可加
-	cv::drawContours(outputImage, contoursToDraw, -1, cv::Scalar(255, 0, 0), 1);
+    cv::drawContours(outputImage, contoursToDraw, -1, cv::Scalar(255, 0, 0), 1);
 
-	// 顯示影像
-	ShowZoomedImage("Curvature Reduced Points with Lines", outputImage);
-	cv::waitKey(0);
-	cv::destroyAllWindows();
+    ShowZoomedImage("Curvature Reduced Points with Lines", outputImage);
+    cv::waitKey(0);
+    cv::destroyAllWindows();
 }
 
 // Enhanced version with curvature-based point reduction and smoothing
@@ -811,7 +827,6 @@ void mouseCallback(int event, int x, int y, int, void* userdata)
 // templ: output template
 // rect: output rectangle
 // display the image and select the area
-// use mouse to select the area
 void CreateTemplate(cv::Mat& src, cv::Mat& templ, cv::Rect& rect)
 {
 	// check if the image is empty
@@ -1590,6 +1605,12 @@ int SafeModbusWriteBit(modbus_t* ctx, int addr, int status)
 	std::lock_guard<std::mutex> lock(plc_mutex);
 	return modbus_write_bit(ctx, addr, status);
 }
+
+
+
+
+
+
 
 
 
