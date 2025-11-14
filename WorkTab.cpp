@@ -1243,6 +1243,11 @@ void WorkTab::OnBnClickedIdcWorkGo()
 
 }
 
+/*
+
+
+
+*/
 void WorkTab::ToolPathTransform32(ToolPath ToolPapath_Ori, uint16_t* m_ToolPathData)
 {
     if (!m_ToolPathData || ToolPapath_Ori.Path.empty()) return;
@@ -1285,21 +1290,14 @@ void WorkTab::ToolPathTransform32(ToolPath ToolPapath_Ori, uint16_t* m_ToolPathD
 }
 
 
+/*
 void WorkTab::ToolPathTransform32A(ToolPath ToolPapath_Ori, uint16_t* m_ToolPathData, float z_Machining, float z_Retract)
 {
     if (!m_ToolPathData || ToolPapath_Ori.Path.empty()) return;
 
-	ToolPath ToolPapath_Temp = ToolPapath_Ori;
+    ToolPath ToolPapath_Temp = ToolPapath_Ori;
 
-	float toolPathTemp[20000]; //暫存陣列
-
-
-
-
-
-
-
-
+    float toolPathTemp[20000]; //暫存陣列
 
     // 三點對應（像素 → 世界）
     //float imagePts[] = { 1097, 1063, 1373, 1063, 1371, 945 };
@@ -1337,6 +1335,76 @@ void WorkTab::ToolPathTransform32A(ToolPath ToolPapath_Ori, uint16_t* m_ToolPath
         m_ToolPathData[base + 3] = static_cast<uint16_t>((y_u >> 16) & 0xFFFFu);  //Y hight
     }
 }
+*/
+
+inline void AppendPointSafe(uint16_t* data, size_t& idx, size_t capacity,
+    int32_t x, int32_t y, int32_t z) {
+    if (idx + 6 > capacity) {
+        throw std::runtime_error("Output buffer overflow in AppendPointSafe");
+    }
+    // 處理負值：添加偏移，使其正（假設最小值-100mm，scale後-10000，偏移+10000）
+    constexpr int32_t offset = 10000;  // 根據實際範圍調整
+    uint32_t xu = static_cast<uint32_t>(x + offset);
+    uint32_t yu = static_cast<uint32_t>(y + offset);
+    uint32_t zu = static_cast<uint32_t>(z + offset);  // z可能負？
+    data[idx++] = static_cast<uint16_t>(xu & 0xFFFF);
+    data[idx++] = static_cast<uint16_t>((xu >> 16) & 0xFFFF);
+    data[idx++] = static_cast<uint16_t>(yu & 0xFFFF);
+    data[idx++] = static_cast<uint16_t>((yu >> 16) & 0xFFFF);
+    data[idx++] = static_cast<uint16_t>(zu & 0xFFFF);
+    data[idx++] = static_cast<uint16_t>((zu >> 16) & 0xFFFF);
+}
+
+void WorkTab::ToolPathTransform32A(ToolPath pathOri, uint16_t* outData, size_t outCapacity, float z_Machining, float zRetract) {
+    if (!outData || pathOri.Path.empty() || pathOri.Path.size() != pathOri.numClusters.size()) {
+        throw std::invalid_argument("Invalid input in ToolPathTransform32A");
+        return;
+    }
+     float scaleFactor = 100.0f;
+     static float imagePts[] = { 1035, 844, 1311, 1247, 1511, 963 };
+     static float worldPts[] = { -0.01f, 67.59f, 150.79f, 288.83f, 259.71f, 134.03f };
+
+    // 靜態初始化仿射矩陣，只計算一次
+    static cv::Mat affine = []() {
+        cv::Mat mat;
+        InitTransformer(imagePts, worldPts, 3, mat);
+        return mat;
+        }();
+
+    // 預計算世界座標
+    std::vector<std::pair<float, float>> worldCoords(pathOri.Path.size());
+    for (size_t i = 0; i < pathOri.Path.size(); ++i) {
+        PixelToWorld(pathOri.Path[i].x, pathOri.Path[i].y, worldCoords[i].first, worldCoords[i].second, affine);
+    }
+
+    // 估計總點數：原始點 + 簇變更數
+    size_t numClustersChanges = 0;
+    for (size_t i = 1; i < pathOri.Path.size(); ++i) {
+        if (pathOri.numClusters[i] != pathOri.numClusters[i - 1]) ++numClustersChanges;
+    }
+    size_t totalPoints = pathOri.Path.size() + numClustersChanges;
+    if (totalPoints * 6 > outCapacity) {
+        throw std::runtime_error("Insufficient output capacity");
+    }
+
+    size_t idx = 0;
+    for (size_t i = 0; i < pathOri.Path.size(); ++i) {
+        if (i > 0 && pathOri.numClusters[i] != pathOri.numClusters[i - 1]) {
+            auto& prev = worldCoords[i - 1];
+            auto& curr = worldCoords[i];
+            int32_t mx_int = static_cast<int32_t>(std::lround((prev.first + curr.first) / 2 * scaleFactor));
+            int32_t my_int = static_cast<int32_t>(std::lround((prev.second + curr.second) / 2 * scaleFactor));
+            int32_t zRet_int = static_cast<int32_t>(std::lround(zRetract * scaleFactor));
+            AppendPointSafe(outData, idx, outCapacity, mx_int, my_int, zRet_int);
+        }
+        auto& curr = worldCoords[i];
+        int32_t x_int = static_cast<int32_t>(std::lround(curr.first * scaleFactor));
+        int32_t y_int = static_cast<int32_t>(std::lround(curr.second * scaleFactor));
+        int32_t zWork_int = static_cast<int32_t>(std::lround(z_Machining * scaleFactor));
+        AppendPointSafe(outData, idx, outCapacity, x_int, y_int, zWork_int);
+    }
+}
+
 
 void WorkTab::ToolPathTransform(ToolPath& toolpath, uint16_t* m_ToolPathData)
 {

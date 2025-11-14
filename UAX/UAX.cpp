@@ -408,11 +408,6 @@ void FreeClusters(Cluster* clusters, int clusterCount) {
 
 // 2025  END
 
-
-
-
-
-
 // Get Tool Path
 // Use Erosiong find the tool path
 // ImgSrc: the input image

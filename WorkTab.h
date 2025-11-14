@@ -70,7 +70,7 @@ public:
 
 	void ToolPathTransform(ToolPath& toolpath, uint16_t* m_ToolPathData);
 	void ToolPathTransform32(ToolPath ToolPapath_Ori, uint16_t* m_ToolPathData);
-	void ToolPathTransform32A(ToolPath ToolPapath_Ori, uint16_t* m_ToolPathData, float z_Machining, float z_Retract);
+	void ToolPathTransform32A(ToolPath ToolPapath_Ori, uint16_t* m_ToolPathData , size_t outCapacity, float z_Machining, float z_Retract);
 
 
 	void ShowImageOnPictureCtl();
