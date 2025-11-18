@@ -26,7 +26,6 @@ MachineTab::MachineTab(CWnd* pParent /*=nullptr*/)
 MachineTab::~MachineTab()
 {
 	StopCoordinateThread();
-	if (m_hStopThreadEvent)
 	{
 		CloseHandle(m_hStopThreadEvent);
 	}
@@ -257,8 +256,8 @@ void MachineTab::ClearDiscrete5000(int iStartAdress, int iEndAdress)
 		Discrete5000.set(i, 0);
 	}
 	Discrete5000Word = Discrete5000.to_ulong();
-	int rc = modbus_write_register(pParentWnd->m_modbusCtx, 50000, Discrete5000Word);
-	m_strReportData = m_strReportData + "\r\n" + "Reg[50000]." + std::to_string(iStartAdress) + "  = " + std::to_string(Discrete5000Word) + " " + Discrete5000.to_string();
+	int rc = modbus_write_register(pParentWnd->m_modbusCtx, 63000, Discrete5000Word);
+	m_strReportData = m_strReportData + "\r\n" + "Reg[63000]." + std::to_string(iStartAdress) + "  = " + std::to_string(Discrete5000Word) + " " + Discrete5000.to_string();
 	SetDlgItemText(IDC_EDIT_REPORT, CString(m_strReportData.c_str()));
 	CEdit* pEdit = (CEdit*)GetDlgItem(IDC_EDIT_REPORT);
 	if (pEdit) {
@@ -371,15 +370,15 @@ void MachineTab::Discrete5000Change(int intType, int BitAdress, int BitValue, in
 
     //{
 		//std::lock_guard<std::mutex> lock(pParentWnd->m_modbusMutex);
-        int rc = modbus_write_register(pParentWnd->m_modbusCtx, 50000, Discrete5000Word);
+        int rc = modbus_write_register(pParentWnd->m_modbusCtx, 63000, Discrete5000Word);
 
-        m_strReportData = m_strReportData + "\r\n" + "Reg[50000]." + std::to_string(BitAdress) + " = " +
+        m_strReportData = m_strReportData + "\r\n" + "Reg[63000]." + std::to_string(BitAdress) + " = " +
             std::to_string(Discrete5000Word) + " " + Discrete5000.to_string();
         SetDlgItemText(IDC_EDIT_REPORT, CString(m_strReportData.c_str()));
 
         if (rc == -1) {
             CString errorMessage;
-            errorMessage.Format(_T("Failed to write to Modbus register 50000: %S"), modbus_strerror(errno));
+            errorMessage.Format(_T("Failed to write to Modbus register 63000: %S"), modbus_strerror(errno));
             AfxMessageBox(errorMessage);
             return;
         }
@@ -406,15 +405,18 @@ void MachineTab::Discrete5000Change(int intType, int BitAdress, int BitValue, in
 void MachineTab::OnBnClickedBtnMachineSaveMotion()
 {
 	// ====== Double Word Register Address Definitions ======
+	/*
 	constexpr uint16_t REG_BASE_Z1 = 40000; // Z1 double word (40000, 40001)
 	constexpr uint16_t REG_BASE_Z2 = 40002; // Z2 double word
 	constexpr uint16_t REG_BASE_Z3 = 40004; // Z3 double word
 	constexpr uint16_t REG_BASE_Z4 = 40006; // Z4 double word
 	constexpr uint16_t REG_BASE_Z5 = 40008; // Z5 double word
-	constexpr uint16_t REG_JOG_VELOCITY = 40016; // Jog Velocity double word
-	constexpr uint16_t REG_AUTO_VELOCITY = 40018; // Auto Velocity double word
-	constexpr uint16_t REG_AXIS_DEC_ACC = 40020; // Dec Acceleration double word
-	constexpr uint16_t REG_AXIS_INC_ACC = 40022; // Inc Acceleration double word
+	*/
+	
+	constexpr uint16_t REG_JOG_VELOCITY = 60006; // Jog Velocity double word
+	constexpr uint16_t REG_AUTO_VELOCITY = 60008; // Auto Velocity double word
+	constexpr uint16_t REG_AXIS_DEC_ACC = 60010; // Dec Acceleration double word
+	constexpr uint16_t REG_AXIS_INC_ACC = 60012; // Inc Acceleration double word
 
 	// ======== Step 1. Retrieve motion parameters from UI ========
 	BOOL ok = FALSE;
@@ -430,6 +432,7 @@ void MachineTab::OnBnClickedBtnMachineSaveMotion()
 	int32_t incAcc = GetDlgItemInt(IDC_EDIT_AXIS_ACC_INC, &ok, TRUE);
 	if (!ok) { AfxMessageBox(_T("Acceleration input error")); return; }
 
+	/*
 	int32_t z1Pos = GetDlgItemInt(IDC_EDIT_Z1, &ok, TRUE);
 	if (!ok) { AfxMessageBox(_T("Z1 Position input error")); return; }
 
@@ -444,6 +447,8 @@ void MachineTab::OnBnClickedBtnMachineSaveMotion()
 
 	int32_t z5Pos = GetDlgItemInt(IDC_EDIT_Z5, &ok, TRUE);
 	if (!ok) { AfxMessageBox(_T("Z5 Position input error")); return; }
+	*/
+
 
 	// ======== Step 2. Split int32_t into high/low 16-bit ========
 	auto splitInt32 = [](int32_t value, uint16_t& low, uint16_t& high)
@@ -462,12 +467,13 @@ void MachineTab::OnBnClickedBtnMachineSaveMotion()
 	splitInt32(autoVelocity, autoLow, autoHigh);
 	splitInt32(decAcc, decLow, decHigh);
 	splitInt32(incAcc, incLow, incHigh);
+	/*
 	splitInt32(z1Pos, z1Low, z1High);
 	splitInt32(z2Pos, z2Low, z2High);
 	splitInt32(z3Pos, z3Low, z3High);
 	splitInt32(z4Pos, z4Low, z4High);
 	splitInt32(z5Pos, z5Low, z5High);
-
+	*/
 
 	// ======== Step 3. Write to PLC (Double Word, each value 2 registers) ========
 	if (!SetHoldingRegister32(REG_JOG_VELOCITY, jogLow, jogHigh)) {
@@ -486,6 +492,9 @@ void MachineTab::OnBnClickedBtnMachineSaveMotion()
 		AfxMessageBox(_T("Failed to write Acceleration"));
 		return;
 	}
+
+	/*
+	
 	if (!SetHoldingRegister32(REG_BASE_Z1, z1Low, z1High)) {
 		AfxMessageBox(_T("Failed to write Z1 Position"));
 		return;
@@ -506,6 +515,9 @@ void MachineTab::OnBnClickedBtnMachineSaveMotion()
 		AfxMessageBox(_T("Failed to write Z5 Position"));
 		return;
 	}
+	
+	*/
+	
 
 	// ======== Step 4. Update System Parameters ========
 	CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
@@ -519,12 +531,15 @@ void MachineTab::OnBnClickedBtnMachineSaveMotion()
 	pParentWnd->m_SystemPara.AutoVelocity = autoVelocity;
 	pParentWnd->m_SystemPara.DecAcceleration = decAcc;
 	pParentWnd->m_SystemPara.IncAcceleration = incAcc;
+
+	/*
 	pParentWnd->m_SystemPara.Z1 = z1Pos;
 	pParentWnd->m_SystemPara.Z2 = z2Pos;
 	pParentWnd->m_SystemPara.Z3 = z3Pos;
 	pParentWnd->m_SystemPara.Z4 = z4Pos;
 	pParentWnd->m_SystemPara.Z5 = z5Pos;
-
+	*/
+	
 
 	// ======== Step 5. Handle Pitch and Transfer Factor ========
 	CString strPitch, strTransfer;
@@ -1078,7 +1093,7 @@ UINT MachineTab::ReadCoordinatesThread(LPVOID pParam)
 
 	CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(pThis->m_pParentWnd);
 
-	constexpr int startAddress = 40010;
+	constexpr int startAddress = 60000;
 	constexpr int numRegisters = 6;
 	const float scalingFactor = 1;
 	//const float scalingFactor = -1580.0f / -142606337.0f;

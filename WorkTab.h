@@ -44,7 +44,7 @@ public:
 	ToolPath toolPath;     // ToolPath in image coordinate : Pixel
 	ToolPath toolPath_world;   // ToolPath in world coordinate : mm
 
-	uint16_t m_ToolPathData[20000];
+	uint16_t m_ToolPathData[30000];
 	bool flgCenter;
 
 	protected:
@@ -71,6 +71,16 @@ public:
 	void ToolPathTransform(ToolPath& toolpath, uint16_t* m_ToolPathData);
 	void ToolPathTransform32(ToolPath ToolPapath_Ori, uint16_t* m_ToolPathData);
 	void ToolPathTransform32A(ToolPath ToolPapath_Ori, uint16_t* m_ToolPathData , size_t outCapacity, float z_Machining, float z_Retract);
+	
+	float z_Machining = -1.0f;  //加工高度
+	float z_Retract = 5.0f;     //退回高度
+	std::vector<uint16_t> m_ToolPathDataA;   // 用於 ToolPathTransform32A 的動態陣列, 修改於運動點定義 由 x,y 改為 x,y,z 2025.11.18
+	void ToolPathTransform32B(ToolPath ToolPath_Ori, float z_Machining, float zRetract);  //修改於運動點定義 由 x,y 改為 x,y,z 2025.11.18
+
+	void SendToolPathData(uint16_t* m_ToolPathData, int sizeOfArray, int stationID);
+	void SendToolPathDataA(uint16_t* m_ToolPathData, int sizeOfArray, int stationID);
+	void SendToolPathData32(uint16_t* m_ToolPathData, int sizeOfArray, int stationID);   //modbus tcp 傳送 ToolPath Data 32bit
+	void SendToolPathData32A(std::vector<uint16_t> m_ToolPathDataA, int sizeOfArray, int stationID); //點定義 由 x,y 改為 x,y,z 2025.11.18
 
 
 	void ShowImageOnPictureCtl();
@@ -104,9 +114,10 @@ public:
 	CFont m_fontBoldBig;
 
 	void DrawPicToHDC(cv::Mat cvImg, UINT ID, bool bOnPaint);
-	void SendToolPathData(uint16_t *m_ToolPathData, int sizeOfArray, int stationID);
-	void SendToolPathDataA(uint16_t* m_ToolPathData, int sizeOfArray, int stationID);
-	void SendToolPathData32(uint16_t* m_ToolPathData, int sizeOfArray, int stationID);
+	
+
+	
+
 	HICON m_hIcon;
 
 protected:
