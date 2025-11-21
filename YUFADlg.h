@@ -114,5 +114,7 @@ public:
 
     // Modbus 連線重試機制
     bool InitModbusWithRetry(const std::string& ip, int port, int slaveId, int maxRetry, int retryDelayMs);
+	bool EnsureModbusConnected(int stationID, int retryCount = 3);
+	bool InitModbusWithRetry(const CString& ip, int port, int slaveID, int timeoutMs = 1000, int retry = 3);
 
 };

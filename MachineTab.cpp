@@ -432,12 +432,14 @@ void MachineTab::OnBnClickedBtnMachineSaveMotion()
 	int32_t incAcc = GetDlgItemInt(IDC_EDIT_AXIS_ACC_INC, &ok, TRUE);
 	if (!ok) { AfxMessageBox(_T("Acceleration input error")); return; }
 
-	/*
+	
 	int32_t z1Pos = GetDlgItemInt(IDC_EDIT_Z1, &ok, TRUE);
 	if (!ok) { AfxMessageBox(_T("Z1 Position input error")); return; }
 
 	int32_t z2Pos = GetDlgItemInt(IDC_EDIT_Z2, &ok, TRUE);
 	if (!ok) { AfxMessageBox(_T("Z2 Position input error")); return; }
+
+	/*
 
 	int32_t z3Pos = GetDlgItemInt(IDC_EDIT_Z3, &ok, TRUE);
 	if (!ok) { AfxMessageBox(_T("Z3 Position input error")); return; }
@@ -532,9 +534,10 @@ void MachineTab::OnBnClickedBtnMachineSaveMotion()
 	pParentWnd->m_SystemPara.DecAcceleration = decAcc;
 	pParentWnd->m_SystemPara.IncAcceleration = incAcc;
 
-	/*
+
 	pParentWnd->m_SystemPara.Z1 = z1Pos;
 	pParentWnd->m_SystemPara.Z2 = z2Pos;
+	/*
 	pParentWnd->m_SystemPara.Z3 = z3Pos;
 	pParentWnd->m_SystemPara.Z4 = z4Pos;
 	pParentWnd->m_SystemPara.Z5 = z5Pos;

@@ -15,6 +15,11 @@ enum class CrossStyle
 	Dashed
 };
 
+
+//float imagePts[6] = { 1035, 844, 1311, 1247, 1511, 963 };  // 像素點座標
+//float worldPts[6] = { -0.01f, 67.59f, 150.79f, 288.83f, 259.71f, 134.03f };  // 對應世界座標 (mm)
+
+
 class WorkTab : public CDialogEx
 {
 	DECLARE_DYNAMIC(WorkTab)
@@ -80,8 +85,8 @@ public:
 	void SendToolPathData(uint16_t* m_ToolPathData, int sizeOfArray, int stationID);
 	void SendToolPathDataA(uint16_t* m_ToolPathData, int sizeOfArray, int stationID);
 	void SendToolPathData32(uint16_t* m_ToolPathData, int sizeOfArray, int stationID);   //modbus tcp 傳送 ToolPath Data 32bit
-	void SendToolPathData32A(std::vector<uint16_t> m_ToolPathDataA, int sizeOfArray, int stationID); //點定義 由 x,y 改為 x,y,z 2025.11.18
-
+	//void SendToolPathData32A(std::vector<uint16_t> m_ToolPathDataA, int sizeOfArray, int stationID); //點定義 由 x,y 改為 x,y,z 2025.11.18
+	void SendToolPathData32A(const std::vector<uint16_t>& data, int sizeOfArray, int stationID); //點定義 由 x,y 改為 x,y,z 2025.11.18
 
 	void ShowImageOnPictureCtl();
 	void ShowImageOnPictureControl(bool flgCenter = false,
@@ -145,3 +150,4 @@ public:
 	afx_msg void OnBnClickedCheckWorkCenter();
 	afx_msg void OnBnClickedWorkImageProcess();
 };
+

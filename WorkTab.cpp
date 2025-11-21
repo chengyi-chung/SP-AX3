@@ -268,6 +268,9 @@ BOOL WorkTab::OnInitDialog()
 	MaskWidth = pParentWnd->m_SystemPara.MaskWidth;
 	MaskHeight = pParentWnd->m_SystemPara.MaskHeight;
 
+     z_Machining = pParentWnd->m_SystemPara.Z1;  //加工高度
+     z_Retract = pParentWnd->m_SystemPara.Z2;     //退回高度
+
 
     return 0;
 
@@ -1181,65 +1184,34 @@ void WorkTab::GetToolPathData(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& too
 
 }
 
-
 void WorkTab::OnBnClickedIdcWorkGo()
 {
-    // TODO: 在此加入控制項告知處理常式
-	//Convert toolPath to m_ToolPathData[20000]
-	//toolPath: Tool Path
-	//m_ToolPathData: Tool Path Data Array
-	//toolPath.Path : Path of the tool
-	//Convert toolPath.Path to m_ToolPathData[20000]
-	int sizeOfToolPath = this->toolPath.Path.size();
+    CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
+    if (!pParentWnd) return;
 
-	// int m_ToolPathData[20000];
-    //uint16_t* m_ToolPathData = new uint16_t[20000];
-    //call ToolPathTransform(ToolPath& toolpath, int* m_ToolPathData)
-	//ToolPathTransform(toolPath, m_ToolPathData);
+    float z_Machining = pParentWnd->m_SystemPara.Z1;
+    float z_Retract = pParentWnd->m_SystemPara.Z2;
 
-    // int m_ToolPathData[60000];
-	uint16_t* m_ToolPathData = new uint16_t[60000];  //增加陣列大小到60000 --> +Z
+    // 清除舊資料
+    m_ToolPathDataA.clear();
 
-    //測試機修正參數
-    float imagePts[] = { 1097,1063, 1373,1063, 1371,945 };
-    float worldPts[] = { 34.79f,205.19f, 187.19f,205.19f, 187.19f,141.79f };
+    try
+    {
+        ToolPathTransform32B(this->toolPath, z_Machining, z_Retract);
+    }
+    catch (const std::exception& e)
+    {
+        AfxMessageBox(CA2T(e.what()));
+        return;
+    }
 
-	//use UAX.dll to convert image coordinate to world coordinate
-    //call (float x_pixel, float y_pixel, float& x_mm, float& y_mm, float* imagePts, float* worldPts)
+    if (m_ToolPathDataA.empty() || m_ToolPathDataA.size() % 6 != 0)
+    {
+        AfxMessageBox(_T("Tool path generation failed or data corrupted."));
+        return;
+    }
 
-    //tooPath 
-    //struct ToolPath
-    //{
-    //    cv::Point2d Offset; // Offset of the tool path
-    //    std::vector<cv::Point2d> Path; // Tool path
-   // };
-	//toolPath_world = toolPath; // copy toolPath to toolPath_world
-   
-    //Convert toolPath_world to m_ToolPathData[20000], 轉換
-    //toolPath_world: Tool Path in world coordinate
-    //m_ToolPathData: Tool Path Data Array
-    //toolPath_world.Path : Path of the tool in world coordinate
-    //Convert toolPath_world.Path to m_ToolPathData[20000]
-	//ToolPathTransform(toolPath_world, m_ToolPathData);
-
-    //插入檢查ToolPathTransform32 執行速度功能
-
-
-
-    //定義最高10000點(DINT)，m_ToolPathData矩陣尺寸要大4倍+
-	ToolPathTransform32(this->toolPath, m_ToolPathData);  //轉換 toolPath到 m_ToolPathData[60000] 矩陣
-    ToolPathTransform32B(this->toolPath, z_Machining, z_Retract);
-
-    //Send m_ToolPathData to PLC with modbus tcp
-	//call SendToolPathData(int* m_ToolPathData, int sizeOfArray, int stationID)
-
-	//send m_ToolPathData to PLC with modbus tcp
-	//一個點4個uint16_t Point(x_low, x_high, y_low, y_high)
-    sizeOfToolPath = sizeOfToolPath * 4;
-    //Get m_ToolPathData
-
-    //
-	SendToolPathData32(m_ToolPathData, sizeOfToolPath, 1);
+    SendToolPathData32A(m_ToolPathDataA, static_cast<int>(m_ToolPathDataA.size()), 1);
 
 }
 
@@ -1362,7 +1334,7 @@ void WorkTab::ToolPathTransform32A(ToolPath pathOri, uint16_t* outData, size_t o
         throw std::invalid_argument("Invalid input in ToolPathTransform32A");
         return;
     }
-     float scaleFactor = 100.0f;
+	float scaleFactor = 100.0f; // mm → 整數
      static float imagePts[] = { 1035, 844, 1311, 1247, 1511, 963 };
      static float worldPts[] = { -0.01f, 67.59f, 150.79f, 288.83f, 259.71f, 134.03f };
 
@@ -1433,12 +1405,16 @@ inline void AppendPointSafeA(std::vector<uint16_t>& buffer,  // 輸出：數據�
     buffer[idx++] = static_cast<uint16_t>((z_u >> 16) & 0xFFFF);  // Z high
 }
 
+
+
+
+
 // 類別 WorkTab 的成員函數
 // 此函數將原始工具路徑轉換為機器可讀的 uint16_t 數據格式
 // 並在分群變換時插入中間點以處理 Z 軸的 retract 操作
-void WorkTab::ToolPathTransform32B(ToolPath ToolPath_Ori,     // 輸入：原始工具路徑結構
-    float z_Machining,         // 輸入：加工時的 Z 值 (mm)
-    float zRetract) {          // 輸入：退刀時的 Z 值 (mm)
+void WorkTab::ToolPathTransform32B(ToolPath ToolPath_Ori,      // 輸入：原始工具路徑結構
+    float z_Machining,          // 輸入：加工時的 Z 值 (mm)
+    float zRetract) {           // 輸入：退刀時的 Z 值 (mm)
     // 輸入驗證：檢查路徑是否為空，或 Path 和 numClusters 大小是否匹配
     if (ToolPath_Ori.Path.empty() ||
         ToolPath_Ori.Path.size() != ToolPath_Ori.numClusters.size()) {
@@ -1449,7 +1425,6 @@ void WorkTab::ToolPathTransform32B(ToolPath ToolPath_Ori,     // 輸入：原始
     float scaleFactor = 100.0f;
 
     // 定義三點對應的像素點和世界座標點（用於仿射轉換）
-    // 這些點用於計算像素到世界座標的轉換矩陣
     static float imagePts[] = { 1035, 844, 1311, 1247, 1511, 963 };  // 像素點座標
     static float worldPts[] = { -0.01f, 67.59f, 150.79f, 288.83f, 259.71f, 134.03f };  // 對應世界座標 (mm)
 
@@ -1461,7 +1436,8 @@ void WorkTab::ToolPathTransform32B(ToolPath ToolPath_Ori,     // 輸入：原始
         }();
 
     // 預計算所有點的世界座標：避免在迴圈中重複計算，提高效率
-    std::vector<std::pair<float, float>> worldCoords(ToolPath_Ori.Path.size());
+    // 變更: 儲存縮放後的 int32_t 座標，而不是轉換後的 float
+    std::vector<std::pair<int32_t, int32_t>> worldCoords(ToolPath_Ori.Path.size());
     for (size_t i = 0; i < ToolPath_Ori.Path.size(); ++i)
     {
         float x_mm = 0.0f, y_mm = 0.0f;
@@ -1471,11 +1447,8 @@ void WorkTab::ToolPathTransform32B(ToolPath ToolPath_Ori,     // 輸入：原始
         int32_t x_int = static_cast<int32_t>(std::lround(x_mm * scaleFactor));
         int32_t y_int = static_cast<int32_t>(std::lround(y_mm * scaleFactor));
 
-        // 維持二補數(負數可正確拆分)
-        uint32_t x_u = static_cast<uint32_t>(x_int);
-        uint32_t y_u = static_cast<uint32_t>(y_int);
-
-        worldCoords[i] = { static_cast<float>(x_u), static_cast<float>(y_u) };
+        // 變更: 直接儲存 int32_t
+        worldCoords[i] = { x_int, y_int };
     }
 
     // 計算分群變換次數：用於預估輸出數據大小
@@ -1488,9 +1461,6 @@ void WorkTab::ToolPathTransform32B(ToolPath ToolPath_Ori,     // 輸入：原始
     // 計算總點數：原始點數 + 分群變換次數（每個變換插入一個中間點）
     size_t totalPoints = ToolPath_Ori.Path.size() + numClustersChanges;
 
-    // 修正 E0153/C2228 錯誤：.resize 只能用於 std::vector 類型，不能用於原生指標 (uint16_t*)
-    // 原本錯誤寫法：m_ToolPathData.resize(totalPoints * 6);
-    // 正確寫法：請確認 m_ToolPathDataA 是 std::vector<uint16_t>，用 .resize
     m_ToolPathDataA.resize(totalPoints * 6);
 
     // 輸出索引：追蹤當前寫入位置
@@ -1502,20 +1472,65 @@ void WorkTab::ToolPathTransform32B(ToolPath ToolPath_Ori,     // 輸入：原始
         if (i > 0 && ToolPath_Ori.numClusters[i] != ToolPath_Ori.numClusters[i - 1]) {
             auto& prev = worldCoords[i - 1];
             auto& curr = worldCoords[i];
-            int32_t mx_int = static_cast<int32_t>(std::lround((prev.first + curr.first) / 2 * scaleFactor));
-            int32_t my_int = static_cast<int32_t>(std::lround((prev.second + curr.second) / 2 * scaleFactor));
+
+            // 變更: 直接使用 int32_t 進行平均計算，結果依然是 int32_t
+            // 由於 prev/curr.first 已經是縮放後的 int32_t，這裡的平均值也是縮放後的。
+            int32_t mx_int = static_cast<int32_t>(std::lround((static_cast<float>(prev.first) + static_cast<float>(curr.first)) / 2.0f));
+            int32_t my_int = static_cast<int32_t>(std::lround((static_cast<float>(prev.second) + static_cast<float>(curr.second)) / 2.0f));
+
             int32_t zRet_int = static_cast<int32_t>(std::lround(zRetract * scaleFactor));
             AppendPointSafeA(m_ToolPathDataA, idx, mx_int, my_int, zRet_int);
         }
 
         auto& curr = worldCoords[i];
-        int32_t x_int = static_cast<int32_t>(std::lround(curr.first * scaleFactor));
-        int32_t y_int = static_cast<int32_t>(std::lround(curr.second * scaleFactor));
+        // 變更: 直接使用儲存的 int32_t 座標，避免再次轉換
+        int32_t x_int = curr.first;
+        int32_t y_int = curr.second;
+
         int32_t zWork_int = static_cast<int32_t>(std::lround(z_Machining * scaleFactor));
         AppendPointSafeA(m_ToolPathDataA, idx, x_int, y_int, zWork_int);
     }
-}
 
+    // --- 新增 Debug 輸出檢查 ---
+#ifdef _DEBUG
+// 假設 std::cout 和 std::hex/std::dec 是可用的
+    std::cout << "\n--- ToolPathTransform32B Output (Debug) ---" << std::endl;
+    // 每個點由 6 個 uint16_t 組成 (X_low, X_high, Y_low, Y_high, Z_low, Z_high)
+    // 輸出大小應為 idx
+    size_t numPoints = idx / 6;
+
+    for (size_t i = 0; i < numPoints; ++i) {
+        size_t offset = i * 6;
+
+        // 重新組合 32 位元整數 (int32_t)
+        // 假設 AppendPointSafeA 是以 little-endian 方式儲存 low/high 16 bits
+
+        // 重新組合 X (32-bit signed integer)
+        uint32_t x_u32 = (static_cast<uint32_t>(m_ToolPathDataA[offset + 1]) << 16) | m_ToolPathDataA[offset + 0];
+        int32_t x_int32 = static_cast<int32_t>(x_u32); // 轉換為有符號整數
+
+        // 重新組合 Y (32-bit signed integer)
+        uint32_t y_u32 = (static_cast<uint32_t>(m_ToolPathDataA[offset + 3]) << 16) | m_ToolPathDataA[offset + 2];
+        int32_t y_int32 = static_cast<int32_t>(y_u32);
+
+        // 重新組合 Z (32-bit signed integer)
+        uint32_t z_u32 = (static_cast<uint32_t>(m_ToolPathDataA[offset + 5]) << 16) | m_ToolPathDataA[offset + 4];
+        int32_t z_int32 = static_cast<int32_t>(z_u32);
+
+        // 輸出結果 (以 mm 為單位，還原縮放因子 100)
+        float x_mm = static_cast<float>(x_int32) / scaleFactor;
+        float y_mm = static_cast<float>(y_int32) / scaleFactor;
+        float z_mm = static_cast<float>(z_int32) / scaleFactor;
+
+        std::cout << "Point " << i << ": "
+            << "X=" << x_mm << " mm (" << x_int32 << "), "
+            << "Y=" << y_mm << " mm (" << y_int32 << "), "
+            << "Z=" << z_mm << " mm (" << z_int32 << ")"
+            << std::endl;
+    }
+    std::cout << "----------------------------------------------" << std::endl;
+#endif
+}
 
 void WorkTab::ToolPathTransform(ToolPath& toolpath, uint16_t* m_ToolPathData)
 {
@@ -1735,7 +1750,7 @@ void WorkTab::SendToolPathData32(uint16_t* m_ToolPathData, int sizeOfArray, int 
 }
 
 
-void WorkTab::SendToolPathData32A(std::vector<uint16_t> m_ToolPathDataA, int sizeOfArray, int stationID)
+void WorkTab::SendToolPathData32A(const std::vector<uint16_t>& m_ToolPathDataA, int sizeOfArray, int stationID)
 {
     // sizeOfArray 必須是 6 的倍數（每點 6 個 uint16）
     if (sizeOfArray <= 0 || sizeOfArray % 6 != 0) {
@@ -1743,8 +1758,10 @@ void WorkTab::SendToolPathData32A(std::vector<uint16_t> m_ToolPathDataA, int siz
         return;
     }
 
-    const int maxBatchSize = 100; // Modbus 一次最多寫 100~125 個暫存器，保守取 100
+    const int maxBatchRegs = 100; // Modbus 一次最多寫 100~125 個暫存器
+    const int maxBatchPoints = maxBatchRegs / 6; // 每批最多傳輸 16 點 (96 個寄存器)
 
+    // 獲取父視窗指標（假設 CYUFADlg 存在）
     CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
     if (!pParentWnd) {
         AfxMessageBox(_T("Parent window is NULL."));
@@ -1761,12 +1778,13 @@ void WorkTab::SendToolPathData32A(std::vector<uint16_t> m_ToolPathDataA, int siz
         }
     }
 
+    // 鎖定 Modbus 資源並設置從機 ID
     std::lock_guard<std::mutex> lock(pParentWnd->m_modbusMutex);
     modbus_set_slave(pParentWnd->m_modbusCtx, stationID);
 
     int totalPoints = sizeOfArray / 6;
 
-    // 寫入總點數到 60016
+    // 寫入總點數到 60016 (假設這是 PLC 用於讀取的長度暫存器)
     if (modbus_write_register(pParentWnd->m_modbusCtx, 60016, static_cast<uint16_t>(totalPoints)) == -1) {
         CString err;
         err.Format(_T("Failed to write total points: %S"), modbus_strerror(errno));
@@ -1778,47 +1796,54 @@ void WorkTab::SendToolPathData32A(std::vector<uint16_t> m_ToolPathDataA, int siz
     while (pointIndex < totalPoints)
     {
         int remainingPoints = totalPoints - pointIndex;
-        // 每點 6 個寄存器 → 每批最多 floor(100/6)=16 點，保守取 16 點（共 96 個寄存器）
-        int batchPoints = std::min(16, remainingPoints);
-        int batchRegs = batchPoints * 3 * 2;  // 每軸 2 個寄存器（低+高），共 3 軸 → 6 個/點
+        // 每批最多傳輸 maxBatchPoints 點
+        int batchPoints = std::min(maxBatchPoints, remainingPoints);
 
-        std::vector<uint16_t> xRegs(batchPoints * 2);
-        std::vector<uint16_t> yRegs(batchPoints * 2);
-        std::vector<uint16_t> zRegs(batchPoints * 2);
+        // 單軸傳輸的寄存器數量 (每個點 2 個寄存器)
+        const int batchRegsPerAxis = batchPoints * 2;
 
-        // 填入本批次資料
+        // 預先分配空間，用於存放分軸後的數據
+        std::vector<uint16_t> xRegs(batchRegsPerAxis);
+        std::vector<uint16_t> yRegs(batchRegsPerAxis);
+        std::vector<uint16_t> zRegs(batchRegsPerAxis);
+
+        // 填入本批次資料：從原始陣列中將 X, Y, Z 分離
         for (int i = 0; i < batchPoints; ++i)
         {
             size_t base = (pointIndex + i) * 6;
+            int regIndex = i * 2;
 
-            xRegs[i * 2 + 0] = m_ToolPathDataA[base + 0]; // X 低位
-            xRegs[i * 2 + 1] = m_ToolPathDataA[base + 1]; // X 高位
-            yRegs[i * 2 + 0] = m_ToolPathDataA[base + 2]; // Y 低位
-            yRegs[i * 2 + 1] = m_ToolPathDataA[base + 3]; // Y 高位
-            zRegs[i * 2 + 0] = m_ToolPathDataA[base + 4]; // Z 低位
-            zRegs[i * 2 + 1] = m_ToolPathDataA[base + 5]; // Z 高位
+            xRegs[regIndex + 0] = m_ToolPathDataA[base + 0]; // X 低位
+            xRegs[regIndex + 1] = m_ToolPathDataA[base + 1]; // X 高位
+
+            yRegs[regIndex + 0] = m_ToolPathDataA[base + 2]; // Y 低位
+            yRegs[regIndex + 1] = m_ToolPathDataA[base + 3]; // Y 高位
+
+            zRegs[regIndex + 0] = m_ToolPathDataA[base + 4]; // Z 低位
+            zRegs[regIndex + 1] = m_ToolPathDataA[base + 5]; // Z 高位
         }
 
-        int writeOffset = pointIndex * 2;  // 每個點在該軸區段佔 2 個寄存器
+        // 計算當前批次的寫入偏移量 (每個點佔 2 個寄存器)
+        int writeOffset = pointIndex * 2;
 
-        // 寫入 X (00000 ~ 19999)
-        if (modbus_write_registers(pParentWnd->m_modbusCtx, 0 + writeOffset, batchPoints * 2, xRegs.data()) == -1) {
+        // 寫入 X (0 + writeOffset)
+        if (modbus_write_registers(pParentWnd->m_modbusCtx, 0 + writeOffset, batchRegsPerAxis, xRegs.data()) == -1) {
             CString err;
             err.Format(_T("Failed to write X block at %d: %S"), writeOffset, modbus_strerror(errno));
             AfxMessageBox(err);
             return;
         }
 
-        // 寫入 Y (20000 ~ 39999)
-        if (modbus_write_registers(pParentWnd->m_modbusCtx, 20000 + writeOffset, batchPoints * 2, yRegs.data()) == -1) {
+        // 寫入 Y (20000 + writeOffset)
+        if (modbus_write_registers(pParentWnd->m_modbusCtx, 20000 + writeOffset, batchRegsPerAxis, yRegs.data()) == -1) {
             CString err;
             err.Format(_T("Failed to write Y block at %d: %S"), 20000 + writeOffset, modbus_strerror(errno));
             AfxMessageBox(err);
             return;
         }
 
-        // 寫入 Z (40000 ~ 59999)
-        if (modbus_write_registers(pParentWnd->m_modbusCtx, 40000 + writeOffset, batchPoints * 2, zRegs.data()) == -1) {
+        // 寫入 Z (40000 + writeOffset)
+        if (modbus_write_registers(pParentWnd->m_modbusCtx, 40000 + writeOffset, batchRegsPerAxis, zRegs.data()) == -1) {
             CString err;
             err.Format(_T("Failed to write Z block at %d: %S"), 40000 + writeOffset, modbus_strerror(errno));
             AfxMessageBox(err);
@@ -1828,9 +1853,10 @@ void WorkTab::SendToolPathData32A(std::vector<uint16_t> m_ToolPathDataA, int siz
         pointIndex += batchPoints;
     }
 
-    // 可選：傳送完成後發送一個通知訊號給 PLC（例如寫入 40027 = 1 表示資料已更新）
-    // modbus_write_register(pParentWnd->m_modbusCtx, 40027, 1);
+    // 可選：傳送完成後發送一個通知訊號給 PLC
+    // if (modbus_write_register(pParentWnd->m_modbusCtx, 40027, 1) == -1) { /* 錯誤處理 */ }
 }
+
 
 
 
