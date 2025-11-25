@@ -1413,8 +1413,8 @@ inline void AppendPointSafeA(std::vector<uint16_t>& buffer,  // 輸出：數據�
 // 此函數將原始工具路徑轉換為機器可讀的 uint16_t 數據格式
 // 並在分群變換時插入中間點以處理 Z 軸的 retract 操作
 void WorkTab::ToolPathTransform32B(ToolPath ToolPath_Ori,      // 輸入：原始工具路徑結構
-    float z_Machining,          // 輸入：加工時的 Z 值 (mm)
-    float zRetract) {           // 輸入：退刀時的 Z 值 (mm)
+                                                                   float z_Machining,          // 輸入：加工時的 Z 值 (mm)
+                                                                    float zRetract) {           // 輸入：退刀時的 Z 值 (mm)
     // 輸入驗證：檢查路徑是否為空，或 Path 和 numClusters 大小是否匹配
     if (ToolPath_Ori.Path.empty() ||
         ToolPath_Ori.Path.size() != ToolPath_Ori.numClusters.size()) {
@@ -1491,44 +1491,55 @@ void WorkTab::ToolPathTransform32B(ToolPath ToolPath_Ori,      // 輸入：原�
         AppendPointSafeA(m_ToolPathDataA, idx, x_int, y_int, zWork_int);
     }
 
-    // --- 新增 Debug 輸出檢查 ---
+    // --- 新增 Debug 輸出檢查（改用 OutputDebugStringA）---
 #ifdef _DEBUG
-// 假設 std::cout 和 std::hex/std::dec 是可用的
-    std::cout << "\n--- ToolPathTransform32B Output (Debug) ---" << std::endl;
-    // 每個點由 6 個 uint16_t 組成 (X_low, X_high, Y_low, Y_high, Z_low, Z_high)
-    // 輸出大小應為 idx
-    size_t numPoints = idx / 6;
+    {
+        std::string debugOutput;
+        debugOutput.reserve(8192);  // 預留足夠空間避免頻繁重新配置
 
-    for (size_t i = 0; i < numPoints; ++i) {
-        size_t offset = i * 6;
+        debugOutput += "\n--- ToolPathTransform32B Output (Debug) ---\n";
 
-        // 重新組合 32 位元整數 (int32_t)
-        // 假設 AppendPointSafeA 是以 little-endian 方式儲存 low/high 16 bits
+        // 每個點由 6 個 uint16_t 組成
+        size_t numPoints = idx / 6;
 
-        // 重新組合 X (32-bit signed integer)
-        uint32_t x_u32 = (static_cast<uint32_t>(m_ToolPathDataA[offset + 1]) << 16) | m_ToolPathDataA[offset + 0];
-        int32_t x_int32 = static_cast<int32_t>(x_u32); // 轉換為有符號整數
+        char buffer[256];
 
-        // 重新組合 Y (32-bit signed integer)
-        uint32_t y_u32 = (static_cast<uint32_t>(m_ToolPathDataA[offset + 3]) << 16) | m_ToolPathDataA[offset + 2];
-        int32_t y_int32 = static_cast<int32_t>(y_u32);
+        for (size_t i = 0; i < numPoints; ++i) {
+            size_t offset = i * 6;
 
-        // 重新組合 Z (32-bit signed integer)
-        uint32_t z_u32 = (static_cast<uint32_t>(m_ToolPathDataA[offset + 5]) << 16) | m_ToolPathDataA[offset + 4];
-        int32_t z_int32 = static_cast<int32_t>(z_u32);
+            // 重新組合 X、Y、Z (little-endian)
+            uint32_t x_u32 = (static_cast<uint32_t>(m_ToolPathDataA[offset + 1]) << 16) |
+                static_cast<uint32_t>(m_ToolPathDataA[offset + 0]);
+            int32_t x_int32 = static_cast<int32_t>(x_u32);
 
-        // 輸出結果 (以 mm 為單位，還原縮放因子 100)
-        float x_mm = static_cast<float>(x_int32) / scaleFactor;
-        float y_mm = static_cast<float>(y_int32) / scaleFactor;
-        float z_mm = static_cast<float>(z_int32) / scaleFactor;
+            uint32_t y_u32 = (static_cast<uint32_t>(m_ToolPathDataA[offset + 3]) << 16) |
+                static_cast<uint32_t>(m_ToolPathDataA[offset + 2]);
+            int32_t y_int32 = static_cast<int32_t>(y_u32);
 
-        std::cout << "Point " << i << ": "
-            << "X=" << x_mm << " mm (" << x_int32 << "), "
-            << "Y=" << y_mm << " mm (" << y_int32 << "), "
-            << "Z=" << z_mm << " mm (" << z_int32 << ")"
-            << std::endl;
+            uint32_t z_u32 = (static_cast<uint32_t>(m_ToolPathDataA[offset + 5]) << 16) |
+                static_cast<uint32_t>(m_ToolPathDataA[offset + 4]);
+            int32_t z_int32 = static_cast<int32_t>(z_u32);
+
+            // 還原成 mm（除以 100）
+            float x_mm = static_cast<float>(x_int32) / scaleFactor;
+            float y_mm = static_cast<float>(y_int32) / scaleFactor;
+            float z_mm = static_cast<float>(z_int32) / scaleFactor;
+
+            // 使用 snprintf 格式化（比 std::stringstream 更快且不會有 locale 問題）
+            int len = snprintf(buffer, sizeof(buffer),
+                "Point %zu: X=%.3f mm (%d), Y=%.3f mm (%d), Z=%.3f mm (%d)\n",
+                i, x_mm, x_int32, y_mm, y_int32, z_mm, z_int32);
+
+            if (len > 0) {
+                debugOutput.append(buffer, static_cast<size_t>(len));
+            }
+        }
+
+        debugOutput += "----------------------------------------------\n";
+
+        // 一次性輸出，避免 OutputDebugStringA 被呼叫太多次（效能較好）
+        OutputDebugStringA(debugOutput.c_str());
     }
-    std::cout << "----------------------------------------------" << std::endl;
 #endif
 }
 
