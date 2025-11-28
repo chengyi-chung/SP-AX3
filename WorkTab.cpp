@@ -1231,8 +1231,12 @@ void WorkTab::ToolPathTransform32(ToolPath ToolPapath_Ori, uint16_t* m_ToolPathD
 	// imagePts (1035, 844) → worldPts (-0.01,67.59)
 	// imagePts (1311, 1247) → worldPts (150.79, 288.83)
 	// imagePts (1511, 963) → worldPts (259.71, 134.03)
-	float imagePts[] = { 1035.0f, 844.0f, 1311.0f, 1247.0f, 1511.0f, 963.0f };
-	float worldPts[] = { -0.01f, 67.59f, 150.79f, 288.83f, 259.71f, 134.03f };
+	//float imagePts[] = { 1035.0f, 844.0f, 1311.0f, 1247.0f, 1511.0f, 963.0f };
+	//float worldPts[] = { -0.01f, 67.59f, 150.79f, 288.83f, 259.71f, 134.03f };
+
+    float imagePts[] = { 1146.0f, 1087.0f, 1526.0f, 1086.0f, 1425.0f, 904.0f };
+    float worldPts[] = { 59.44f, 203.0f, 266.44f, 203.0f, 266.44f, 103.68f };
+
 
     constexpr float scaleFactor = 100.0f; // mm → 整數
 
