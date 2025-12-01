@@ -1189,6 +1189,7 @@ void WorkTab::OnBnClickedIdcWorkGo()
     CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
     if (!pParentWnd) return;
 
+	// 取得 Z1 和 Z2 參數
     float z_Machining = pParentWnd->m_SystemPara.Z1;
     float z_Retract = pParentWnd->m_SystemPara.Z2;
 
@@ -1197,7 +1198,9 @@ void WorkTab::OnBnClickedIdcWorkGo()
 
     try
     {
+		// 進行工具路徑轉換成 32 位元格式並包含 Z 軸資訊
         ToolPathTransform32B(this->toolPath, z_Machining, z_Retract);
+
     }
     catch (const std::exception& e)
     {
@@ -1210,6 +1213,23 @@ void WorkTab::OnBnClickedIdcWorkGo()
         AfxMessageBox(_T("Tool path generation failed or data corrupted."));
         return;
     }
+
+
+
+	//增加 # _debug  巨集 訊息顯示 m_ToolPathDataA 內容 使用 OutputDebugStringA
+#ifdef _DEBUG
+    std::ostringstream oss;
+    oss << "Tool Path Data (32-bit with Z):\n";
+    for (size_t i = 0; i < m_ToolPathDataA.size(); i += 6)
+    {
+        oss << "Point " << (i / 6) + 1 << ": ";
+        oss << "X Low: " << m_ToolPathDataA[i] << ", X High: " << m_ToolPathDataA[i + 1] << ", ";
+        oss << "Y Low: " << m_ToolPathDataA[i + 2] << ", Y High: " << m_ToolPathDataA[i + 3] << ", ";
+        oss << "Z Low: " << m_ToolPathDataA[i + 4] << ", Z High: " << m_ToolPathDataA[i + 5] << "\n";
+    }
+	OutputDebugStringA(oss.str().c_str());      
+	
+#endif
 
     SendToolPathData32A(m_ToolPathDataA, static_cast<int>(m_ToolPathDataA.size()), 1);
 
@@ -1388,30 +1408,17 @@ void WorkTab::ToolPathTransform32A(ToolPath pathOri, uint16_t* outData, size_t o
 inline void AppendPointSafeA(std::vector<uint16_t>& buffer,  // 輸出：數據緩衝區
     size_t& idx,                    // 輸入/輸出：當前索引
     int32_t x, int32_t y, int32_t z) {  // 輸入：點的 X, Y, Z 值 (已縮放)
-    // 檢查是否會溢出緩衝區（安全檢查）
-    if (idx + 6 > buffer.size()) {
+    if (idx + 6 > buffer.size())
         throw std::runtime_error("AppendPointSafe: buffer overflow");
-    }
 
-    // 轉換為 uint32_t 以處理位元操作（維持負數的二補數表示）
-    uint32_t x_u = static_cast<uint32_t>(x);
-    uint32_t y_u = static_cast<uint32_t>(y);
-    uint32_t z_u = static_cast<uint32_t>(z);
+    const uint16_t* px = reinterpret_cast<const uint16_t*>(&x);
+    const uint16_t* py = reinterpret_cast<const uint16_t*>(&y);
+    const uint16_t* pz = reinterpret_cast<const uint16_t*>(&z);
 
-    // 拆分並寫入低/高位
-    buffer[idx++] = static_cast<uint16_t>(x_u & 0xFFFF);       // X low
-    buffer[idx++] = static_cast<uint16_t>((x_u >> 16) & 0xFFFF);  // X high
-
-    buffer[idx++] = static_cast<uint16_t>(y_u & 0xFFFF);       // Y low
-    buffer[idx++] = static_cast<uint16_t>((y_u >> 16) & 0xFFFF);  // Y high
-
-    buffer[idx++] = static_cast<uint16_t>(z_u & 0xFFFF);       // Z low
-    buffer[idx++] = static_cast<uint16_t>((z_u >> 16) & 0xFFFF);  // Z high
+    buffer[idx++] = px[0];  buffer[idx++] = px[1];
+    buffer[idx++] = py[0];  buffer[idx++] = py[1];
+    buffer[idx++] = pz[0];  buffer[idx++] = pz[1];
 }
-
-
-
-
 
 // 類別 WorkTab 的成員函數
 // 此函數將原始工具路徑轉換為機器可讀的 uint16_t 數據格式
@@ -1492,6 +1499,8 @@ void WorkTab::ToolPathTransform32B(ToolPath ToolPath_Ori,      // 輸入：原�
         int32_t y_int = curr.second;
 
         int32_t zWork_int = static_cast<int32_t>(std::lround(z_Machining * scaleFactor));
+
+		// 附加當前點到輸出緩衝區
         AppendPointSafeA(m_ToolPathDataA, idx, x_int, y_int, zWork_int);
     }
 
@@ -1501,7 +1510,8 @@ void WorkTab::ToolPathTransform32B(ToolPath ToolPath_Ori,      // 輸入：原�
         std::string debugOutput;
         debugOutput.reserve(8192);  // 預留足夠空間避免頻繁重新配置
 
-        debugOutput += "\n--- ToolPathTransform32B Output (Debug) ---\n";
+        debugOutput += "\n-------------------------------------------------------------------------------------------------------------------------------------------\n";
+        debugOutput += "\n--- ToolPathTransform32B(ToolPath ToolPath_Ori, float z_Machining, float zRetract)  ---\n";
 
         // 每個點由 6 個 uint16_t 組成
         size_t numPoints = idx / 6;
@@ -1539,7 +1549,7 @@ void WorkTab::ToolPathTransform32B(ToolPath ToolPath_Ori,      // 輸入：原�
             }
         }
 
-        debugOutput += "----------------------------------------------\n";
+        debugOutput += "-----------------------   ToolPathTransform32B()     END -----------------------------------------\n";
 
         // 一次性輸出，避免 OutputDebugStringA 被呼叫太多次（效能較好）
         OutputDebugStringA(debugOutput.c_str());
