@@ -94,7 +94,7 @@ BOOL MachineTab::OnInitDialog()
 	
 
 	// 新增：每 30 秒執行一次 Modbus keep-alive
-    //SetTimer(200, 30000, NULL); // Timer ID 200, 30 秒
+    //SetTimer(200, 30000, NULL); // Timer ID 200, 30秒
 
 	return TRUE;  // return TRUE unless you set the focus to a control
 	// EXCEPTION: OCX Property Pages should return FALSE
@@ -432,23 +432,15 @@ void MachineTab::OnBnClickedBtnMachineSaveMotion()
 	int32_t incAcc = GetDlgItemInt(IDC_EDIT_AXIS_ACC_INC, &ok, TRUE);
 	if (!ok) { AfxMessageBox(_T("Acceleration input error")); return; }
 
-	
-	CString strZ1, strZ2;
+	CString strZ1;
 	GetDlgItemText(IDC_EDIT_Z1, strZ1);
-	GetDlgItemText(IDC_EDIT_Z2, strZ2);
-
 	float z1Pos = _ttof(strZ1);
-	float z2Pos = _ttof(strZ2);
+	if (strZ1.IsEmpty()) { AfxMessageBox(_T("Z1 Position input error")); return; }
 
-	// Basic validation: check if conversion succeeded (e.g., not empty and numeric)
-	if (strZ1.IsEmpty() || (z1Pos == 0.0f && strZ1 != _T("0") && strZ1 != _T("0.0"))) {
-		AfxMessageBox(_T("Z1 Position input error"));
-		return;
-	}
-	if (strZ2.IsEmpty() || (z2Pos == 0.0f && strZ2 != _T("0") && strZ2 != _T("0.0"))) {
-		AfxMessageBox(_T("Z2 Position input error"));
-		return;
-	}
+	CString strZ2;
+	GetDlgItemText(IDC_EDIT_Z2, strZ2);
+	float z2Pos = _ttof(strZ2);
+	if (strZ2.IsEmpty()) { AfxMessageBox(_T("Z2 Position input error")); return; }
 
 	/*
 
@@ -1060,10 +1052,10 @@ void MachineTab::UpdateControl()
 	SetDlgItemText(IDC_EDIT_TRANSFER_FACTOR, cStr);
 	
 	// Z1-Z5 位置值 - 修正 C6273 警告
-	cStr.Format(_T("%0.3f"), static_cast<float>(pParentWnd->m_SystemPara.Z1));
+	cStr.Format(_T("%0.2f"), static_cast<float>(pParentWnd->m_SystemPara.Z1));
 	SetDlgItemText(IDC_EDIT_Z1, cStr);
 	
-	cStr.Format(_T("%0.3f"), static_cast<float>(pParentWnd->m_SystemPara.Z2));
+	cStr.Format(_T("%0.2f"), static_cast<float>(pParentWnd->m_SystemPara.Z2));
 	SetDlgItemText(IDC_EDIT_Z2, cStr);
 	
 	cStr.Format(_T("%d"), static_cast<int>(pParentWnd->m_SystemPara.Z3));
