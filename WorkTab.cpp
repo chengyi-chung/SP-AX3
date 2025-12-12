@@ -1,8 +1,8 @@
 ﻿// WorkTab.cpp: 實作檔案
 #pragma once
 #include "pch.h"
-#include "YUFA.h"
-#include "YUFADlg.h"
+#include "SP.h"
+#include "SPDlg.h"
 #include "afxdialogex.h"
 #include "WorkTab.h"
 #include <string>
@@ -209,7 +209,7 @@ BOOL WorkTab::OnInitDialog()
 
     PylonInitialize();
 
-    CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
+    CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
 
 	imgFlip = pParentWnd->m_SystemPara.ImageFlip;
 
@@ -1059,7 +1059,7 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
 	//ToolPath toolpath;
 	//Get m_ToolPathData from Parrent Window
 	//CYUFADlg* pParentWnd = (CYUFADlg*)GetParent();
-    CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
+    CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
 
     Offset.x = pParentWnd->m_SystemPara.OffsetX;
 	Offset.y = pParentWnd->m_SystemPara.OffsetY;
@@ -1186,7 +1186,7 @@ void WorkTab::GetToolPathData(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& too
 
 void WorkTab::OnBnClickedIdcWorkGo()
 {
-    CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
+    CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
     if (!pParentWnd) return;
 
 	// 取得 Z1 和 Z2 參數
@@ -1579,7 +1579,7 @@ void WorkTab::SendToolPathData(uint16_t *m_ToolPathData, int sizeOfArray, int st
     const int maxBatchSize = 100;
     const int maxModbusBatchSize = MODBUS_MAX_WRITE_REGISTERS; // 123
 
-    CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
+    CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
     if (pParentWnd == nullptr) {
         AfxMessageBox(_T("Parent window is NULL."));
         return;
@@ -1630,7 +1630,7 @@ void WorkTab::SendToolPathDataA(uint16_t* m_ToolPathData, int sizeOfArray, int s
     const int maxBatchSize = 100;
     const int maxModbusBatchSize = MODBUS_MAX_WRITE_REGISTERS; // 123
 
-    CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
+    CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
     if (pParentWnd == NULL) {
         AfxMessageBox(_T("Parent window is NULL."));
         return;
@@ -1697,7 +1697,7 @@ void WorkTab::SendToolPathData32(uint16_t* m_ToolPathData, int sizeOfArray, int 
     const int maxBatchSize = 100; // 每次最多寫入 100 個暫存器（Modbus 限制）
 
     // 取得主視窗指標（用於存取 Modbus 相關設定）
-    CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
+    CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
     if (!pParentWnd) {
         AfxMessageBox(_T("Parent window is NULL."));
         return;
@@ -1787,7 +1787,7 @@ void WorkTab::SendToolPathData32A(const std::vector<uint16_t>& m_ToolPathDataA, 
     const int maxBatchPoints = maxBatchRegs / 6; // 每批最多傳輸 16 點 (96 個寄存器)
 
     // 獲取父視窗指標（假設 CYUFADlg 存在）
-    CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
+    CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
     if (!pParentWnd) {
         AfxMessageBox(_T("Parent window is NULL."));
         return;

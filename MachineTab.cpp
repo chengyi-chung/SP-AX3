@@ -2,8 +2,8 @@
 //
 
 #include "pch.h"
-#include "YUFA.h"
-#include "YUFADlg.h"
+#include "SP.h"
+#include "SPDlg.h"
 #include "Resource.h"
 #include "afxdialogex.h"
 #include "MachineTab.h"
@@ -90,7 +90,7 @@ BOOL MachineTab::OnInitDialog()
 	UpdateControl();
 
 	// 初始化父視窗指標
-	m_pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
+	m_pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
 	
 
 	// 新增：每 30 秒執行一次 Modbus keep-alive
@@ -103,7 +103,7 @@ BOOL MachineTab::OnInitDialog()
 //Open Modbus TCP/IP server 
 void MachineTab::OpenModBus()
 {
-	CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
+	CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
 	if (!pParentWnd) {
 		AfxMessageBox(_T("找不到主視窗，無法建立 Modbus 連線。"));
 		return;
@@ -159,7 +159,7 @@ void MachineTab::SendDataToModBus()
 //nID: check or button Control ID
 void MachineTab::Discrete3000Change(int intType, int BitAdress, int BitValue, int nID)
 {
-    CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
+	CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
     if (!pParentWnd || !pParentWnd->m_modbusCtx) {
         AfxMessageBox(_T("Modbus 尚未連線，請先建立連線。"));
         return;
@@ -212,7 +212,7 @@ void MachineTab::Discrete3000Change(int intType, int BitAdress, int BitValue, in
 
 void MachineTab::ClearDiscrete3000(int iStartAdress, int iEndAdress)
 {
-	CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
+	CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
 	if (!pParentWnd || !pParentWnd->m_modbusCtx) {
 		AfxMessageBox(_T("Modbus 尚未連線，請先建立連線。"));
 		return;
@@ -243,7 +243,7 @@ void MachineTab::ClearDiscrete3000(int iStartAdress, int iEndAdress)
 
 void MachineTab::ClearDiscrete5000(int iStartAdress, int iEndAdress)
 {
-	CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
+	CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
 	if (!pParentWnd || !pParentWnd->m_modbusCtx) {
 		AfxMessageBox(_T("Modbus 尚未連線，請先建立連線。"));
 		//建立連線
@@ -336,7 +336,7 @@ void MachineTab::Discrete5000Change(int intType, int BitAdress, int BitValue, in
 //nID: check or button Control ID
 void MachineTab::Discrete5000Change(int intType, int BitAdress, int BitValue, int nID)
 {
-	CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
+	CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
 
 	if (!pParentWnd || !pParentWnd->m_modbusCtx) {
 		AfxMessageBox(_T("Modbus 尚未連線，請先建立連線。"));
@@ -525,7 +525,7 @@ void MachineTab::OnBnClickedBtnMachineSaveMotion()
 	
 
 	// ======== Step 4. Update System Parameters ========
-	CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
+	CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
 	if (!pParentWnd)
 	{
 		AfxMessageBox(_T("Failed to retrieve parent dialog"));
@@ -575,7 +575,7 @@ void MachineTab::OnBnClickedBtnMachineSaveMotion()
 //int iValue[]: Value array to be set
 bool MachineTab::SetHoldingRegister(int iStartAdress, int iEndAdress, uint16_t* iValue, int SizeOfArray)
 {
-    CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
+	CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
     if (!pParentWnd || !pParentWnd->m_modbusCtx) {
         AfxMessageBox(_T("Modbus 尚未連線，請先建立連線。"));
         return false;
@@ -597,7 +597,7 @@ bool MachineTab::SetHoldingRegister(int iStartAdress, int iEndAdress, uint16_t* 
 //int iValue[]: Value array to be get
 void MachineTab::GetHoldingRegister(int iStartAdress, int iEndAdress, uint16_t* iValue)
 {
-    CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
+	CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
     if (!pParentWnd || !pParentWnd->m_modbusCtx) {
         // 沒有連線就直接返回
         return;
@@ -622,7 +622,7 @@ void MachineTab::GetHoldingRegister(int iStartAdress, int iEndAdress, uint16_t* 
 //int iValue[]: Value array to be set
 void MachineTab::SetHoldingRegisteDInt(int iStartAdress, int iEndAdress, uint16_t* iValue, int SizeOfArray)
 {
-	CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
+	CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
 	if (!pParentWnd || !pParentWnd->m_modbusCtx) {
 		AfxMessageBox(_T("Modbus 尚未連線，請先建立連線。"));
 		return;
@@ -1017,7 +1017,7 @@ void MachineTab::OnOK()
 void MachineTab::UpdateControl()
 {
 	// Get the parent dialog (CYUFADlg)
-	CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
+	CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
 	if (pParentWnd == nullptr)
 	{
 		AfxMessageBox(_T("Failed to get CYUFADlg parent window."));
@@ -1097,7 +1097,7 @@ UINT MachineTab::ReadCoordinatesThread(LPVOID pParam)
 	if (pThis == nullptr || pThis->m_pParentWnd == nullptr)
 		return 0;
 
-	CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(pThis->m_pParentWnd);
+	CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(pThis->m_pParentWnd);
 
 	constexpr int startAddress = 60000;
 	constexpr int numRegisters = 6;
@@ -1241,7 +1241,7 @@ void MachineTab::StopCoordinateThread()
 // 因此寫入也要採用相同的順序 (high first, low second)。
  bool MachineTab::SetHoldingRegister32(int iStartAdress, uint16_t lowWord, uint16_t highWord)
 {
-    CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
+	 CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
     if (!pParentWnd || !pParentWnd->m_modbusCtx) {
         AfxMessageBox(_T("Modbus 尚未連線，請先建立連線。"));
         return false;
@@ -1271,7 +1271,7 @@ void MachineTab::OnTimer(UINT_PTR nIDEvent)
 	if (nIDEvent == 200) // Timer ID 200
 	{
 		// 執行 Modbus keep-alive，這裡簡單讀取一個寄存器作為範例
-		CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
+		CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
 		if (pParentWnd && pParentWnd->m_modbusCtx)
 		{
 			uint16_t dummy;

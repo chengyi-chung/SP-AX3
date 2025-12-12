@@ -200,8 +200,8 @@
     <ClInclude Include="targetver.h" />
     <ClInclude Include="UModBus.h" />
     <ClInclude Include="WorkTab.h" />
-    <ClInclude Include="YUFA.h" />
-    <ClInclude Include="YUFADlg.h" />
+    <ClInclude Include="SP.h" />
+    <ClInclude Include="SPDlg.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Calibration.cpp" />
@@ -216,15 +216,15 @@
     <ClCompile Include="SystemParaTab.cpp" />
     <ClCompile Include="UModBus.cpp" />
     <ClCompile Include="WorkTab.cpp" />
-    <ClCompile Include="YUFA.cpp" />
-    <ClCompile Include="YUFADlg.cpp" />
+    <ClCompile Include="SP.cpp" />
+    <ClCompile Include="SPDlg.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="rc YUFA.rc" />
-    <ResourceCompile Include="YUFA.rc" />
+    <ResourceCompile Include="SP-AX.rc" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="res\YUFA.rc2" />
+    <None Include="res\SP-AX.rc2" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="res\YUFA.ico" />

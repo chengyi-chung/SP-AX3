@@ -1,5 +1,5 @@
 ﻿#include "pch.h"
-#include "YUFA.h"
+#include "SP.h"
 #include "afxdialogex.h"
 #include "UModBus.h"
 #include "modbus.h"
@@ -7,7 +7,7 @@
 #include <vector>
 #include <string>
 
-#include "YUFADlg.h"
+#include "SPDlg.h"
 // UModBus 對話方塊
 using namespace std;
 
@@ -267,7 +267,7 @@ BOOL UModBus::OnInitDialog()
 
 	//從父窗口獲取指針 m_SystemPara，取得 IP 地址和 Server ID
 	//CYUFADlg* pParentWnd = (CYUFADlg*)GetParent();
-	CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
+	CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
 	if (pParentWnd != nullptr)
 	{
 		//Get the IP address from m_SystemPara
@@ -424,7 +424,7 @@ void UModBus::OnEnKillfocusEditIpAddress()
 	//Get the IP address to the edit box
 	CString str;
 	//CYUFADlg* pParentWnd = (CYUFADlg*)GetParent();
-	CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
+	CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
 	if (pParentWnd != nullptr)
 	{
 		//Assign str to pParentWnd->m_SystemPara.StationID
@@ -455,7 +455,7 @@ void UModBus::OnEnKillfocusEditServerId()
 	//SetDlgParam();
 	CString str;
 	//CYUFADlg* pParentWnd = (CYUFADlg*)GetParent();
-	CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
+	CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
 	if (pParentWnd != nullptr)
 	{
 	

@@ -2,8 +2,8 @@
 //
 
 #include "pch.h"
-#include "YUFA.h"
-#include "YUFADlg.h"
+#include "SP.h"
+#include "SPDlg.h"
 #include "WorkTab.h"
 #include "afxdialogex.h"
 #include "SystemParaTab.h"
@@ -48,7 +48,7 @@ BOOL SystemParaTab::OnInitDialog()
 {
 	CDialog::OnInitDialog();
 
-	CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
+	CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
 
 
 	CString str;
@@ -116,7 +116,7 @@ void SystemParaTab::OnEnChangeTabSysOffsetValue()
 
 // // 檢查父視窗指標有效性
 	//CWnd* pWnd = GetParent();
-	CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
+	CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
 	
 		if (pParentWnd)
 		{
@@ -146,7 +146,7 @@ void SystemParaTab::OnBnClickedMfcbtnSaveSystem()
 	strConfigFile = CString(appPath.c_str()) + _T("\\") + strConfigFile;
 
 	//YUFADlg 的 m_SystemPara 資料成員寫入到系統配置檔案
-	CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
+	CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
 
 	// CString 轉 std::string
 	CT2A pszConverted(strConfigFile);
@@ -159,7 +159,7 @@ void SystemParaTab::OnBnClickedMfcbtnSaveSystem()
 //Update data in Edit control with SystemConfig m_SystemPara
 void SystemParaTab::UpdateControl()
 {
-	CYUFADlg* pParentWnd = dynamic_cast<CYUFADlg*>(GetParent()->GetParent());
+	CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
 	if (pParentWnd != nullptr)
 	{
 		CString str;

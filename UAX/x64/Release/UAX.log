@@ -15,41 +15,41 @@ C:\opencv\build\include\opencv2\calib3d.hpp(1,1): warning C4819: 檔案含有無
 C:\opencv\build\include\opencv2\objdetect\aruco_board.hpp(1,1): warning C4819: 檔案含有無法在目前字碼頁 (950) 中表示的字元。請以 Unicode 格式儲存檔案以防止資料遺失
   (編譯來源檔案 'UAX.cpp')
   
-D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.h(130,28): warning C4190: 'fitImageToScreen' 已指定 C-連結，但傳回與 C 不相容的 'cv::Mat'
+D:\Git Repository\chengyi-chung\SP-AX3\UAX\UAX.h(130,28): warning C4190: 'fitImageToScreen' 已指定 C-連結，但傳回與 C 不相容的 'cv::Mat'
   (編譯來源檔案 'UAX.cpp')
       C:\opencv\build\include\opencv2\core\mat.hpp(810,18):
       請參閱 'cv::Mat' 的宣告
   
-D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.h(313,32): warning C4190: 'GetAppPath' 已指定 C-連結，但傳回與 C 不相容的 'std::basic_string<char,std::char_traits<char>,std::allocator<char>>'
+D:\Git Repository\chengyi-chung\SP-AX3\UAX\UAX.h(313,32): warning C4190: 'GetAppPath' 已指定 C-連結，但傳回與 C 不相容的 'std::basic_string<char,std::char_traits<char>,std::allocator<char>>'
   (編譯來源檔案 'UAX.cpp')
       C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.50.35717\include\xstring(589,7):
       請參閱 'std::basic_string<char,std::char_traits<char>,std::allocator<char>>' 的宣告
   
-D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(29,9): warning C4005: '_T': 巨集重複定義
+D:\Git Repository\chengyi-chung\SP-AX3\UAX\UAX.cpp(29,9): warning C4005: '_T': 巨集重複定義
       C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\ucrt\tchar.h(2320,9):
       參閱 '_T' 之前的定義
   
-D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(130,3): warning C4297: 'GetToolPath': 函式預設並不會擲回例外狀況，但卻擲回例外狀況
-      D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(130,3):
+D:\Git Repository\chengyi-chung\SP-AX3\UAX\UAX.cpp(130,3): warning C4297: 'GetToolPath': 函式預設並不會擲回例外狀況，但卻擲回例外狀況
+      D:\Git Repository\chengyi-chung\SP-AX3\UAX\UAX.cpp(130,3):
       已在函式指定 __declspec(nothrow)、throw()、noexcept(true) 或 noexcept
   
-D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(544,15): warning C4267: '正在初始化': 將 'size_t' 轉換為 'int'，資料可能遺失
-D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(545,19): warning C4267: '正在初始化': 將 'size_t' 轉換為 'int'，資料可能遺失
-D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(422,9): warning C4297: 'GetToolPathWithMask': 函式預設並不會擲回例外狀況，但卻擲回例外狀況
-      D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(422,9):
+D:\Git Repository\chengyi-chung\SP-AX3\UAX\UAX.cpp(544,15): warning C4267: '正在初始化': 將 'size_t' 轉換為 'int'，資料可能遺失
+D:\Git Repository\chengyi-chung\SP-AX3\UAX\UAX.cpp(545,19): warning C4267: '正在初始化': 將 'size_t' 轉換為 'int'，資料可能遺失
+D:\Git Repository\chengyi-chung\SP-AX3\UAX\UAX.cpp(422,9): warning C4297: 'GetToolPathWithMask': 函式預設並不會擲回例外狀況，但卻擲回例外狀況
+      D:\Git Repository\chengyi-chung\SP-AX3\UAX\UAX.cpp(422,9):
       已在函式指定 __declspec(nothrow)、throw()、noexcept(true) 或 noexcept
   
-D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(426,9): warning C4297: 'GetToolPathWithMask': 函式預設並不會擲回例外狀況，但卻擲回例外狀況
-      D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(426,9):
+D:\Git Repository\chengyi-chung\SP-AX3\UAX\UAX.cpp(426,9): warning C4297: 'GetToolPathWithMask': 函式預設並不會擲回例外狀況，但卻擲回例外狀況
+      D:\Git Repository\chengyi-chung\SP-AX3\UAX\UAX.cpp(426,9):
       已在函式指定 __declspec(nothrow)、throw()、noexcept(true) 或 noexcept
   
-D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(1355,3): warning C4297: 'WriteConfigToFile': 函式預設並不會擲回例外狀況，但卻擲回例外狀況
-      D:\Git Repository\chengyi-chung\YUFA\UAX\UAX.cpp(1355,3):
+D:\Git Repository\chengyi-chung\SP-AX3\UAX\UAX.cpp(1355,3): warning C4297: 'WriteConfigToFile': 函式預設並不會擲回例外狀況，但卻擲回例外狀況
+      D:\Git Repository\chengyi-chung\SP-AX3\UAX\UAX.cpp(1355,3):
       已在函式指定 __declspec(nothrow)、throw()、noexcept(true) 或 noexcept
   
-     正在建立程式庫 D:\Git Repository\chengyi-chung\YUFA\x64\Release\UAX.lib 和物件 D:\Git Repository\chengyi-chung\YUFA\x64\Release\UAX.exp
+     正在建立程式庫 D:\Git Repository\chengyi-chung\SP-AX3\x64\Release\UAX.lib 和物件 D:\Git Repository\chengyi-chung\SP-AX3\x64\Release\UAX.exp
   正在產生程式碼
   Previous IPDB not found, fall back to full compilation.
   All 1211 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
   已完成程式碼產生
-  UAX.vcxproj -> D:\Git Repository\chengyi-chung\YUFA\x64\Release\UAX.dll
+  UAX.vcxproj -> D:\Git Repository\chengyi-chung\SP-AX3\x64\Release\UAX.dll
