@@ -58,7 +58,7 @@ END_MESSAGE_MAP()
 
 
 CSPDlg::CSPDlg(CWnd* pParent /*=nullptr*/)
-	: CDialogEx(IDD_YUFA_DIALOG, pParent)
+	: CDialogEx(IDD_SP_DIALOG, pParent)
 	, m_SystemPara() // 呼叫 SystemConfig 預設建構子
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);

@@ -1,11 +1,11 @@
 //{{NO_DEPENDENCIES}}
 // Microsoft Visual C++ 產生的 Include 檔案。
-// 由 YUFA.rc 使用
+// 由 SP-AX.rc 使用
 //
 #define IDM_ABOUTBOX                    0x0010
 #define IDD_ABOUTBOX                    100
 #define IDS_ABOUTBOX                    101
-#define IDD_YUFA_DIALOG                 102
+#define IDD_SP_DIALOG                   102
 #define IDD_TAB_WOK                     105
 #define IDC_IDC_WORK_SAVE_IMG           105
 #define IDD_TAB_SYSTEM_PARA             106
