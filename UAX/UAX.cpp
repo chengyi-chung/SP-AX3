@@ -2,7 +2,7 @@
 #include "pch.h"
 #include <iostream>
 #include <string>
-#include <stdio.h>
+#include <stdio.h>       
 #include <stdlib.h>
 #include <string.h>
 #include <vector>
@@ -10,7 +10,7 @@
 #include <atlimage.h>
 #include <WinSock2.h>
 #include <iphlpapi.h>
-#include <ws2tcpip.h>	
+#include <ws2tcpip.h>
 #include <windows.h>
 #include <tchar.h>
 #include <strsafe.h>
@@ -35,7 +35,7 @@
 
 using namespace std;
 using namespace cv;
-
+//using namespace CryptoPP;
 
 
 // 修正：明確指定 byte 型別，避免模稜兩可
@@ -367,7 +367,7 @@ int SmoothPath(const Point2D* input, int inputSize, int windowSize, Point2D* out
 		for (int j = -half; j <= half; ++j) {
 			int idx = std::min<int>(std::max<int>(i + j, 0), inputSize - 1);
 			sx += input[idx].x * coeff[j + half];
-			sy += input[idx].y * coeff[j + half];
+		 sy += input[idx].y * coeff[j + half];
 		}
 		output[i].x = sx / sum;
 		output[i].y = sy / sum;
@@ -748,9 +748,6 @@ void ContourToToolPath(cv::Mat& src, ToolPath& toolpath)
 	toolpath.Path = path;
 }
 
-
-
-
 // Function to resize the image to fit the screen
 // inputImage: the input image
 // screenWidth: the width of the screen
@@ -994,6 +991,15 @@ void GetMacAddress(char* macAddress)
 
 }
 
+// Encrypt function
+//Use AES encryption
+// input: the input data
+// output: the output data
+void Encrypt(unsigned char* input, unsigned char* output, unsigned char* key)
+{
+	
+}
+
 //Coordinate Transformation Tools
 // Init the transformer with 3 points
 // imagePts: the pixel coordinate of the 3 points
@@ -1052,7 +1058,6 @@ bool TransformPixel(float x, float y, float* outX, float* outY, cv::Mat affineMa
 	return true;
 }
 */
-
 
 // Transform pixel to real world coordinate
 // x, y: the pixel coordinate
@@ -1422,6 +1427,9 @@ int ReadSystemConfig(const std::string& filename, SystemConfig& SysConfig)
 		return -1; // Indicate default configuration was used
 	}
 
+	//const unsigned char* key;
+	//GetMACAddress((char*)SysConfig.MACKey);
+
 	auto trim = [](std::string& s) {
 		const char* ws = " \t\r\n";
 		size_t start = s.find_first_not_of(ws);
@@ -1600,6 +1608,139 @@ int SafeModbusWriteBit(modbus_t* ctx, int addr, int status)
 	std::lock_guard<std::mutex> lock(plc_mutex);
 	return modbus_write_bit(ctx, addr, status);
 }
+
+void GetMACAddress(unsigned char* macAddress)
+{
+	//Get the MAC address of the computer, Get the first if exit
+	IP_ADAPTER_ADDRESSES* pAddresses = NULL;
+	ULONG outBufLen = 0;
+	DWORD dwRetVal = 0;
+	// Call GetAdaptersAddresses to get the size needed
+	dwRetVal = GetAdaptersAddresses(AF_UNSPEC, 0, NULL, pAddresses, &outBufLen);
+	if (dwRetVal == ERROR_BUFFER_OVERFLOW)
+	{
+		pAddresses = (IP_ADAPTER_ADDRESSES*)malloc(outBufLen);
+		if (pAddresses == NULL)
+		{
+			//std::cerr << "Error: Memory allocation failed for IP_ADAPTER_ADDRESSES struct" << std::endl;
+			MessageBox(NULL, _T("Error: Memory allocation failed for IP_ADAPTER_ADDRESSES struct"), _T("Error"), MB_OK);
+			return;
+		}
+	}
+	dwRetVal = GetAdaptersAddresses(AF_UNSPEC, 0, NULL, pAddresses, &outBufLen);
+	if (dwRetVal == NO_ERROR)
+	{
+		IP_ADAPTER_ADDRESSES* pCurrAddresses = pAddresses;
+		while (pCurrAddresses)
+		{
+			if (pCurrAddresses->PhysicalAddressLength != 0)
+			{
+				// Copy the MAC address
+				memcpy(macAddress, pCurrAddresses->PhysicalAddress, pCurrAddresses->PhysicalAddressLength);
+				break; // Get the first MAC address and exit
+			}
+			pCurrAddresses = pCurrAddresses->Next;
+		}
+	}
+	else
+	{
+		//std::cerr << "Error: GetAdaptersAddresses failed with error: " << dwRetVal << std::endl;
+		MessageBox(NULL, _T("Error: GetAdaptersAddresses failed"), _T("Error"), MB_OK);
+	}
+	if (pAddresses)
+	{
+		free(pAddresses);
+	}
+	return;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

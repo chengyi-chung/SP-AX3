@@ -529,7 +529,7 @@ void CSPDlg::ReadSystemParametersFromConfigFile()
 	int rt = ReadSystemConfig(std::string(CT2A(strConfigFile)), m_SystemPara);
 	IpAddress = m_SystemPara.IpAddress;
 	Port = m_SystemPara.Port;
-	
+	m_SystemPara.MACKey[17];
 
 }
 

@@ -52,13 +52,23 @@ using std::endl;
 //return: the sum of the two numbers
 extern "C" UAX_API  float Add(float a, float b);
 
-//extern "C" UAX_API float Add(float a, float b);
+// System Security Tools
+// AES Encrypt and Decrypt function 
 
 extern "C" UAX_API void Encrypt(unsigned char* input, unsigned char* output, unsigned char* key);
 
 extern "C" UAX_API void Decrypt(unsigned char* input, unsigned char* output, unsigned char* key);
 
-//Modbus TCP/IP
+//Get MAC address function
+//xtern "C" UAX_API void GetMACAddress(unsigned char* macAddress);
+extern "C" UAX_API void GetMacAddress(char* macAddress);
+
+
+
+
+
+
+
 
 // Machine Vision functions
 //OpenCV function for UAX
@@ -277,7 +287,7 @@ struct SystemConfig
     float OffsetX;
     float OffsetY;
     int CameraID;
-    char MACKey[18];    // 128 bit key
+	char MACKey[18];    // MAC Address as key
     char GoldenKey[18]; // 128 bit key
     int CameraWidth;
     int CameraHeight;
@@ -312,10 +322,10 @@ extern "C" UAX_API int ReadSystemConfig(const std::string& filename, SystemConfi
 //Get Application Path
 extern "C" UAX_API std::string GetAppPath();
 
+
+
 //Get mac address
-extern "C" UAX_API void GetMacAddress(char* macAddress);
-
-
+//extern "C" UAX_API void GetMacAddress(char* macAddress);
 
 //
 // 裝 thread-safe 函式
