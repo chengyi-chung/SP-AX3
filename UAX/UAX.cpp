@@ -149,6 +149,7 @@ void  GetToolPath(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpath)
 		gray = result;
 	}
 
+	//Image Processing
 	cv::Mat thresh;
 	cv::threshold(gray, thresh, 128, 255, cv::THRESH_BINARY);
 
@@ -175,6 +176,201 @@ void  GetToolPath(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpath)
 	cv::waitKey(0);
 	cv::destroyAllWindows();
 }
+
+void GetToolPath_Optimized(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpath)
+{
+	if (ImgSrc.empty()) {
+		throw std::invalid_argument("Input image is empty.");
+	}
+
+	// --- 1. 效能優化：整合侵蝕運算 ---
+	// 不要用 for 迴圈多次呼叫 erode，cv::erode 內建 iterations 參數，
+	// 其內部有進行 SIMD 優化，效能遠高於手動迴圈。
+	cv::Mat processed;
+	int numPixelsToErode = static_cast<int>(Offset.x + Offset.y);
+
+	if (numPixelsToErode > 0) {
+		cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
+		cv::erode(ImgSrc, processed, kernel, cv::Point(-1, -1), numPixelsToErode);
+	}
+	else {
+		processed = ImgSrc.clone();
+	}
+
+	// --- 2. 色彩轉換優化 ---
+	// 直接在處理後的影像上轉換，避免多餘的 clone
+	cv::Mat gray;
+	if (processed.channels() == 3) {
+		cv::cvtColor(processed, gray, cv::COLOR_BGR2GRAY);
+	}
+	else {
+		gray = processed;
+	}
+
+	// --- 3. 門檻值與輪廓提取 ---
+	cv::threshold(gray, gray, 128, 255, cv::THRESH_BINARY);
+
+	std::vector<std::vector<cv::Point>> contours;
+	// 使用 CHAIN_APPROX_SIMPLE 壓縮水平、垂直與對角線段，大幅減少點數
+	cv::findContours(gray, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+
+	// --- 4. 記憶體預先配置 (Memory Reservation) ---
+	// 這是提升效能的關鍵：預先計算點的總數，避免 vector 在 push_back 時不斷重新分配記憶體
+	size_t totalPoints = 0;
+	for (const auto& c : contours) totalPoints += c.size();
+
+	toolpath.Path.clear();
+	toolpath.Path.reserve(totalPoints);
+	toolpath.Offset = Offset;
+
+	for (const auto& contour : contours) {
+		for (const auto& point : contour) {
+			toolpath.Path.emplace_back(static_cast<double>(point.x), static_cast<double>(point.y));
+		}
+	}
+
+	// --- 5. 視覺化（非生產環境建議移除） ---
+	// 僅在需要時在原圖畫一次即可
+	cv::drawContours(ImgSrc, contours, -1, cv::Scalar(0, 255, 0), 2);
+}
+
+void GetToolPath_CurvatureOptimized(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpath, double epsilonFactor)
+{
+	if (ImgSrc.empty()) throw std::invalid_argument("Input image is empty.");
+
+	// 1. 影像預處理 (使用 iterations 優化效能)
+	cv::Mat processed;
+	int numPixelsToErode = static_cast<int>(Offset.x + Offset.y);
+	if (numPixelsToErode > 0) {
+		cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
+		cv::erode(ImgSrc, processed, kernel, cv::Point(-1, -1), numPixelsToErode);
+	}
+	else {
+		processed = ImgSrc.clone();
+	}
+
+	// 2. 轉灰階與二值化
+	cv::Mat gray;
+	if (processed.channels() == 3) cv::cvtColor(processed, gray, cv::COLOR_BGR2GRAY);
+	else gray = processed;
+	cv::threshold(gray, gray, 128, 255, cv::THRESH_BINARY);
+
+	// 3. 提取初始輪廓 (使用 CHAIN_APPROX_TC89_L1 進行初步壓縮)
+	std::vector<std::vector<cv::Point>> contours;
+	cv::findContours(gray, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_TC89_L1);
+
+	toolpath.Path.clear();
+	toolpath.Offset = Offset;
+
+	// 4. 基於曲率進行降點 (Douglas-Peucker Algorithm)
+	for (const auto& contour : contours)
+	{
+		std::vector<cv::Point> simplifiedContour;
+
+		// 計算精度閾值 (epsilon)
+		// 方式 A: 根據輪廓周長動態調整（推薦），epsilonFactor 越小，點數越多越精確
+		double arcLen = cv::arcLength(contour, true);
+		double epsilon = epsilonFactor * arcLen;
+
+		// 方式 B: 如果需要固定像素誤差，可直接設為固定值，例如 epsilon = 1.0;
+
+		// 核心函數：根據曲率/偏差降點
+		cv::approxPolyDP(contour, simplifiedContour, epsilon, true);
+
+		// 將簡化後的點存入 toolpath
+		for (const auto& point : simplifiedContour)
+		{
+			toolpath.Path.emplace_back(static_cast<double>(point.x), static_cast<double>(point.y));
+		}
+	}
+
+	// 繪製結果以供驗證
+	cv::drawContours(ImgSrc, contours, -1, cv::Scalar(0, 0, 255), 1); // 原輪廓(紅)
+	// 繪製降點後的路徑點（綠色小圓點）
+	for (const auto& p : toolpath.Path) {
+		cv::circle(ImgSrc, cv::Point(p.x, p.y), 2, cv::Scalar(0, 255, 0), -1);
+	}
+
+	ShowZoomedImage("Reduced Points Result", ImgSrc);
+}
+
+void GetToolPath_SymmetricOnly(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpath, double epsilonFactor)
+{
+	if (ImgSrc.empty()) return;
+
+	// 1. 影像預處理 (相同)
+	cv::Mat processed, gray;
+	int numPixelsToErode = static_cast<int>(Offset.x + Offset.y);
+	cv::erode(ImgSrc, processed, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3)), cv::Point(-1, -1), numPixelsToErode);
+
+	if (processed.channels() == 3) cv::cvtColor(processed, gray, cv::COLOR_BGR2GRAY);
+	else gray = processed;
+	cv::threshold(gray, gray, 128, 255, cv::THRESH_BINARY);
+
+	std::vector<std::vector<cv::Point>> contours;
+	cv::findContours(gray, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_TC89_L1);
+
+	toolpath.Path.clear();
+	double centerX = gray.cols / 2.0;
+
+	for (const auto& contour : contours) {
+		std::vector<cv::Point> simplified;
+		double epsilon = epsilonFactor * cv::arcLength(contour, true);
+		cv::approxPolyDP(contour, simplified, epsilon, true);
+
+		// --- 修正後的對稱邏輯 ---
+		std::vector<cv::Point2d> leftArc;
+		cv::Point2d topCP(centerX, 1e9), bottomCP(centerX, -1e9);
+		bool hasCenter = false;
+
+		// 提取左半邊點，並找出中軸的最頂與最底點
+		for (const auto& p : simplified) {
+			if (p.x <= centerX + 1.0) { // 包含左側與中心線上
+				cv::Point2d p2d(p.x, p.y);
+
+				// 記錄中軸極值
+				if (std::abs(p.x - centerX) < 2.0) {
+					hasCenter = true;
+					if (p.y < topCP.y) topCP = cv::Point2d(centerX, p.y);
+					if (p.y > bottomCP.y) bottomCP = cv::Point2d(centerX, p.y);
+				}
+
+				if (p.x < centerX) {
+					leftArc.push_back(p2d);
+				}
+			}
+		}
+
+		// 依 Y 座標排序左側點，確保路徑是從上到下的
+		std::sort(leftArc.begin(), leftArc.end(), [](const cv::Point2d& a, const cv::Point2d& b) {
+			return a.y < b.y;
+			});
+
+		// 組合路徑：頂點 -> 左側 -> 底點 -> 右側鏡像(倒序)
+		if (hasCenter) toolpath.Path.push_back(topCP);
+
+		for (const auto& p : leftArc) toolpath.Path.push_back(p);
+
+		if (hasCenter && topCP != bottomCP) toolpath.Path.push_back(bottomCP);
+
+		// 鏡像右半邊 (從下往上回溯)
+		for (int i = (int)leftArc.size() - 1; i >= 0; --i) {
+			toolpath.Path.push_back(cv::Point2d(2 * centerX - leftArc[i].x, leftArc[i].y));
+		}
+	}
+
+	// 4. 繪製結果 (改用線段連接，觀察順序是否正確)
+	cv::Mat drawImg = ImgSrc.clone();
+	for (size_t i = 0; i < toolpath.Path.size(); ++i) {
+		cv::circle(drawImg, toolpath.Path[i], 3, cv::Scalar(0, 255, 0), -1);
+		if (i > 0) {
+			cv::line(drawImg, toolpath.Path[i - 1], toolpath.Path[i], cv::Scalar(255, 0, 0), 1);
+		}
+	}
+
+	ShowZoomedImage("Symmetric Result", drawImg);
+}
+
 
 
 // 計算曲率

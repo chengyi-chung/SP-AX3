@@ -1068,26 +1068,9 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
     Offset.x = Offset.x / pParentWnd->m_SystemPara.TransferFactor;
     Offset.y = Offset.y / pParentWnd->m_SystemPara.TransferFactor;
 
-	//Call the function to get the tool path from UAX
-	//toolpath: Tool Path pixel
-	//ImgSrc: Source Image
-	//Offset: Offset of the tool path, mm to pixel before call GetToolPathData
-
     //直接把結果放到成員變數 toolPath，避免用區域變數後沒指派回來
     this->toolPath.Path.clear();
-    //GetToolPathData(ImgSrc, Offset, this->toolPath);
-
-	//Get Mask of the tool path from the image m_mat
-	//ImgSrc: Source Image m_mat
-	//Offset: Offset of the tool path
-	//toolpath: Tool Path
-	//ImgSrc: Source Image
-	//Offset: Offset of the tool path, mm to pixel before call GetToolPathWithMask
-	//直接把結果放到成員變數 toolPath，避免用區域變數後沒指派回來
-
-	//cv::Rect roi(MaskX, MaskY, MaskWidth, MaskHeight);
-	//cv::Mat ROI_Mask = m_mat(roi);
-	//GetToolPathWithMask(ImgSrc, ROI_Mask, Offset, this->toolPath);
+    
 
 	// 檢查 m_mat 是否為空
 if (m_mat.empty()) {
@@ -1096,6 +1079,7 @@ if (m_mat.empty()) {
 }
 
 // 檢查 ROI 是否在影像範圍內
+/*
 if (MaskX < 0 || MaskY < 0 ||
     MaskWidth <= 0 || MaskHeight <= 0 ||
     MaskX + MaskWidth > m_mat.cols ||
@@ -1103,6 +1087,7 @@ if (MaskX < 0 || MaskY < 0 ||
     AfxMessageBox(_T("ROI is out of image bounds."));
     return;
 }
+*/
 
 // 1. 建立一張與 ImgSrc 一樣大小的全黑 Mask（8位元單通道）
 cv::Mat mask = cv::Mat::zeros(ImgSrc.size(), CV_8UC1);
@@ -1111,6 +1096,7 @@ cv::Mat mask = cv::Mat::zeros(ImgSrc.size(), CV_8UC1);
 cv::Rect roi(MaskX, MaskY, MaskWidth, MaskHeight);
 
 // 3. 檢查 ROI 是否在 ImgSrc 範圍內，以避免 out-of-bounds 問題
+/*
 if ((MaskX >= 0) && (MaskY >= 0) &&
     (MaskY + MaskWidth <= ImgSrc.cols) &&
     (MaskY + MaskHeight <= ImgSrc.rows))
@@ -1122,11 +1108,17 @@ else
 {
     throw std::invalid_argument("ROI超出原圖範圍");
 }
+*/
+
 
 //Get offsetDist with offsetDist and distX, distY
 int distOffset = sqrt(pow(Offset.x,2) +pow(Offset.y,2));
 
-GetToolPathWithMask(ImgSrc, mask, distOffset, this->toolPath);
+//GetToolPathWithMask(ImgSrc, mask, distOffset, this->toolPath);
+//GetToolPath(ImgSrc, Offset, this->toolPath);
+//GetToolPath_Optimized(ImgSrc, Offset, this->toolPath);
+GetToolPath_CurvatureOptimized(ImgSrc, Offset, this->toolPath, 0.0005);
+//GetToolPath_SymmetricOnly(ImgSrc, Offset, this->toolPath, 0.001);  //結果不對
 	
 }
 

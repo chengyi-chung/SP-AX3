@@ -180,7 +180,7 @@ BOOL CSPDlg::OnInitDialog()
 	ModifyStyle(0, WS_MAXIMIZEBOX | WS_MINIMIZEBOX, 0);
 
 	//Set Dialog Title
-	SetWindowText(_T("YUFA 0.0.0"));
+	SetWindowText(_T("SP-AX 0.0.0"));
 
 	//Table control initial
 	m_Tab_Main.InsertItem(0, _T("Working"));

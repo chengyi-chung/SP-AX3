@@ -189,6 +189,10 @@ extern "C" UAX_API int LensCalibration(cv::Mat& src, cv::Mat& templ, cv::Mat& ds
 // Offset: the offse value of the tool path(Pixel)
 // ToolPath: the output tool path
 extern "C" UAX_API void GetToolPath(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpath);
+extern "C" UAX_API void GetToolPath_Optimized(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpath);
+extern "C" UAX_API void GetToolPath_CurvatureOptimized(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpath, double epsilonFactor = 0.01);
+extern "C" UAX_API void GetToolPath_SymmetricOnly(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpath, double epsilonFactor = 0.01);
+
 // Get Tool Path
 // Use Erosiong find the tool path
 // ImgSrc: the input image
