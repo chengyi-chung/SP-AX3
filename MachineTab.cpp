@@ -677,7 +677,7 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 				int bitAdress = 3;  // Bit address for X+ button
 				int bitValue = 0;    // Bit value for X+ button pressed
 				int nID = IDC_BTN_JOG_X_PLUS;
-				ClearDiscrete5000(0, 8);
+				//ClearDiscrete5000(0, 8);
 				//Discrete3000Change(1, bitAdress, bitValue, nID);
 				flgGetCoord = TRUE;
 			}
@@ -704,7 +704,7 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 			 int bitAdress = 4;
 			 int bitValue = 0;
 			 int nID = IDC_BTN_JOG_X_MINUS;
-			 ClearDiscrete5000(0, 8);
+			 //ClearDiscrete5000(0, 8);
 			 //Discrete3000Change(1, bitAdress, bitValue, nID);
 			 flgGetCoord = TRUE;
 			}
@@ -732,7 +732,7 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 				int bitAdress = 5;
 			 int bitValue = 0;
 			 int nID = IDC_BTN_JOG_Y_PLUS;
-				ClearDiscrete5000(0, 8);
+				//ClearDiscrete5000(0, 8);
 				//Discrete3000Change(1, bitAdress, bitValue, nID);
 				flgGetCoord = TRUE;
 			}
@@ -761,7 +761,7 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 				int bitAdress = 6;
 			    int bitValue = 0;
 		         int nID = IDC_BTN_JOG_Y_MINUS;
-				ClearDiscrete5000(0, 8);
+				//ClearDiscrete5000(0, 8);
 				//Discrete3000Change(1, bitAdress, bitValue, nID);
 				flgGetCoord = TRUE;
 
@@ -791,7 +791,7 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 				int bitAdress = 7;
 				int bitValue = 0;
 				int nID = IDC_BTN_JOG_Z_PLUS;
-				ClearDiscrete5000(0, 8);
+				//ClearDiscrete5000(0, 8);
 				//Discrete3000Change(1, bitAdress, bitValue, nID);
 				flgGetCoord = TRUE;
 			}
@@ -820,7 +820,7 @@ BOOL MachineTab::PreTranslateMessage(MSG* pMsg)
 				int bitAdress = 8;
 			    int bitValue = 0;
 			    int nID = IDC_BTN_JOG_Z_MINUS;
-				ClearDiscrete5000(0, 8);
+				//learDiscrete5000(0, 8);
 				//Discrete3000Change(1, bitAdress, bitValue, nID);
 				flgGetCoord = TRUE;
 			}

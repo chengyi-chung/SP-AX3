@@ -186,7 +186,7 @@ BOOL CSPDlg::OnInitDialog()
 	m_Tab_Main.InsertItem(0, _T("Working"));
 	m_Tab_Main.InsertItem(1, _T("System Parameter"));
 	m_Tab_Main.InsertItem(2, _T("Modbus TCP"));
-	m_Tab_Main.InsertItem(3, _T("Machine"));
+	//m_Tab_Main.InsertItem(3, _T("Machine"));
 
 	//Set Table Control Size
 	//m_Tab_Main.SetParent(this);
@@ -213,9 +213,9 @@ BOOL CSPDlg::OnInitDialog()
 	m_ModBusTab.ShowWindow(SW_HIDE);
 
 	//Add Tab Control Item Machine
-	m_MachineTab.Create(IDD_TAB_MACHINE, &m_Tab_Main);
-	m_MachineTab.MoveWindow(&rect);
-	m_MachineTab.ShowWindow(SW_HIDE);
+	//m_MachineTab.Create(IDD_TAB_MACHINE, &m_Tab_Main);
+	//m_MachineTab.MoveWindow(&rect);
+	//m_MachineTab.ShowWindow(SW_HIDE);
 
 	// 修改初始化按鈕樣式的函式
 	InitButtonStyle();
@@ -372,7 +372,7 @@ void CSPDlg::OnBnClickedBtnWorking()
 	
 	m_SystemParaTab.ShowWindow(SW_HIDE);
 	m_ModBusTab.ShowWindow(SW_HIDE);
-	m_MachineTab.ShowWindow(SW_HIDE);
+	//m_MachineTab.ShowWindow(SW_HIDE);
 	m_Tab_Main.SetCurSel(0);
 	m_WorkTab.SetFocus();
 }
@@ -383,7 +383,7 @@ void CSPDlg::OnBnClickedBtnSysPara()
 	m_WorkTab.ShowWindow(SW_HIDE);
 	m_SystemParaTab.ShowWindow(SW_SHOW);
 	m_ModBusTab.ShowWindow(SW_HIDE);
-	m_MachineTab.ShowWindow(SW_HIDE);
+	//m_MachineTab.ShowWindow(SW_HIDE);
 	//change to select tab
 	m_Tab_Main.SetCurSel(1);
 	m_SystemParaTab.UpdateControl();
@@ -396,7 +396,7 @@ void CSPDlg::OnBnClickedBtnModbus()
 	m_WorkTab.ShowWindow(SW_HIDE);
 	m_SystemParaTab.ShowWindow(SW_HIDE);	
 	m_ModBusTab.ShowWindow(SW_SHOW);
-	m_MachineTab.ShowWindow(SW_HIDE);
+	//m_MachineTab.ShowWindow(SW_HIDE);
 	//change to select tab
 	m_Tab_Main.SetCurSel(2);
 
@@ -410,7 +410,7 @@ void CSPDlg::OnBnClickedBtnMachine()
 	m_WorkTab.ShowWindow(SW_HIDE);
 	m_SystemParaTab.ShowWindow(SW_HIDE);
 	m_ModBusTab.ShowWindow(SW_HIDE);
-	m_MachineTab.ShowWindow(SW_SHOW);
+	//m_MachineTab.ShowWindow(SW_SHOW);
 	//change to select tab
 	m_Tab_Main.SetCurSel(3);
 	m_MachineTab.UpdateControl();  //Update Control with m_SystemPara
@@ -483,21 +483,21 @@ void CSPDlg::OnTcnSelchangeTabMain(NMHDR* pNMHDR, LRESULT* pResult)
 		{
 		case 0: //CCD working
 			// 通知第一個子頁面
-			m_MachineTab.CloseModBus();
+			//m_MachineTab.CloseModBus();
 			// focus on WorkTab
 			OnBnClickedBtnWorking();
 			//m_SystemParaTab.OnTabSelected();
 			break;
 		case 1: //System Parameter
 			// 通知第二個子頁面
-			m_MachineTab.CloseModBus();
+			//m_MachineTab.CloseModBus();
 			//m_SystemParaTab.UpdateControl();
 			OnBnClickedBtnSysPara();
 			//m_WorkTab.OnTabSelected();
 			break;
 			// 添加更多的 case 來處理其他子頁面
 		case 2://Modbus TCP	
-			m_MachineTab.CloseModBus();
+			//m_MachineTab.CloseModBus();
 			OnBnClickedBtnModbus();
 			break;
 		case 3://Machine
