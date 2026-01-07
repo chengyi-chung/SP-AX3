@@ -125,6 +125,20 @@ public:
 
 	HICON m_hIcon;
 
+private:
+	bool m_bDrawingROI = false;        // 是否正在拖曳框選
+	CPoint m_ROIStart;                 // ROI 起始點（Picture Control 客戶區座標）
+	CPoint m_ROICurrent;               // ROI 當前點（拖曳時的終點）
+	CRect m_SelectedROI;               // 最終確定的 ROI（像素座標，對應原始圖像）
+
+	bool m_bROIConfirmed = false;      // 是否已確認 ROI（可選）
+
+	// 可選：用來記錄是否處於「ROI 選取模式」
+	bool m_bROIMode = false;
+
+
+
+
 protected:
 	void MatConvertCimg(cv::Mat mat, CImage *CImg, int Width, int Height);
 	virtual BOOL PreTranslateMessage(MSG* pMsg);
@@ -149,5 +163,6 @@ public:
 	afx_msg void OnBnClickedIdcWorkGo();
 	afx_msg void OnBnClickedCheckWorkCenter();
 	afx_msg void OnBnClickedWorkImageProcess();
+	afx_msg void OnBnClickedMfcbtnWorkImgCalibrate();
 };
 

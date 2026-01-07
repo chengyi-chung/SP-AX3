@@ -151,6 +151,7 @@ BEGIN_MESSAGE_MAP(WorkTab, CDialogEx)
     ON_BN_CLICKED(IDC_IDC_WORK_GO, &WorkTab::OnBnClickedIdcWorkGo)
     ON_BN_CLICKED(IDC_CHECK_WORK_CENTER, &WorkTab::OnBnClickedCheckWorkCenter)
     ON_BN_CLICKED(IDC_MFCBTN_WORK_IMG_PROCESS, &WorkTab::OnBnClickedWorkImageProcess) // ← 新增
+    ON_BN_CLICKED(IDC_MFCBTN_WORK_IMG_Calibrate, &WorkTab::OnBnClickedMfcbtnWorkImgCalibrate)
 END_MESSAGE_MAP()
 
 
@@ -1973,4 +1974,11 @@ void WorkTab::OnBnClickedCheckWorkCenter()
 void WorkTab::OnBnClickedWorkImageProcess()
 {
 
+
+}
+
+void WorkTab::OnBnClickedMfcbtnWorkImgCalibrate()
+{
+    // TODO: 在此加入控制項告知處理常式程式碼
+	MessageBox(_T("Work Image Calibrate Button Clicked"));
 }
