@@ -164,5 +164,8 @@ public:
 	afx_msg void OnBnClickedCheckWorkCenter();
 	afx_msg void OnBnClickedWorkImageProcess();
 	afx_msg void OnBnClickedMfcbtnWorkImgCalibrate();
+
+	// 新增：讀取 Holding Registers
+	bool ReadModbusRegisters(int startAddress, int numRegisters, std::vector<uint16_t>& outRegs, int stationID = 1);
 };
 

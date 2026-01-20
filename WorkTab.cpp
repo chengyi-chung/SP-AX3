@@ -1982,3 +1982,33 @@ void WorkTab::OnBnClickedMfcbtnWorkImgCalibrate()
     // TODO: 在此加入控制項告知處理常式程式碼
 	MessageBox(_T("Work Image Calibrate Button Clicked"));
 }
+
+// 新增：讀取 Holding Registers
+bool ReadModbusRegisters(int startAddress, int numRegisters, std::vector<uint16_t>& outRegs, int stationID = 1)
+{
+    CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(AfxGetMainWnd());
+    if (!pParentWnd) {
+        AfxMessageBox(_T("Parent window is NULL."));
+        return false;
+    }
+    // 確保 Modbus 連線已建立
+    if (!pParentWnd->m_modbusCtx) {
+        bool ok = pParentWnd->InitModbusWithRetry(pParentWnd->m_SystemPara.IpAddress,
+            pParentWnd->Port, stationID, 3, 1000);
+        if (!ok) {
+            AfxMessageBox(_T("Failed to initialize Modbus connection."));
+            return false;
+        }
+    }
+    std::lock_guard<std::mutex> lock(pParentWnd->m_modbusMutex);
+    modbus_set_slave(pParentWnd->m_modbusCtx, stationID);
+    outRegs.resize(numRegisters);
+    int rc = modbus_read_registers(pParentWnd->m_modbusCtx, startAddress, numRegisters, outRegs.data());
+    if (rc == -1) {
+        CString err;
+        err.Format(_T("Failed to read registers at %d: %S"), startAddress, modbus_strerror(errno));
+        AfxMessageBox(err);
+        return false;
+    }
+    return true;
+}
