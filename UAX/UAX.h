@@ -39,6 +39,81 @@ using namespace std;
 using std::cout;
 using std::endl;
 
+
+
+//
+//  SystemConfig
+//
+
+
+struct SystemConfig
+{
+    std::string IpAddress;
+    int Port;
+    int StationID;
+    float OffsetX;
+    float OffsetY;
+    int CameraID;
+    char MACKey[18];    // MAC Address as key
+    char GoldenKey[18]; // 128 bit key
+    int CameraWidth;
+    int CameraHeight;
+    float TransferFactor;
+    int ImageFlip;
+    float CenterX;
+    float CenterY;
+    std::string MachineType;
+    int JogVelocity;
+    int AutoVelocity;
+    int DecAcceleration;
+    int IncAcceleration;
+    float Pitch;
+    float Z1;
+    float Z2;
+    float Z3;
+    float Z4;
+    float Z5;
+    int MaskX;
+    int MaskY;
+    int MaskWidth;
+    int MaskHeight;
+};
+
+struct MemStruct_SP
+{
+    int RecipeID;
+    int CurrentProduction;
+    int Set_temperature0;
+    int Temperature0;
+    int Set_Temperature1;
+    int Temperature1;
+    int Set_temperature2;
+    int Temperature2;
+    int Servo_ALE0;
+    int Servo_ALE1;
+    int Servo_ALE2;
+    int Servo_ALE3;
+    int i_ProcessingTimeCount;
+    int i_SystemTimeCount; // 新增系統時間計數欄位
+    int MachineID; // 新增機器ID欄位
+    int MachineModel; // 新增機器類型欄位
+
+    // 替換 bool 為 uint8_t，確保內存對齊一致
+    uint8_t Alm_tem_not_reach;
+    uint8_t flag_AL_overload;
+    uint8_t Alm_airPressureLow;
+    uint8_t flag_AL_emergency;
+    uint8_t flag_AL_midside_sensor;
+    uint8_t Alm_ManualY_GoOut;
+    uint8_t MachineStatus; // 新增機器狀態欄位 MachineStatus: false 0: Manul, true 1: Semi/Full
+    uint8_t WorkingMode; // 新增工作模式欄位   false 0: Stanby, true 1: In Operation
+
+    // float 放在結構體的最後，避免對齊問題
+    float p19;
+};
+
+
+
 //add a AES encrypt function 
 // 128位密钥
 
@@ -278,43 +353,6 @@ extern "C" UAX_API void PixelToWorld(float x_pixel, float y_pixel, float& x_mm, 
 
 
 
-//
-//  SystemConfig
-//
-
-
-struct SystemConfig
-{
-    std::string IpAddress;
-    int Port;
-    int StationID;
-    float OffsetX;
-    float OffsetY;
-    int CameraID;
-	char MACKey[18];    // MAC Address as key
-    char GoldenKey[18]; // 128 bit key
-    int CameraWidth;
-    int CameraHeight;
-    float TransferFactor;
-    int ImageFlip;
-    float CenterX;
-    float CenterY;
-    std::string MachineType;
-    int JogVelocity;
-    int AutoVelocity;
-    int DecAcceleration;
-    int IncAcceleration;
-    float Pitch;
-    float Z1;
-    float Z2;
-    float Z3;
-    float Z4;
-    float Z5;
-    int MaskX;
-    int MaskY;
-    int MaskWidth;
-    int MaskHeight;
-};
 
 // Write system configuration to ini file
 extern "C" UAX_API void WriteConfigToFile(const std::string& filename, SystemConfig& SysConfig);

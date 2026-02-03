@@ -1290,4 +1290,8 @@ void MachineTab::OnTimer(UINT_PTR nIDEvent)
 	// 可加入其他定時任務
 }
 
+//HMI Test Read Holding Registers
+
+
+
 //#define WM_UPDATE_REPORT (WM_USER + 2)

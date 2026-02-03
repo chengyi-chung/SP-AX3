@@ -87,6 +87,11 @@ public:
 	void SendToolPathData32(uint16_t* m_ToolPathData, int sizeOfArray, int stationID);   //modbus tcp 傳送 ToolPath Data 32bit
 	//void SendToolPathData32A(std::vector<uint16_t> m_ToolPathDataA, int sizeOfArray, int stationID); //點定義 由 x,y 改為 x,y,z 2025.11.18
 	void SendToolPathData32A(const std::vector<uint16_t>& data, int sizeOfArray, int stationID); //點定義 由 x,y 改為 x,y,z 2025.11.18
+	//HMI Test Read Holding Registers
+	void HMIReadHoldingRegistersTest(int stationID = 1);
+
+
+
 
 	void ShowImageOnPictureCtl();
 	void ShowImageOnPictureControl(bool flgCenter = false,

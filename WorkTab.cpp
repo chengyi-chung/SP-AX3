@@ -10,6 +10,8 @@
 
 #include <pylon/PylonIncludes.h>
 
+#include <mutex>  
+
 using namespace Pylon;
 
 //static const uint32_t c_countOfImagesToGrab = 3;
@@ -1182,6 +1184,10 @@ void WorkTab::OnBnClickedIdcWorkGo()
     CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
     if (!pParentWnd) return;
 
+	HMIReadHoldingRegistersTest();
+
+	return;
+
 	// 取得 Z1 和 Z2 參數
     float z_Machining = pParentWnd->m_SystemPara.Z1;
     float z_Retract = pParentWnd->m_SystemPara.Z2;
@@ -1458,42 +1464,28 @@ void WorkTab::ToolPathTransform32B(ToolPath ToolPath_Ori,      // 輸入：原�
     // 計算分群變換次數：用於預估輸出數據大小
     size_t numClustersChanges = 0;
     for (size_t i = 1; i < ToolPath_Ori.Path.size(); ++i) {
-        if (ToolPath_Ori.numClusters[i] != ToolPath_Ori.numClusters[i - 1])
-            ++numClustersChanges;
+        if (ToolPath_Ori.numClusters[i] != ToolPath_Ori.numClusters[i - 1]) ++numClustersChanges;
+    }
+    size_t totalPoints = ToolPath_Ori.Path.size() + numClustersChanges;
+	int outCapacity = static_cast<int>(m_ToolPathDataA.size());
+    if (totalPoints * 6 > outCapacity) {
+        throw std::runtime_error("Insufficient output capacity");
     }
 
-    // 計算總點數：原始點數 + 分群變換次數（每個變換插入一個中間點）
-    size_t totalPoints = ToolPath_Ori.Path.size() + numClustersChanges;
-
-    m_ToolPathDataA.resize(totalPoints * 6);
-
-    // 輸出索引：追蹤當前寫入位置
     size_t idx = 0;
-
-    // 迴圈處理每個原始點
     for (size_t i = 0; i < ToolPath_Ori.Path.size(); ++i) {
-        // 檢查是否為分群變換點（從第二點開始）
         if (i > 0 && ToolPath_Ori.numClusters[i] != ToolPath_Ori.numClusters[i - 1]) {
             auto& prev = worldCoords[i - 1];
             auto& curr = worldCoords[i];
-
-            // 變更: 直接使用 int32_t 進行平均計算，結果依然是 int32_t
-            // 由於 prev/curr.first 已經是縮放後的 int32_t，這裡的平均值也是縮放後的。
-            int32_t mx_int = static_cast<int32_t>(std::lround((static_cast<float>(prev.first) + static_cast<float>(curr.first)) / 2.0f));
-            int32_t my_int = static_cast<int32_t>(std::lround((static_cast<float>(prev.second) + static_cast<float>(curr.second)) / 2.0f));
-
+            int32_t mx_int = static_cast<int32_t>(std::lround((prev.first + curr.first) / 2 * scaleFactor));
+            int32_t my_int = static_cast<int32_t>(std::lround((prev.second + curr.second) / 2 * scaleFactor));
             int32_t zRet_int = static_cast<int32_t>(std::lround(zRetract * scaleFactor));
             AppendPointSafeA(m_ToolPathDataA, idx, mx_int, my_int, zRet_int);
         }
-
         auto& curr = worldCoords[i];
-        // 變更: 直接使用儲存的 int32_t 座標，避免再次轉換
         int32_t x_int = curr.first;
         int32_t y_int = curr.second;
-
         int32_t zWork_int = static_cast<int32_t>(std::lround(z_Machining * scaleFactor));
-
-		// 附加當前點到輸出緩衝區
         AppendPointSafeA(m_ToolPathDataA, idx, x_int, y_int, zWork_int);
     }
 
@@ -1727,7 +1719,7 @@ void WorkTab::SendToolPathData32(uint16_t* m_ToolPathData, int sizeOfArray, int 
         // 計算剩餘點數與本批次要處理的點數（最多 50 點）
         int remainingPoints = totalPoints - pointIndex;
         int batchPoints = std::min(maxBatchSize / 2, remainingPoints); // 每批最多 50 點
-        int batchSize = batchPoints * 2; // 每個座標佔 2 個暫存器（低位、高位）
+        int batchSize = batchPoints * 2; // 每個座標佔 2 個寄存器（低位、高位）
 
         // 建立 X/Y 暫存器資料陣列
         std::vector<uint16_t> xRegs(batchSize);
@@ -1743,13 +1735,13 @@ void WorkTab::SendToolPathData32(uint16_t* m_ToolPathData, int sizeOfArray, int 
             yRegs[i * 2 + 1] = m_ToolPathData[base + 3]; // Y 高位
         }
 
-        // 計算寫入暫存器的起始位置（每點佔 2 個暫存器）
+        // 計算寫入暫存器的起始位置（每個座標佔 2 個暫存器）
         int writeIndex = pointIndex * 2;
 
         // 寫入 X 座標資料到暫存器區段 0–19999
         if (modbus_write_registers(pParentWnd->m_modbusCtx, writeIndex, batchSize, xRegs.data()) == -1) {
             CString err;
-            err.Format(_T("Failed to write X block at address %d: %S"), writeIndex, modbus_strerror(errno));
+            err.Format(_T("Failed to write X block at %d: %S"), writeIndex, modbus_strerror(errno));
             AfxMessageBox(err);
             return;
         }
@@ -1757,7 +1749,7 @@ void WorkTab::SendToolPathData32(uint16_t* m_ToolPathData, int sizeOfArray, int 
         // 寫入 Y 座標資料到暫存器區段 20000–39999
         if (modbus_write_registers(pParentWnd->m_modbusCtx, 20000 + writeIndex, batchSize, yRegs.data()) == -1) {
             CString err;
-            err.Format(_T("Failed to write Y block at address %d: %S"), 20000 + writeIndex, modbus_strerror(errno));
+            err.Format(_T("Failed to write Y block at %d: %S"), 20000 + writeIndex, modbus_strerror(errno));
             AfxMessageBox(err);
             return;
         }
@@ -1984,14 +1976,13 @@ void WorkTab::OnBnClickedMfcbtnWorkImgCalibrate()
 }
 
 // 新增：讀取 Holding Registers
-bool ReadModbusRegisters(int startAddress, int numRegisters, std::vector<uint16_t>& outRegs, int stationID = 1)
+bool WorkTab::ReadModbusRegisters(int startAddress, int numRegisters, std::vector<uint16_t>& outRegs, int stationID)
 {
     CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(AfxGetMainWnd());
     if (!pParentWnd) {
         AfxMessageBox(_T("Parent window is NULL."));
         return false;
     }
-    // 確保 Modbus 連線已建立
     if (!pParentWnd->m_modbusCtx) {
         bool ok = pParentWnd->InitModbusWithRetry(pParentWnd->m_SystemPara.IpAddress,
             pParentWnd->Port, stationID, 3, 1000);
@@ -2000,7 +1991,8 @@ bool ReadModbusRegisters(int startAddress, int numRegisters, std::vector<uint16_
             return false;
         }
     }
-    std::lock_guard<std::mutex> lock(pParentWnd->m_modbusMutex);
+
+    // 這裡假設呼叫端已鎖定 m_modbusMutex
     modbus_set_slave(pParentWnd->m_modbusCtx, stationID);
     outRegs.resize(numRegisters);
     int rc = modbus_read_registers(pParentWnd->m_modbusCtx, startAddress, numRegisters, outRegs.data());
@@ -2011,4 +2003,41 @@ bool ReadModbusRegisters(int startAddress, int numRegisters, std::vector<uint16_
         return false;
     }
     return true;
+}
+
+//HMI Test Read Holding Registers
+void WorkTab::HMIReadHoldingRegistersTest(int stationID)
+{
+	//read 3 registers from address 148
+    const int startAddress = 148;
+    const int numRegisters = 3;
+    std::vector<uint16_t> regs;
+    CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(AfxGetMainWnd());
+    if (!pParentWnd) {
+        AfxMessageBox(_T("Parent window is NULL."));
+        return;
+    }
+    // Ensure modbus ctx available; try to init if not
+    if (!pParentWnd->m_modbusCtx) {
+        bool ok = pParentWnd->InitModbusWithRetry(pParentWnd->m_SystemPara.IpAddress,
+            pParentWnd->Port, stationID, 3, 1000);
+        if (!ok) {
+            AfxMessageBox(_T("Failed to initialize Modbus connection."));
+            return;
+        }
+    }
+    // Use parent ctx under mutex
+    {
+        std::lock_guard<std::mutex> lock(pParentWnd->m_modbusMutex);
+        if (ReadModbusRegisters(startAddress, numRegisters, regs, stationID)) {
+            CString msg;
+            msg.Format(_T("Read Holding Registers from %d:\nReg[%d]=%d\nReg[%d]=%d\nReg[%d]=%d"),
+                startAddress,
+                startAddress, regs[0],
+                startAddress + 1, regs[1],
+                startAddress + 2, regs[2]);
+            AfxMessageBox(msg);
+        }
+	} // unlock here
+ 
 }

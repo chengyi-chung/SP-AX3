@@ -15,6 +15,8 @@
 #include <mutex>
 #include "modbus.h" // 請確保已包含 modbus 函式庫標頭
 
+
+
 // CYUFADlg 對話方塊
 class CSPDlg : public CDialogEx
 {
