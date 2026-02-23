@@ -46,7 +46,7 @@ using std::endl;
 //
 
 
-struct SystemConfig
+struct SystemConfig  //For AX-3 PLC , YUFA Machine
 {
     std::string IpAddress;
     int Port;
@@ -79,7 +79,35 @@ struct SystemConfig
     int MaskHeight;
 };
 
-struct MemStruct_SP
+struct SystemConfigA  //For  AX-3 PLC, SP Shoe Last Machine
+{
+    std::string IpAddress;
+    int Port;
+    int StationID;
+    float OffsetValue;
+    int CameraID;
+    char MACKey[18];    // MAC Address as key
+    char GoldenKey[18]; // 128 bit key
+    int CameraWidth;
+    int CameraHeight;
+    float TransferFactor;
+    int ImageFlip;
+    int ImageBinary;
+	int CreateToolPath;
+	int DispalyToolPath;
+	int DispayROI;
+	int BinaryUpper;
+	int BinaryLower;
+	int MaskX;  //ROI Mask X
+	int MaskY;  //ROI Mask Y
+	int MaskWidth; //ROI Mask Width
+	int MaskHeight; //ROI Mask Height
+    float RefCenterX;
+    float RefCenterY;
+    std::string MachineType;
+};
+
+struct MemStruct_SP   //For SP Shoe Last Machine, IOT
 {
     int RecipeID;
     int CurrentProduction;
@@ -112,7 +140,13 @@ struct MemStruct_SP
     float p19;
 };
 
-
+struct MotionToolPath
+{
+    std::vector<cv::Point2d> X1 ;     // Tool path
+    std::vector<cv::Point2d> X2;     // Tool path
+    std::vector<cv::Point2d> Y;     // Tool path
+    //std::vector<int> numClusters;      // 對應 Path 每個點的分群編號（依 contour 分群）
+};
 
 //add a AES encrypt function 
 // 128位密钥
@@ -137,11 +171,6 @@ extern "C" UAX_API void Decrypt(unsigned char* input, unsigned char* output, uns
 //Get MAC address function
 //xtern "C" UAX_API void GetMACAddress(unsigned char* macAddress);
 extern "C" UAX_API void GetMacAddress(char* macAddress);
-
-
-
-
-
 
 
 
@@ -266,6 +295,11 @@ extern "C" UAX_API int LensCalibration(cv::Mat& src, cv::Mat& templ, cv::Mat& ds
 extern "C" UAX_API void GetToolPath(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpath);
 extern "C" UAX_API void GetToolPath_Optimized(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpath);
 extern "C" UAX_API void GetToolPath_CurvatureOptimized(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpath, double epsilonFactor = 0.01);
+extern "C" UAX_API void GetToolPath_CurvatureOptimized_Mask(cv::Mat& ImgSrc,
+                                                                                                const cv::Mat& Mask,      // 新增：Mask 輸入
+                                                                                                cv::Point2d Offset,
+                                                                                                ToolPath& toolpath,
+                                                                                                double epsilonFactor);
 extern "C" UAX_API void GetToolPath_SymmetricOnly(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpath, double epsilonFactor = 0.01);
 
 // Get Tool Path

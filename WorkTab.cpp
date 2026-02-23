@@ -795,6 +795,7 @@ void WorkTab::ShowImageOnPictureControl(bool flgCenter, cv::Scalar crossColor, i
         if (MaskWidth > 0 && MaskHeight > 0) {
             double scaleX = static_cast<double>(rect.Width()) / m_mat.cols;
             double scaleY = static_cast<double>(rect.Height()) / m_mat.rows;
+           
 
             //double scaleX = static_cast<double>(imageToShow.cols) / rect.Width();
             //double scaleY = static_cast<double>(imageToShow.rows) / rect.Height();
@@ -808,6 +809,7 @@ void WorkTab::ShowImageOnPictureControl(bool flgCenter, cv::Scalar crossColor, i
         // --- End ---
     }
     
+	// Draw center cross
     if (flgCenter)
     {
         int centerX = imageToShow.cols / 2;
@@ -829,6 +831,7 @@ void WorkTab::ShowImageOnPictureControl(bool flgCenter, cv::Scalar crossColor, i
                 }
             };
 
+		// Draw horizontal and vertical lines
         if (style == CrossStyle::Solid)
         {
             cv::line(imageToShow, cv::Point(0, centerY),
@@ -1082,7 +1085,7 @@ if (m_mat.empty()) {
 }
 
 // 檢查 ROI 是否在影像範圍內
-/*
+
 if (MaskX < 0 || MaskY < 0 ||
     MaskWidth <= 0 || MaskHeight <= 0 ||
     MaskX + MaskWidth > m_mat.cols ||
@@ -1090,7 +1093,7 @@ if (MaskX < 0 || MaskY < 0 ||
     AfxMessageBox(_T("ROI is out of image bounds."));
     return;
 }
-*/
+
 
 // 1. 建立一張與 ImgSrc 一樣大小的全黑 Mask（8位元單通道）
 cv::Mat mask = cv::Mat::zeros(ImgSrc.size(), CV_8UC1);
@@ -1099,7 +1102,7 @@ cv::Mat mask = cv::Mat::zeros(ImgSrc.size(), CV_8UC1);
 cv::Rect roi(MaskX, MaskY, MaskWidth, MaskHeight);
 
 // 3. 檢查 ROI 是否在 ImgSrc 範圍內，以避免 out-of-bounds 問題
-/*
+
 if ((MaskX >= 0) && (MaskY >= 0) &&
     (MaskY + MaskWidth <= ImgSrc.cols) &&
     (MaskY + MaskHeight <= ImgSrc.rows))
@@ -1111,8 +1114,6 @@ else
 {
     throw std::invalid_argument("ROI超出原圖範圍");
 }
-*/
-
 
 //Get offsetDist with offsetDist and distX, distY
 int distOffset = sqrt(pow(Offset.x,2) +pow(Offset.y,2));
@@ -1120,7 +1121,9 @@ int distOffset = sqrt(pow(Offset.x,2) +pow(Offset.y,2));
 //GetToolPathWithMask(ImgSrc, mask, distOffset, this->toolPath);
 //GetToolPath(ImgSrc, Offset, this->toolPath);
 //GetToolPath_Optimized(ImgSrc, Offset, this->toolPath);
-GetToolPath_CurvatureOptimized(ImgSrc, Offset, this->toolPath, 0.0005);
+//GetToolPath_CurvatureOptimized(ImgSrc, Offset, this->toolPath, 0.0005);
+GetToolPath_CurvatureOptimized_Mask(ImgSrc, mask, Offset, this->toolPath, 0.0005);
+
 //GetToolPath_SymmetricOnly(ImgSrc, Offset, this->toolPath, 0.001);  //結果不對
 	
 }
@@ -2008,8 +2011,8 @@ bool WorkTab::ReadModbusRegisters(int startAddress, int numRegisters, std::vecto
 //HMI Test Read Holding Registers
 void WorkTab::HMIReadHoldingRegistersTest(int stationID)
 {
-	//read 3 registers from address 148
-    const int startAddress = 148;
+	//read 3 registers from address 145
+    const int startAddress = 145;
     const int numRegisters = 3;
     std::vector<uint16_t> regs;
     CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(AfxGetMainWnd());

@@ -253,6 +253,7 @@ void GetToolPath_CurvatureOptimized(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPat
 	cv::Mat gray;
 	if (processed.channels() == 3) cv::cvtColor(processed, gray, cv::COLOR_BGR2GRAY);
 	else gray = processed;
+
 	cv::threshold(gray, gray, 128, 255, cv::THRESH_BINARY);
 
 	// 3. 提取初始輪廓 (使用 CHAIN_APPROX_TC89_L1 進行初步壓縮)
@@ -292,6 +293,148 @@ void GetToolPath_CurvatureOptimized(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPat
 	}
 
 	ShowZoomedImage("Reduced Points Result", ImgSrc);
+}
+
+
+// ====================== 共用前處理 ======================
+void PreprocessImage(const cv::Mat& ImgSrc,
+	cv::Mat& gray,
+	cv::Point2d Offset,
+	const cv::Mat& Mask = cv::Mat())
+{
+	// 1. Erosion
+	cv::Mat processed;
+	int numPixelsToErode = static_cast<int>(Offset.x + Offset.y);
+	if (numPixelsToErode > 0) {
+		cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
+		cv::erode(ImgSrc, processed, kernel, cv::Point(-1, -1), numPixelsToErode);
+	}
+	else {
+		processed = ImgSrc.clone();
+	}
+
+	// 2. 轉灰階
+	if (processed.channels() == 3)
+		cv::cvtColor(processed, gray, cv::COLOR_BGR2GRAY);
+	else
+		gray = processed;
+
+	// 3. Mask 濾除（強化版）
+	if (!Mask.empty()) {
+		cv::Mat maskGray;
+		if (Mask.channels() == 3)
+			cv::cvtColor(Mask, maskGray, cv::COLOR_BGR2GRAY);
+		else
+			maskGray = Mask;
+
+		// 強制轉標準二值 Mask
+		cv::threshold(maskGray, maskGray, 1, 255, cv::THRESH_BINARY);
+
+		// 尺寸不一致自動 resize
+		if (maskGray.size() != gray.size()) {
+			std::cout << "[WARN] Mask size mismatch, resizing..." << std::endl;
+			cv::resize(maskGray, maskGray, gray.size(), 0, 0, cv::INTER_NEAREST);
+		}
+
+		cv::bitwise_and(gray, maskGray, gray);
+
+		int nz = cv::countNonZero(gray);
+		std::cout << "[DEBUG] After Mask, non-zero pixels: " << nz << std::endl;
+	}
+
+	// 4. 二值化（改用 OTSU 自動門檻，更穩）
+	cv::threshold(gray, gray, 0, 255, cv::THRESH_BINARY | cv::THRESH_OTSU);
+
+	std::cout << "[DEBUG] After threshold, non-zero pixels: " << cv::countNonZero(gray) << std::endl;
+}
+
+
+
+// ====================== 主函數 1：Mask + 曲率優化 ======================
+void GetToolPath_CurvatureOptimized_Mask(
+	cv::Mat& ImgSrc,
+	const cv::Mat& Mask,      // ← 新增參數：Mask 輸入
+	cv::Point2d Offset,
+	ToolPath& toolpath,
+	double epsilonFactor)
+{
+	if (ImgSrc.empty()) throw std::invalid_argument("Input image is empty.");
+
+	// 1. 影像預處理 (腐蝕優化) - 完全保留你原本的寫法
+	cv::Mat processed;
+	int numPixelsToErode = static_cast<int>(Offset.x + Offset.y);
+	if (numPixelsToErode > 0) {
+		cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
+		cv::erode(ImgSrc, processed, kernel, cv::Point(-1, -1), numPixelsToErode);
+	}
+	else {
+		processed = ImgSrc.clone();
+	}
+
+	// 2. 轉灰階
+	cv::Mat gray;
+	if (processed.channels() == 3) cv::cvtColor(processed, gray, cv::COLOR_BGR2GRAY);
+	else gray = processed;
+
+	// ──────── 新增：Mask 濾除處理（強化版） ────────
+	if (!Mask.empty()) {
+		cv::Mat maskGray;
+		if (Mask.channels() == 3)
+			cv::cvtColor(Mask, maskGray, cv::COLOR_BGR2GRAY);
+		else
+			maskGray = Mask;
+
+		// 強制轉成標準二值 Mask（避免 Mask 是 0~255 中間值）
+		cv::threshold(maskGray, maskGray, 1, 255, cv::THRESH_BINARY);
+
+		// 自動處理尺寸不一致（最常造成 toolpath 為空的問題）
+		if (maskGray.size() != gray.size()) {
+			cv::resize(maskGray, maskGray, gray.size(), 0, 0, cv::INTER_NEAREST);
+		}
+
+		cv::bitwise_and(gray, maskGray, gray);
+
+		// Debug 訊息（執行時會顯示，方便你確認 Mask 有沒有把影像濾掉）
+		std::cout << "[DEBUG] After Mask, non-zero pixels: " << cv::countNonZero(gray) << std::endl;
+	}
+	// ────────────────────────────────────────
+
+	// 3. 二值化（保留你原本的 128 門檻，與原本行為完全一致）
+	cv::threshold(gray, gray, 128, 255, cv::THRESH_BINARY);
+
+	// 4. 提取初始輪廓 (與你原本完全相同)
+	std::vector<std::vector<cv::Point>> contours;
+	cv::findContours(gray, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_TC89_L1);
+
+	toolpath.Path.clear();
+	toolpath.Offset = Offset;
+
+	// 5. 基於曲率進行降點 (Douglas-Peucker) - 完全保留你原本的邏輯
+	for (const auto& contour : contours)
+	{
+		if (contour.size() < 3) continue;   // 避免雜訊
+
+		std::vector<cv::Point> simplifiedContour;
+		double arcLen = cv::arcLength(contour, true);
+		double epsilon = epsilonFactor * arcLen;
+
+		cv::approxPolyDP(contour, simplifiedContour, epsilon, true);
+
+		for (const auto& point : simplifiedContour)
+		{
+			toolpath.Path.emplace_back(static_cast<double>(point.x), static_cast<double>(point.y));
+		}
+	}
+
+	// 6. 繪製結果（與你原本完全相同）
+	cv::drawContours(ImgSrc, contours, -1, cv::Scalar(0, 0, 255), 1); // 原輪廓(紅)
+	for (const auto& p : toolpath.Path) {
+		cv::circle(ImgSrc, cv::Point(static_cast<int>(p.x), static_cast<int>(p.y)), 2, cv::Scalar(0, 255, 0), -1);
+	}
+
+	std::cout << "[INFO] GetToolPath_CurvatureOptimized_Mask: Generated " << toolpath.Path.size() << " points" << std::endl;
+
+	ShowZoomedImage("Masked & Reduced Points Result", ImgSrc);
 }
 
 void GetToolPath_SymmetricOnly(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpath, double epsilonFactor)
