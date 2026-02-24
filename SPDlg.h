@@ -28,7 +28,7 @@ public:
 	//System Configuration file name constant at application path
 	const std::string SystemConfigFileName = "SystemConfig.ini";
 	//SystemPara m_SystemPara;
-	SystemConfig m_SystemPara; // System Configuration
+	SystemConfigA m_SystemPara; // System Configuration
 
 	//Read System Parameters from config file
 	void ReadSystemParametersFromConfigFile();

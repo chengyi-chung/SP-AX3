@@ -532,14 +532,14 @@ void MachineTab::OnBnClickedBtnMachineSaveMotion()
 		return;
 	}
 
-	pParentWnd->m_SystemPara.JogVelocity = jogVelocity;
-	pParentWnd->m_SystemPara.AutoVelocity = autoVelocity;
-	pParentWnd->m_SystemPara.DecAcceleration = decAcc;
-	pParentWnd->m_SystemPara.IncAcceleration = incAcc;
+	//pParentWnd->m_SystemPara.JogVelocity = jogVelocity;
+	//pParentWnd->m_SystemPara.AutoVelocity = autoVelocity;
+	//pParentWnd->m_SystemPara.DecAcceleration = decAcc;
+	//pParentWnd->m_SystemPara.IncAcceleration = incAcc;
 
 
-	pParentWnd->m_SystemPara.Z1 = z1Pos;
-	pParentWnd->m_SystemPara.Z2 = z2Pos;
+	//pParentWnd->m_SystemPara.Z1 = z1Pos;
+	//pParentWnd->m_SystemPara.Z2 = z2Pos;
 	/*
 	pParentWnd->m_SystemPara.Z3 = z3Pos;
 	pParentWnd->m_SystemPara.Z4 = z4Pos;
@@ -560,13 +560,13 @@ void MachineTab::OnBnClickedBtnMachineSaveMotion()
 		AfxMessageBox(_T("Pitch / Transfer Factor must be positive numbers"));
 		return;
 	}
-	pParentWnd->m_SystemPara.Pitch = pitch;
+	//pParentWnd->m_SystemPara.Pitch = pitch;
 	pParentWnd->m_SystemPara.TransferFactor = transferFactor;
 
 	// ======== Step 6. Save Configuration ========
 	std::string appPath = GetAppPath();
 	CString configFile = CString(appPath.c_str()) + _T("\\SystemConfig.ini");
-	WriteConfigToFile(std::string(CT2A(configFile)), pParentWnd->m_SystemPara);
+	//WriteConfigToFile(std::string(CT2A(configFile)), pParentWnd->m_SystemPara);
 }
 
 //Set Holding Register value
@@ -1028,13 +1028,14 @@ void MachineTab::UpdateControl()
 	CString cStr;
 
 	// JogVelocity (assuming int, adjust if float)
-	cStr.Format(_T("%d"), pParentWnd->m_SystemPara.JogVelocity);
-	SetDlgItemText(IDC_EDIT_JOG_VELOCITY, cStr);
+	//cStr.Format(_T("%d"), pParentWnd->m_SystemPara.JogVelocity);
+	//SetDlgItemText(IDC_EDIT_JOG_VELOCITY, cStr);
 
 	// AutoVelocity (assuming int, adjust if float)
-	cStr.Format(_T("%d"), pParentWnd->m_SystemPara.AutoVelocity);
-	SetDlgItemText(IDC_EDIT_AUTO_VELOCITY, cStr);
+	//cStr.Format(_T("%d"), pParentWnd->m_SystemPara.AutoVelocity);
+	//SetDlgItemText(IDC_EDIT_AUTO_VELOCITY, cStr);
 
+	/*
 	// AxisAccDec (assuming float for precision, adjust if int)
 	cStr.Format(_T("%d"), static_cast<int>(pParentWnd->m_SystemPara.DecAcceleration));
 	SetDlgItemText(IDC_EDIT_AXIS_ACC_DEC, cStr);
@@ -1066,12 +1067,16 @@ void MachineTab::UpdateControl()
 	
 	cStr.Format(_T("%d"), static_cast<int>(pParentWnd->m_SystemPara.Z5));
 	SetDlgItemText(IDC_EDIT_Z5, cStr);
+
+	*/
 }
 
 // Custom message handler to update coordinates
 LRESULT MachineTab::OnUpdateCoordinates(WPARAM wParam, LPARAM lParam)
 {
 	float* coordinates = reinterpret_cast<float*>(lParam);
+
+	/*
 
 	if (coordinates)
 	{
@@ -1088,6 +1093,7 @@ LRESULT MachineTab::OnUpdateCoordinates(WPARAM wParam, LPARAM lParam)
 		// 釋放記憶體
 		delete[] coordinates;
 	}
+	*/
 	return 0;
 }
 

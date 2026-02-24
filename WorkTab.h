@@ -71,6 +71,8 @@ public:
 	int MaskY;
 	int MaskWidth;
 	int MaskHeight;
+	int referenceX;
+	int referenceY;
 
 
 	void ToolPathTransform(ToolPath& toolpath, uint16_t* m_ToolPathData);

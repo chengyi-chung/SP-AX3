@@ -437,6 +437,8 @@ void GetToolPath_CurvatureOptimized_Mask(
 	ShowZoomedImage("Masked & Reduced Points Result", ImgSrc);
 }
 
+
+// ====================== 主函數 2：對稱路徑生成（僅保留左半邊） ======================
 void GetToolPath_SymmetricOnly(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpath, double epsilonFactor)
 {
 	if (ImgSrc.empty()) return;
@@ -1742,12 +1744,62 @@ void WriteConfigToFile(const std::string& filename, SystemConfig& SysConfig)
 
 	file.close();
 }
+// Helper function to write configuration to file
+void WriteConfigToFile_SP(const std::string& filename, SystemConfigA& SysConfig)
+{
+	std::ofstream file(filename);
+	if (!file.is_open()) {
+		std::cerr << "Error: Unable to open file " << filename << " for writing!" << std::endl;
+		throw std::runtime_error("Unable to open configuration file for writing");
+	}
+
+	// Write system configuration data with consistent formatting
+	file << "[ModbusTCP]\n";
+	file << "IpAddress=" << SysConfig.IpAddress << "\n";
+	file << "Port=" << SysConfig.Port << "\n";
+	file << "StationID=" << SysConfig.StationID << "\n";
+
+	file << "[ToolPath]\n";
+	file << "OffsetValue=" << std::fixed << std::setprecision(4) << SysConfig.OffsetValue << "\n";
+	//file << "OffsetY=" << std::fixed << std::setprecision(4) << SysConfig.OffsetY << "\n";
+
+	file << "[Camera]\n";
+	file << "CameraID=" << SysConfig.CameraID << "\n";
+	file << "MACKey=" << SysConfig.MACKey << "\n";
+	file << "GoldenKey=" << SysConfig.GoldenKey << "\n";
+	file << "CameraWidth=" << SysConfig.CameraWidth << "\n";
+	file << "CameraHeight=" << SysConfig.CameraHeight << "\n";
+	file << "TransferFactor=" << std::fixed << std::setprecision(4) << SysConfig.TransferFactor << "\n";
+	file << "ImageFlip=" << SysConfig.ImageFlip << "\n";
+	file << "RefCenterX=" << std::fixed << std::setprecision(2) << SysConfig.RefCenterX << "\n";
+	file << "RefCenterY=" << std::fixed << std::setprecision(2) << SysConfig.RefCenterY << "\n";
+
+	// 新增 Mask 區段
+	file << "[Mask]\n";
+	file << "MaskX=" << SysConfig.MaskX << "\n";
+	file << "MaskY=" << SysConfig.MaskY << "\n";
+	file << "MaskWidth=" << SysConfig.MaskWidth << "\n";
+	file << "MaskHeight=" << SysConfig.MaskHeight << "\n";
+
+	file << "[Machine]\n";
+	file << "MachineType=" << SysConfig.MachineType << "\n";
+	
+
+	file.close();
+}
 
 // Initialize system configuration file
 void InitialConfig(const std::string& filename, SystemConfig& SysConfig)
 {
 
 	WriteConfigToFile(filename, SysConfig);
+}
+
+// Initialize system configuration file
+void InitialConfigA(const std::string& filename, SystemConfigA& SysConfig)
+{
+
+	WriteConfigToFile_SP(filename, SysConfig);
 }
 
 // Read system configuration from INI file; initialize if file doesn't exist
@@ -1887,6 +1939,122 @@ int ReadSystemConfig(const std::string& filename, SystemConfig& SysConfig)
 			else if (key == "Z5") {
 				SysConfig.Z5 = val.empty() ? 0.0f : std::stof(val);
 			}
+		}
+		catch (const std::exception& e)
+		{
+			std::cerr << "Error parsing config line: " << line << ", Error: " << e.what() << std::endl;
+			// Continue processing other lines
+		}
+	}
+
+	file.close();
+	return 0; // Indicate successful read
+}
+
+int ReadSystemConfig_SP(const std::string& filename, SystemConfigA& SysConfig)
+{
+	std::ifstream file(filename);
+	if (!file.is_open()) {
+		// If file doesn't exist, initialize with default configuration
+		// 設定預設的 mask 值
+		SysConfig.MaskX = 0;
+		SysConfig.MaskY = 0;
+		SysConfig.MaskWidth = 0;
+		SysConfig.MaskHeight = 0;
+
+		InitialConfigA(filename, SysConfig);
+		return -1; // Indicate default configuration was used
+	}
+
+	//const unsigned char* key;
+	//GetMACAddress((char*)SysConfig.MACKey);
+
+	auto trim = [](std::string& s) {
+		const char* ws = " \t\r\n";
+		size_t start = s.find_first_not_of(ws);
+		if (start == std::string::npos) { s.clear(); return; }
+		size_t end = s.find_last_not_of(ws);
+		s = s.substr(start, end - start + 1);
+		};
+
+	// 初始化 mask 預設值
+	SysConfig.MaskX = 0;
+	SysConfig.MaskY = 0;
+	SysConfig.MaskWidth = 0;
+	SysConfig.MaskHeight = 0;
+
+	std::string line;
+	while (std::getline(file, line)) {
+		// Skip empty lines or lines without '='
+		if (line.empty() || line.find('=') == std::string::npos) {
+			continue;
+		}
+
+		try
+		{
+			// split key and value
+			size_t pos = line.find('=');
+			std::string key = line.substr(0, pos);
+			std::string val = line.substr(pos + 1);
+			trim(key);
+			trim(val);
+
+			if (key == "IpAddress") {
+				SysConfig.IpAddress = val;
+			}
+			else if (key == "Port") {
+				SysConfig.Port = val.empty() ? 0 : std::stoi(val);
+			}
+			else if (key == "StationID") {
+				SysConfig.StationID = val.empty() ? 0 : std::stoi(val);
+			}
+			else if (key == "OffsetValue") {
+				SysConfig.OffsetValue	 = val.empty() ? 0.0f : std::stof(val);
+			}
+			else if (key == "CameraID") {
+				SysConfig.CameraID = val.empty() ? 0 : std::stoi(val);
+			}
+			else if (key == "ImageFlip") {
+				SysConfig.ImageFlip = val.empty() ? 0 : std::stoi(val);
+			}
+			else if (key == "MACKey") {
+				strncpy_s(SysConfig.MACKey, sizeof(SysConfig.MACKey), val.c_str(), _TRUNCATE);
+			}
+			else if (key == "GoldenKey") {
+				strncpy_s(SysConfig.GoldenKey, sizeof(SysConfig.GoldenKey), val.c_str(), _TRUNCATE);
+			}
+			else if (key == "CameraWidth") {
+				SysConfig.CameraWidth = val.empty() ? 0 : std::stoi(val);
+			}
+			else if (key == "CameraHeight") {
+				SysConfig.CameraHeight = val.empty() ? 0 : std::stoi(val);
+			}
+			else if (key == "TransferFactor") {
+				SysConfig.TransferFactor = val.empty() ? 0.0f : std::stof(val);
+			}
+			else if (key == "RefCenterX") {
+				SysConfig.RefCenterX = val.empty() ? 0.0f : std::stof(val);
+			}
+			else if (key == "RefCenterY") {
+				SysConfig.RefCenterY = val.empty() ? 0.0f : std::stof(val);
+			}
+			// 新增 mask 參數讀取
+			else if (key == "MaskX") {
+				SysConfig.MaskX = val.empty() ? 0 : std::stoi(val);
+			}
+			else if (key == "MaskY") {
+				SysConfig.MaskY = val.empty() ? 0 : std::stoi(val);
+			}
+			else if (key == "MaskWidth") {
+				SysConfig.MaskWidth = val.empty() ? 0 : std::stoi(val);
+			}
+			else if (key == "MaskHeight") {
+				SysConfig.MaskHeight = val.empty() ? 0 : std::stoi(val);
+			}
+			else if (key == "MachineType") {
+				SysConfig.MachineType = val;
+			}
+
 		}
 		catch (const std::exception& e)
 		{

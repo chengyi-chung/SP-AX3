@@ -270,11 +270,8 @@ BOOL WorkTab::OnInitDialog()
 	MaskY = pParentWnd->m_SystemPara.MaskY;
 	MaskWidth = pParentWnd->m_SystemPara.MaskWidth;
 	MaskHeight = pParentWnd->m_SystemPara.MaskHeight;
-
-     z_Machining = pParentWnd->m_SystemPara.Z1;  //加工高度
-     z_Retract = pParentWnd->m_SystemPara.Z2;     //退回高度
-
-
+	referenceX = pParentWnd->m_SystemPara.RefCenterX;
+	referenceY = pParentWnd->m_SystemPara.RefCenterY;
     return 0;
 
 }
@@ -397,7 +394,7 @@ UINT WorkTab::GrabThread(LPVOID pParam)
 				pWorkTab->m_mat = cv::Mat(ptrGrabResult->GetHeight(), ptrGrabResult->GetWidth(), CV_8UC1, (void*)pWorkTab->pImageBuffer).clone();
 
                 // 根據 imgFlip 的值翻轉影像
-                // 0: 垂直翻轉, 1: 水平翻轉, -1: 水平並垂直翻轉
+				// 0: 垂直翻轉, 1: 水平翻轉, -1: 水平並垂直翻轉, 其他值: 不翻轉
 				//flip image pWorkTab->m_mat
                 if (pWorkTab->imgFlip == 0)
                 {
@@ -411,6 +408,8 @@ UINT WorkTab::GrabThread(LPVOID pParam)
                 {
                     cv::flip(pWorkTab->m_mat, pWorkTab->m_mat, -1);
 				}
+
+                
 
                 /*
  #ifdef PYLON_WIN_BUILD 
@@ -810,10 +809,13 @@ void WorkTab::ShowImageOnPictureControl(bool flgCenter, cv::Scalar crossColor, i
     }
     
 	// Draw center cross
+    //
     if (flgCenter)
     {
+
         int centerX = imageToShow.cols / 2;
-        int centerY = imageToShow.rows / 2;
+        //int centerY = imageToShow.rows / 2;
+        int centerY = referenceY; // *static_cast<double>(rect.Height()) / m_mat.rows; // 使用 referenceY 計算 centerY
 
         auto drawDashedLine = [&](cv::Point start, cv::Point end, int dashLength)
             {
@@ -1039,9 +1041,6 @@ void WorkTab::OnBnClickedWorkMatchTemp()
 			cv::line(source, vertices[i], vertices[(i + 1) % 4], cv::Scalar(0, 255, 0), 2);
 		}
 
-
-
-
     // Display the result
     cv::imshow("Matched Image", source);
     cv::waitKey(0);
@@ -1066,9 +1065,11 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
 	//Get m_ToolPathData from Parrent Window
 	//CYUFADlg* pParentWnd = (CYUFADlg*)GetParent();
     CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
-
-    Offset.x = pParentWnd->m_SystemPara.OffsetX;
-	Offset.y = pParentWnd->m_SystemPara.OffsetY;
+    // 範例1：45度方向
+    double degree = 45.0;
+    double theta = degree * CV_PI / 180.0;
+    double OffsetValue = pParentWnd->m_SystemPara.OffsetValue;  // 已知的距離
+    Offset = OffsetValue * cv::Point2f(std::cos(theta), std::sin(theta));
 
     //convert Offset mm to pixel by TransferFactor
     Offset.x = Offset.x / pParentWnd->m_SystemPara.TransferFactor;
@@ -1122,10 +1123,8 @@ int distOffset = sqrt(pow(Offset.x,2) +pow(Offset.y,2));
 //GetToolPath(ImgSrc, Offset, this->toolPath);
 //GetToolPath_Optimized(ImgSrc, Offset, this->toolPath);
 //GetToolPath_CurvatureOptimized(ImgSrc, Offset, this->toolPath, 0.0005);
-GetToolPath_CurvatureOptimized_Mask(ImgSrc, mask, Offset, this->toolPath, 0.0005);
-
+GetToolPath_CurvatureOptimized_Mask(ImgSrc, mask, Offset, this->toolPath, 0.001);
 //GetToolPath_SymmetricOnly(ImgSrc, Offset, this->toolPath, 0.001);  //結果不對
-	
 }
 
 
@@ -1192,8 +1191,8 @@ void WorkTab::OnBnClickedIdcWorkGo()
 	return;
 
 	// 取得 Z1 和 Z2 參數
-    float z_Machining = pParentWnd->m_SystemPara.Z1;
-    float z_Retract = pParentWnd->m_SystemPara.Z2;
+    //float z_Machining = pParentWnd->m_SystemPara.Z1;
+    //float z_Retract = pParentWnd->m_SystemPara.Z2;
 
     // 清除舊資料
     m_ToolPathDataA.clear();

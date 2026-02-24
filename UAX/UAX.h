@@ -102,8 +102,8 @@ struct SystemConfigA  //For  AX-3 PLC, SP Shoe Last Machine
 	int MaskY;  //ROI Mask Y
 	int MaskWidth; //ROI Mask Width
 	int MaskHeight; //ROI Mask Height
-    float RefCenterX;
-    float RefCenterY;
+    int RefCenterX;
+    int RefCenterY;
     std::string MachineType;
 };
 
@@ -394,6 +394,13 @@ extern "C" UAX_API void WriteConfigToFile(const std::string& filename, SystemCon
 extern "C" UAX_API int ReadSystemConfig(const std::string& filename, SystemConfig& SysConfig);
 // Initialize the system configuration ini file
 //extern "C" UAX_API void InitialConfig(const std::string& filename, const SystemConfig& SysConfig);
+
+// Write system configuration to ini file
+extern "C" UAX_API void WriteConfigToFile_SP(const std::string& filename, SystemConfigA& SysConfig);
+// Read System Configuration from ini file
+extern "C" UAX_API int ReadSystemConfig_SP(const std::string& filename, SystemConfigA& SysConfig);
+
+
 
 //Get Application Path
 extern "C" UAX_API std::string GetAppPath();

@@ -54,6 +54,8 @@ BOOL SystemParaTab::OnInitDialog()
 	CString str;
 	str.Format(_T("%d"), 10);
 
+	/*
+	
 	// Replace IDD_TAB_SYS_OFFSET_VALUE with the correct control ID
 	float offsetValue = sqrt(pParentWnd->m_SystemPara.OffsetX * pParentWnd->m_SystemPara.OffsetX +
 		pParentWnd->m_SystemPara.OffsetY * pParentWnd->m_SystemPara.OffsetY);
@@ -72,7 +74,7 @@ BOOL SystemParaTab::OnInitDialog()
 	{
 		return FALSE; // 初始化失敗
 	}
-
+	*/
 	return TRUE;  // return TRUE unless you set the focus to a control
 	// EXCEPTION: OCX 屬性頁應傳回 FALSE
 }
@@ -120,8 +122,8 @@ void SystemParaTab::OnEnChangeTabSysOffsetValue()
 	
 		if (pParentWnd)
 		{
-			pParentWnd->m_SystemPara.OffsetX = iResult;
-			pParentWnd->m_SystemPara.OffsetY = iResult;
+			//pParentWnd->m_SystemPara.OffsetX = iResult;
+			//pParentWnd->m_SystemPara.OffsetY = iResult;
 		}
 	
     
@@ -153,7 +155,7 @@ void SystemParaTab::OnBnClickedMfcbtnSaveSystem()
 	std::string stdConfigFile(pszConverted);
 
 	//Call UAX :  SystemConfig WriteConfigToFile(const std::string& filename,  SystemConfig &SysConfig)
-	WriteConfigToFile(stdConfigFile, pParentWnd->m_SystemPara);
+	WriteConfigToFile_SP(stdConfigFile, pParentWnd->m_SystemPara);
 }
 
 //Update data in Edit control with SystemConfig m_SystemPara
@@ -164,16 +166,16 @@ void SystemParaTab::UpdateControl()
 	{
 		CString str;
 		
-		str.Format(_T("%0.4f"), pParentWnd->m_SystemPara.OffsetX);
-		SetDlgItemText(IDD_TAB_SYS_X_OFFSET, str);
-		str.Format(_T("%0.4f"), pParentWnd->m_SystemPara.OffsetY);
-		SetDlgItemText(IDD_TAB_SYS_Y_OFFSET, str);
+	//	str.Format(_T("%0.4f"), pParentWnd->m_SystemPara.OffsetX);
+	//	SetDlgItemText(IDD_TAB_SYS_X_OFFSET, str);
+	//	str.Format(_T("%0.4f"), pParentWnd->m_SystemPara.OffsetY);
+	//	SetDlgItemText(IDD_TAB_SYS_Y_OFFSET, str);
 
 		//OffsetX and OffsetY compound value, set to IDD_TAB_SYS_OFFSET_VALUE
 		//Square root of (OffsetX^2 + OffsetY^2)
-		double offsetX = pParentWnd->m_SystemPara.OffsetX;
-		double offsetY = pParentWnd->m_SystemPara.OffsetY;
-		double offsetValue = sqrt(offsetX * offsetX + offsetY * offsetY);
+	//	double offsetX = pParentWnd->m_SystemPara.OffsetX;
+	//	double offsetY = pParentWnd->m_SystemPara.OffsetY;
+		double offsetValue = pParentWnd->m_SystemPara.OffsetValue;
 		str.Format(_T("%0.3f"), offsetValue);
 		SetDlgItemText(IDD_TAB_SYS_OFFSET_VALUE, str);
 
@@ -214,8 +216,7 @@ void SystemParaTab::UpdateControl()
 			CString(pParentWnd->m_SystemPara.IpAddress.c_str()),
 			pParentWnd->m_SystemPara.Port,
 			pParentWnd->m_SystemPara.StationID,
-			pParentWnd->m_SystemPara.OffsetX,
-			pParentWnd->m_SystemPara.OffsetY,
+			pParentWnd->m_SystemPara.OffsetValue,
 			pParentWnd->m_SystemPara.CameraID,
 			macKey,
 			goldenKey,
@@ -227,12 +228,8 @@ void SystemParaTab::UpdateControl()
 			pParentWnd->m_SystemPara.MaskY,
 			pParentWnd->m_SystemPara.MaskHeight,
 			pParentWnd->m_SystemPara.MaskWidth,
-			CString(pParentWnd->m_SystemPara.MachineType.c_str()),
-			pParentWnd->m_SystemPara.JogVelocity,
-			pParentWnd->m_SystemPara.AutoVelocity,
-			pParentWnd->m_SystemPara.DecAcceleration,
-			pParentWnd->m_SystemPara.IncAcceleration,
-			pParentWnd->m_SystemPara.Pitch);
+			CString(pParentWnd->m_SystemPara.MachineType.c_str())
+			);
 
 		// 將格式化後的文字設定到 IDC_EDIT_SYSTEM_DATA 控制項中
 		SetDlgItemText(IDC_EDIT_SYSTEM_DATA, displayText);

@@ -526,7 +526,7 @@ void CSPDlg::ReadSystemParametersFromConfigFile()
     strConfigFile = CString(appPath.c_str()) + _T("\\") + strConfigFile;
 
 	//Call UAX :  SystemConfig ReadSystemConfig(const std::string& filename)
-	int rt = ReadSystemConfig(std::string(CT2A(strConfigFile)), m_SystemPara);
+	int rt = ReadSystemConfig_SP(std::string(CT2A(strConfigFile)), m_SystemPara);
 	IpAddress = m_SystemPara.IpAddress;
 	Port = m_SystemPara.Port;
 	m_SystemPara.MACKey[17];
