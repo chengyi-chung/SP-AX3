@@ -11,7 +11,7 @@
 #include "MachineTab.h"
 
 #include <thread> // for std::this_thread::sleep_for
-#include <chrono> // for std::chrono::milliseconds
+#include <chrono> // for std::chrono::milliseconds6
 #include <mutex>
 #include "modbus.h" // 請確保已包含 modbus 函式庫標頭
 
@@ -29,6 +29,12 @@ public:
 	const std::string SystemConfigFileName = "SystemConfig.ini";
 	//SystemPara m_SystemPara;
 	SystemConfigA m_SystemPara; // System Configuration
+
+	//IOT PLC Data
+	MemStruct_SP m_MemStruct_SP; // SP Shoe Last Machine, IOT PLC Data
+
+	//PLC Data
+	PLCData m_PLCData; // PLC Data
 
 	//Read System Parameters from config file
 	void ReadSystemParametersFromConfigFile();

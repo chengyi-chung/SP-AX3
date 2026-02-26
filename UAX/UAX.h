@@ -79,32 +79,36 @@ struct SystemConfig  //For AX-3 PLC , YUFA Machine
     int MaskHeight;
 };
 
-struct SystemConfigA  //For  AX-3 PLC, SP Shoe Last Machine
+struct SystemConfigA  // For AX-3 PLC, SP Shoe Last Machine
 {
     std::string IpAddress;
     int Port;
     int StationID;
     float OffsetValue;
     int CameraID;
-    char MACKey[18];    // MAC Address as key
-    char GoldenKey[18]; // 128 bit key
+    char MACKey[18];
+    char GoldenKey[18];
     int CameraWidth;
     int CameraHeight;
     float TransferFactor;
-    int ImageFlip;
+	int ImageFlip;          // 0, 90, 180, others
     int ImageBinary;
-	int CreateToolPath;
-	int DispalyToolPath;
-	int DispayROI;
-	int BinaryUpper;
-	int BinaryLower;
-	int MaskX;  //ROI Mask X
-	int MaskY;  //ROI Mask Y
-	int MaskWidth; //ROI Mask Width
-	int MaskHeight; //ROI Mask Height
+    int CreateToolPath;
+    int DispalyToolPath;    // TODO: fix typo → DisplayToolPath
+    int DispayROI;          // TODO: fix typo → DisplayROI
+    int BinaryUpper;
+    int BinaryLower;
+    int MaskX;              // ROI Mask X (TopX)
+    int MaskY;              // ROI Mask Y (TopY)
+    int MaskWidth;          // ROI Mask Width
+    int MaskHeight;         // ROI Mask Height
     int RefCenterX;
     int RefCenterY;
     std::string MachineType;
+    // --- Newly Added ---
+    int DisplayRefLine;                           // Tool Path
+	int TabWork;                                     // ButtonTab: Working: 1 , SystemPara: 2, Modbus TCP: 4
+    std::string CameraSerialNumber;     // Camera Serial Number
 };
 
 struct MemStruct_SP   //For SP Shoe Last Machine, IOT
@@ -140,8 +144,14 @@ struct MemStruct_SP   //For SP Shoe Last Machine, IOT
     float p19;
 };
 
-struct MotionToolPath
+struct PLCData   //For AX-3 PLC, SP Shoe Last Machine
 {
+	int ShoeSize;
+	int RecipeID;   
+	int ResistiveRuler1;
+    int ResistiveRuler2;
+    int ResistiveRuler3;
+    int ResistiveRuler4;
     std::vector<cv::Point2d> X1 ;     // Tool path
     std::vector<cv::Point2d> X2;     // Tool path
     std::vector<cv::Point2d> Y;     // Tool path
@@ -388,6 +398,7 @@ extern "C" UAX_API void PixelToWorld(float x_pixel, float y_pixel, float& x_mm, 
 
 
 
+
 // Write system configuration to ini file
 extern "C" UAX_API void WriteConfigToFile(const std::string& filename, SystemConfig& SysConfig);
 // Read System Configuration from ini file
@@ -396,7 +407,7 @@ extern "C" UAX_API int ReadSystemConfig(const std::string& filename, SystemConfi
 //extern "C" UAX_API void InitialConfig(const std::string& filename, const SystemConfig& SysConfig);
 
 // Write system configuration to ini file
-extern "C" UAX_API void WriteConfigToFile_SP(const std::string& filename, SystemConfigA& SysConfig);
+extern "C" UAX_API void WriteConfigToFile_SP(const std::string& filename, const SystemConfigA& SysConfig);
 // Read System Configuration from ini file
 extern "C" UAX_API int ReadSystemConfig_SP(const std::string& filename, SystemConfigA& SysConfig);
 
