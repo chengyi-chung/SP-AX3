@@ -152,9 +152,9 @@ struct PLCData   //For AX-3 PLC, SP Shoe Last Machine
     int ResistiveRuler2;
     int ResistiveRuler3;
     int ResistiveRuler4;
-    std::vector<cv::Point2d> X1 ;     // Tool path
-    std::vector<cv::Point2d> X2;     // Tool path
-    std::vector<cv::Point2d> Y;     // Tool path
+	std::vector<cv::Point2d> X1;     // Tool path X1: the  tool path from image right
+	std::vector<cv::Point2d> X2;     // Tool path X2: the  tool path from image left
+    std::vector<cv::Point2d> Y;     // Tool path Y
     //std::vector<int> numClusters;      // 對應 Path 每個點的分群編號（依 contour 分群）
 };
 
@@ -218,6 +218,45 @@ struct ToolPath
     cv::Point2d Offset;                // Offset of the tool path
     std::vector<cv::Point2d> Path;     // Tool path
     std::vector<int> numClusters;      // 對應 Path 每個點的分群編號（依 contour 分群）
+};
+
+// ROI Mask 參數結構
+struct ROIMask
+{
+    int MaskX;       // ROI Mask X (TopX)
+    int MaskY;       // ROI Mask Y (TopY)
+    int MaskWidth;   // ROI Mask Width
+    int MaskHeight;  // ROI Mask Height
+    int RefCenterX;  // Reference Center X for Symmetry Optimization
+    int RefCenterY;  // Reference Center Y for Symmetry Optimization
+};
+
+struct GluePath
+{
+    std::vector<cv::Point2d> PathRight;     // Glue path from image right
+    std::vector<cv::Point2d> PathLeft;      // Glue path from image left
+};
+
+class GluePathOptimizer
+{
+public:
+    // Constructor: 初始化 ROI 參數
+    GluePathOptimizer(const ROIMask& roi) : mROI(roi) {}
+
+    // Optimize the glue path based on curvature and other factors
+    // shoeType: 0 = default, 1 = left, 2 = right
+    void OptimizePath(const std::vector<cv::Point2d>& inputPath,
+        GluePath& optimizedPath,
+        int shoeType = 0);
+
+private:
+    ROIMask mROI;
+
+    // 過濾 inputPath 中在 ROI Mask 範圍內的點
+    std::vector<cv::Point2d> FilterByMask(const std::vector<cv::Point2d>& inputPath);
+
+    // 依據 RefCenter 進行對稱優化
+    std::vector<cv::Point2d> ApplySymmetryOpt(const std::vector<cv::Point2d>& path);
 };
 
 struct YUFA

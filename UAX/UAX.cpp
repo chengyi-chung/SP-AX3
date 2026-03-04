@@ -1811,11 +1811,7 @@ void InitialConfig(const std::string& filename, SystemConfig& SysConfig)
 void InitialConfigA(const std::string& filename, SystemConfigA& SysConfig)
 {
 	// 這裡可放預設值（建議）
-	/*
-	ImageFlip=2
-CenterX=0.00
-CenterY=0.00
-	*/
+
 	SysConfig.IpAddress = "192.168.1.10";
 	SysConfig.Port = 502;
 	SysConfig.StationID = 1;
@@ -1827,7 +1823,7 @@ CenterY=0.00
 	SysConfig.MaskWidth = 650;
 	SysConfig.MaskHeight = 870;	
 	SysConfig.OffsetValue = 10.0f;
-	SysConfig.ImageFlip = 2;
+	SysConfig.ImageFlip = 2;   
 	SysConfig.RefCenterX = 695.0f;
 	SysConfig.RefCenterY = 194.0f;
 
