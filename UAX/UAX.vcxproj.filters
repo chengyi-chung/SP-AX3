@@ -24,12 +24,18 @@
     <ClInclude Include="pch.h">
       <Filter>標頭檔</Filter>
     </ClInclude>
+    <ClInclude Include="GluePathOptimizer.h">
+      <Filter>標頭檔</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp">
       <Filter>來源檔案</Filter>
     </ClCompile>
     <ClCompile Include="UAX.cpp">
+      <Filter>來源檔案</Filter>
+    </ClCompile>
+    <ClCompile Include="GluePathOptimizer.cpp">
       <Filter>來源檔案</Filter>
     </ClCompile>
   </ItemGroup>

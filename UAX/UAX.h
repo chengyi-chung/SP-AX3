@@ -158,6 +158,8 @@ struct PLCData   //For AX-3 PLC, SP Shoe Last Machine
     //std::vector<int> numClusters;      // 對應 Path 每個點的分群編號（依 contour 分群）
 };
 
+
+
 //add a AES encrypt function 
 // 128位密钥
 

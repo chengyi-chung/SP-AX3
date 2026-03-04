@@ -1,4 +1,18 @@
 ﻿  dllmain.cpp
+  GluePathOptimizer.cpp
+D:\Git Repository\chengyi-chung\SP-AX3\UAX\GluePathOptimizer.cpp(1,1): warning C4819: 檔案含有無法在目前字碼頁 (950) 中表示的字元。請以 Unicode 格式儲存檔案以防止資料遺失
+D:\Git Repository\chengyi-chung\SP-AX3\UAX\GluePathOptimizer.h(1,1): warning C4819: 檔案含有無法在目前字碼頁 (950) 中表示的字元。請以 Unicode 格式儲存檔案以防止資料遺失
+  (編譯來源檔案 'GluePathOptimizer.cpp')
+  
+C:\opencv\build\include\opencv2\core.hpp(1747,1): warning C4819: 檔案含有無法在目前字碼頁 (950) 中表示的字元。請以 Unicode 格式儲存檔案以防止資料遺失
+  (編譯來源檔案 'GluePathOptimizer.cpp')
+  
+C:\opencv\build\include\opencv2\core.hpp(1747,1): warning C4819: 檔案含有無法在目前字碼頁 (950) 中表示的字元。請以 Unicode 格式儲存檔案以防止資料遺失
+  (編譯來源檔案 'GluePathOptimizer.cpp')
+  
+C:\opencv\build\include\opencv2\core.hpp(1747,1): warning C4819: 檔案含有無法在目前字碼頁 (950) 中表示的字元。請以 Unicode 格式儲存檔案以防止資料遺失
+  (編譯來源檔案 'GluePathOptimizer.cpp')
+  
   UAX.cpp
 C:\opencv\build\include\opencv2\core.hpp(1747,1): warning C4819: 檔案含有無法在目前字碼頁 (950) 中表示的字元。請以 Unicode 格式儲存檔案以防止資料遺失
   (編譯來源檔案 'UAX.cpp')
@@ -15,12 +29,12 @@ C:\opencv\build\include\opencv2\calib3d.hpp(1,1): warning C4819: 檔案含有無
 C:\opencv\build\include\opencv2\objdetect\aruco_board.hpp(1,1): warning C4819: 檔案含有無法在目前字碼頁 (950) 中表示的字元。請以 Unicode 格式儲存檔案以防止資料遺失
   (編譯來源檔案 'UAX.cpp')
   
-D:\Git Repository\chengyi-chung\SP-AX3\UAX\UAX.h(293,28): warning C4190: 'fitImageToScreen' 已指定 C-連結，但傳回與 C 不相容的 'cv::Mat'
+D:\Git Repository\chengyi-chung\SP-AX3\UAX\UAX.h(295,28): warning C4190: 'fitImageToScreen' 已指定 C-連結，但傳回與 C 不相容的 'cv::Mat'
   (編譯來源檔案 'UAX.cpp')
       C:\opencv\build\include\opencv2\core\mat.hpp(810,18):
       請參閱 'cv::Mat' 的宣告
   
-D:\Git Repository\chengyi-chung\SP-AX3\UAX\UAX.h(456,32): warning C4190: 'GetAppPath' 已指定 C-連結，但傳回與 C 不相容的 'std::basic_string<char,std::char_traits<char>,std::allocator<char>>'
+D:\Git Repository\chengyi-chung\SP-AX3\UAX\UAX.h(458,32): warning C4190: 'GetAppPath' 已指定 C-連結，但傳回與 C 不相容的 'std::basic_string<char,std::char_traits<char>,std::allocator<char>>'
   (編譯來源檔案 'UAX.cpp')
       C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.50.35717\include\xstring(589,7):
       請參閱 'std::basic_string<char,std::char_traits<char>,std::allocator<char>>' 的宣告
