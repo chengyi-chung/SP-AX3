@@ -143,6 +143,7 @@
     <ClInclude Include="GluePathOptimizer.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="UAX.h" />
+    <ClInclude Include="UAXTypes.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp" />

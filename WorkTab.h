@@ -6,6 +6,7 @@
 #include "UAX.h"
 #include "afxcmn.h"
 #include "afxbutton.h" // 加入 MFC Button 支援
+#include "UAXTypes.h"
 
 using namespace Pylon;
 
@@ -73,6 +74,8 @@ public:
 	int MaskHeight;
 	int referenceX;
 	int referenceY;
+
+	GluePath m_OptimizedGluePath;  // 儲存優化後的膠水路徑
 
 
 	void ToolPathTransform(ToolPath& toolpath, uint16_t* m_ToolPathData);

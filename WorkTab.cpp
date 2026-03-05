@@ -1051,80 +1051,69 @@ void WorkTab::OnBnClickedWorkMatchTemp()
 }
 
 
-void WorkTab::OnBnClickedIdcWorkToolPath()
-{
-    // TODO: 在此加入控制項告知處理常式
+void WorkTab::OnBnClickedIdcWorkToolPath() {
+    // 1. 影像檢查
+    if (m_mat.empty()) {
+        AfxMessageBox(_T("Source image is empty."));
+        return;
+    }
 
-	//Get the tool path from the image m_mat
-	//m_mat: Source Image m_mat
-	//Offset: Offset of the tool path
-	//toolpath: Tool Path
-	cv::Mat ImgSrc = m_mat.clone();
-	cv::Point2d Offset;
-	//ToolPath toolpath;
-	//Get m_ToolPathData from Parrent Window
-	//CYUFADlg* pParentWnd = (CYUFADlg*)GetParent();
+    // 2. 獲取父視窗參數
     CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
-    // 範例1：45度方向
+    if (!pParentWnd) return;
+
+    // 3. ROI 範圍安全檢查 (修正 X/Y 與 Width/Height 的對應)
+    if (MaskX < 0 || MaskY < 0 ||
+        MaskX + MaskWidth > m_mat.cols ||
+        MaskY + MaskHeight > m_mat.rows) {
+        AfxMessageBox(_T("ROI exceeds image dimensions."));
+        return;
+    }
+
+    // 4. 計算 Offset (Pixel)
     double degree = 45.0;
     double theta = degree * CV_PI / 180.0;
-    double OffsetValue = pParentWnd->m_SystemPara.OffsetValue;  // 已知的距離
-    Offset = OffsetValue * cv::Point2f(std::cos(theta), std::sin(theta));
+    double OffsetValue = pParentWnd->m_SystemPara.OffsetValue;
+    double factor = pParentWnd->m_SystemPara.TransferFactor;
 
-    //convert Offset mm to pixel by TransferFactor
-    Offset.x = Offset.x / pParentWnd->m_SystemPara.TransferFactor;
-    Offset.y = Offset.y / pParentWnd->m_SystemPara.TransferFactor;
+    // 轉為像素單位
+    cv::Point2d offsetPx(
+        (OffsetValue * std::cos(theta)) / factor,
+        (OffsetValue * std::sin(theta)) / factor
+    );
 
-    //直接把結果放到成員變數 toolPath，避免用區域變數後沒指派回來
+    // 5. 準備 Mask
+    cv::Mat mask = cv::Mat::zeros(m_mat.size(), CV_8UC1);
+    cv::Rect roiRect(MaskX, MaskY, MaskWidth, MaskHeight);
+    mask(roiRect) = cv::Scalar(255);
+
+    // 6. 提取原始工具路徑 (直接操作成員變數)
     this->toolPath.Path.clear();
-    
+    cv::Mat imgClone = m_mat.clone();
+    GetToolPath_CurvatureOptimized_Mask(imgClone, mask, offsetPx, this->toolPath, 0.001);
 
-	// 檢查 m_mat 是否為空
-if (m_mat.empty()) {
-    AfxMessageBox(_T("Source image is empty."));
-    return;
-}
+    if (this->toolPath.Path.empty()) {
+        AfxMessageBox(_T("No path detected in ROI."));
+        return;
+    }
 
-// 檢查 ROI 是否在影像範圍內
+    // 7. 膠路同步優化 (核心步驟)
+    ROIMask roiOpt;
+    roiOpt.MaskX = MaskX; roiOpt.MaskY = MaskY;
+    roiOpt.MaskWidth = MaskWidth; roiOpt.MaskHeight = MaskHeight;
+    roiOpt.RefCenterX = this->referenceX;
+    roiOpt.RefCenterY = this->referenceY;
 
-if (MaskX < 0 || MaskY < 0 ||
-    MaskWidth <= 0 || MaskHeight <= 0 ||
-    MaskX + MaskWidth > m_mat.cols ||
-    MaskY + MaskHeight > m_mat.rows) {
-    AfxMessageBox(_T("ROI is out of image bounds."));
-    return;
-}
+    // 直接傳入成員變數，避免重複拷貝
+    // 注意：OutputPath 建議定義為類別成員，以便後續繪圖或傳送給 PLC
+    GluePath finalPath;
+    OptimizeGluePath(this->toolPath.Path, roiOpt, finalPath, 1);
 
+    // 8. 儲存或顯示結果
+    this->m_OptimizedGluePath = finalPath; // 假設你有一個成員變數儲存最終結果
 
-// 1. 建立一張與 ImgSrc 一樣大小的全黑 Mask（8位元單通道）
-cv::Mat mask = cv::Mat::zeros(ImgSrc.size(), CV_8UC1);
-
-// 2. 設定 ROI 區域：左上角(X, Y)，寬度Width，高度Height
-cv::Rect roi(MaskX, MaskY, MaskWidth, MaskHeight);
-
-// 3. 檢查 ROI 是否在 ImgSrc 範圍內，以避免 out-of-bounds 問題
-
-if ((MaskX >= 0) && (MaskY >= 0) &&
-    (MaskY + MaskWidth <= ImgSrc.cols) &&
-    (MaskY + MaskHeight <= ImgSrc.rows))
-{
-    // 4. 設定 ROI 區域像素為 255（白色，有效區域）
-    mask(roi) = cv::Scalar(255);
-}
-else
-{
-    throw std::invalid_argument("ROI超出原圖範圍");
-}
-
-//Get offsetDist with offsetDist and distX, distY
-int distOffset = sqrt(pow(Offset.x,2) +pow(Offset.y,2));
-
-//GetToolPathWithMask(ImgSrc, mask, distOffset, this->toolPath);
-//GetToolPath(ImgSrc, Offset, this->toolPath);
-//GetToolPath_Optimized(ImgSrc, Offset, this->toolPath);
-//GetToolPath_CurvatureOptimized(ImgSrc, Offset, this->toolPath, 0.0005);
-GetToolPath_CurvatureOptimized_Mask(ImgSrc, mask, Offset, this->toolPath, 0.001);
-//GetToolPath_SymmetricOnly(ImgSrc, Offset, this->toolPath, 0.001);  //結果不對
+    // 觸發重繪或更新 UI
+    Invalidate(FALSE);
 }
 
 

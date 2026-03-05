@@ -1,34 +1,10 @@
 #pragma once
-#pragma once
+#include "UAXTypes.h"
 #include <vector>
 #include <opencv2/core.hpp>
 
-// ──────────────────────────────────────────────
-//  資料結構定義
-// ──────────────────────────────────────────────
 
-struct ToolPath
-{
-    cv::Point2d            Offset;       // 工具路徑的整體偏移量
-    std::vector<cv::Point2d> Path;       // 工具路徑上的點序列
-    std::vector<int>       numClusters;  // 每個點所屬的輪廓/叢集編號
-};
 
-struct GluePath
-{
-    std::vector<cv::Point2d> PathRight;  // 右側膠水路徑（最終輸出）
-    std::vector<cv::Point2d> PathLeft;   // 左側膠水路徑（Y與右側完全相同）
-};
-
-struct ROIMask
-{
-    int MaskX;       // ROI 左上角 X
-    int MaskY;       // ROI 左上角 Y
-    int MaskWidth;   // ROI 寬度
-    int MaskHeight;  // ROI 高度
-    int RefCenterX;  // 分割左右的參考中心 X（僅用於分割，不再用於鏡射）
-    int RefCenterY;  // 參考中心 Y（保留未來使用）
-};
 
 // ──────────────────────────────────────────────
 //  膠水路徑優化器

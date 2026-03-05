@@ -19,11 +19,11 @@
 #include <cstring>
 #include <algorithm>
 
-
+#include "GluePathOptimizer.h"
 
 //Add UAX.h
 #include "UAX.h"
-
+#include "UAXTypes.h"
 
 // T MAcro
 #define _T(x) L ## x
@@ -2150,7 +2150,36 @@ void GetMACAddress(unsigned char* macAddress)
 
 
 
+/**
+ * @brief 封裝 GluePathOptimizer 的 DLL 接口
+ */
+void OptimizeGluePath(
+	const std::vector<cv::Point2d>& inputPath,
+	const ROIMask& roi,
+	GluePath& optimizedPath,
+	int shoeType)
+{
+	try {
+		if (inputPath.empty()) return;
 
+		// 1. 初始化優化器
+		GluePathOptimizer optimizer(roi);
+
+		// 2. 執行優化邏輯
+		optimizer.OptimizePath(inputPath, optimizedPath, shoeType);
+
+		// 3. (選用) 在 Debug 模式輸出結果點數
+#ifdef _DEBUG
+		std::string msg = "[UAX_DLL] Optimized Path Points: Left=" +
+			std::to_string(optimizedPath.PathLeft.size()) +
+			", Right=" + std::to_string(optimizedPath.PathRight.size()) + "\n";
+		OutputDebugStringA(msg.c_str());
+#endif
+	}
+	catch (const std::exception& e) {
+		std::cerr << "OptimizeGluePath Error: " << e.what() << std::endl;
+	}
+}
 
 
 
