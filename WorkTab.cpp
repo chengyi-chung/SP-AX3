@@ -1172,64 +1172,111 @@ void WorkTab::GetToolPathData(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& too
 
 void WorkTab::OnBnClickedIdcWorkGo()
 {
+    // 1. 取得全域資源與父視窗指標
     CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
-    if (!pParentWnd) return;
-
-	HMIReadHoldingRegistersTest();
-
-	return;
-
-	// 取得 Z1 和 Z2 參數
-    //float z_Machining = pParentWnd->m_SystemPara.Z1;
-    //float z_Retract = pParentWnd->m_SystemPara.Z2;
-
-    // 清除舊資料
-    m_ToolPathDataA.clear();
-
-    try
-    {
-		// 進行工具路徑轉換成 32 位元格式並包含 Z 軸資訊
-        ToolPathTransform32B(this->toolPath, z_Machining, z_Retract);
-
-    }
-    catch (const std::exception& e)
-    {
-        AfxMessageBox(CA2T(e.what()));
+    if (!pParentWnd) {
+        AfxMessageBox(_T("無法獲取父視窗資源。"));
         return;
     }
 
-    if (m_ToolPathDataA.empty() || m_ToolPathDataA.size() % 6 != 0)
-    {
-        AfxMessageBox(_T("Tool path generation failed or data corrupted."));
+    // 2. 數據合法性檢查：確保已經過路徑優化且點位不為空
+    if (m_OptimizedGluePath.PathLeft.empty() || m_OptimizedGluePath.PathRight.empty()) {
+        AfxMessageBox(_T("無效的路徑資料，請先執行路徑生成。"));
         return;
     }
 
+    // 3. 定義 PLC 暫存器位址 (對應 AX-3 系列 PLC 內部配置)
+    constexpr int kAxisStartX1 = 14; // 右手 X 軸路徑起始位址 (D14~D43)
+    constexpr int kAxisStartY = 44; // 共有 Y 軸路徑起始位址 (D44~D73)
+    constexpr int kAxisStartX2 = 74; // 左手 X 軸路徑起始位址 (D74~D103)
+    constexpr int kAxisCount = 30; // PLC 陣列預留長度
 
+    // 4. 計算實際寫入點數 (取 PLC 長度與路徑資料長度的最小值，防止陣列越界)
+    const size_t pointCount = std::min({
+        static_cast<size_t>(kAxisCount),
+        m_OptimizedGluePath.PathRight.size(),
+        m_OptimizedGluePath.PathLeft.size()
+        });
 
-	//增加 # _debug  巨集 訊息顯示 m_ToolPathDataA 內容 使用 OutputDebugStringA
-#ifdef _DEBUG
-    std::ostringstream oss;
-    oss << "Tool Path Data (32-bit with Z):\n";
-    for (size_t i = 0; i < m_ToolPathDataA.size(); i += 6)
-    {
-        oss << "Point " << (i / 6) + 1 << ": ";
-        oss << "X Low: " << m_ToolPathDataA[i] << ", X High: " << m_ToolPathDataA[i + 1] << ", ";
-        oss << "Y Low: " << m_ToolPathDataA[i + 2] << ", Y High: " << m_ToolPathDataA[i + 3] << ", ";
-        oss << "Z Low: " << m_ToolPathDataA[i + 4] << ", Z High: " << m_ToolPathDataA[i + 5] << "\n";
+    if (pointCount == 0) {
+        AfxMessageBox(_T("優化後的點位數為 0。"));
+        return;
     }
-	OutputDebugStringA(oss.str().c_str());      
-	
-#endif
 
-    SendToolPathData32A(m_ToolPathDataA, static_cast<int>(m_ToolPathDataA.size()), 1);
+    // 5. 準備 Modbus 寫入緩衝區 (uint16_t 格式)
+    std::vector<uint16_t> x1Regs(kAxisCount, 0);
+    std::vector<uint16_t> yRegs(kAxisCount, 0);
+    std::vector<uint16_t> x2Regs(kAxisCount, 0);
 
+    // 內部 Lambda：處理座標轉換、四捨五入與 16-bit 數值限幅
+    auto toReg = [](double v) -> uint16_t {
+        long val = lround(v); // 四捨五入為長整數
+        if (val < 0) val = 0;
+        if (val > 65535) val = 65535; // 確保不超出 uint16 範圍
+        return static_cast<uint16_t>(val);
+        };
+
+    // 6. 資料轉換：將視覺座標轉換為 PLC 寄存器格式
+    for (size_t i = 0; i < pointCount; ++i) {
+        x1Regs[i] = toReg(m_OptimizedGluePath.PathRight[i].x);
+        yRegs[i] = toReg(m_OptimizedGluePath.PathRight[i].y);
+        x2Regs[i] = toReg(m_OptimizedGluePath.PathLeft[i].x);
+    }
+
+    // 7. Modbus 連線檢查與自動重連邏輯
+    const int stationID = 1;
+    if (!pParentWnd->m_modbusCtx) {
+        bool ok = pParentWnd->InitModbusWithRetry(
+            pParentWnd->m_SystemPara.IpAddress,
+            pParentWnd->Port,
+            stationID,
+            3,    // 重試次數
+            1000  // 超時 (ms)
+        );
+        if (!ok) {
+            AfxMessageBox(_T("Modbus TCP 連線失敗，請檢查網路設定。"));
+            return;
+        }
+    }
+
+    // 8. 執行執行緒安全寫入操作
+    {
+        // 鎖定 Mutex，避免多執行緒同時競爭同一 Modbus 句柄 (Handle)
+        std::lock_guard<std::mutex> lock(pParentWnd->m_modbusMutex);
+        modbus_set_slave(pParentWnd->m_modbusCtx, stationID);
+
+        // 分別寫入 X1, Y, X2 三組路徑陣列到 PLC
+        // 寫入 X1 軸
+        if (modbus_write_registers(pParentWnd->m_modbusCtx, kAxisStartX1, kAxisCount, x1Regs.data()) == -1) {
+            CString err;
+            err.Format(_T("寫入 X1 路徑失敗: %S"), modbus_strerror(errno));
+            AfxMessageBox(err);
+            return;
+        }
+
+        // 寫入 Y 軸
+        if (modbus_write_registers(pParentWnd->m_modbusCtx, kAxisStartY, kAxisCount, yRegs.data()) == -1) {
+            CString err;
+            err.Format(_T("寫入 Y 路徑失敗: %S"), modbus_strerror(errno));
+            AfxMessageBox(err);
+            return;
+        }
+
+        // 寫入 X2 軸
+        if (modbus_write_registers(pParentWnd->m_modbusCtx, kAxisStartX2, kAxisCount, x2Regs.data()) == -1) {
+            CString err;
+            err.Format(_T("寫入 X2 路徑失敗: %S"), modbus_strerror(errno));
+            AfxMessageBox(err);
+            return;
+        }
+    } // 離開 Scope 自動釋放 Lock
+
+    // 9. 完成提示
+    CString doneMsg;
+    doneMsg.Format(_T("路徑已成功傳送至 PLC。點數=%u (最大限制 %d)。"), static_cast<unsigned>(pointCount), kAxisCount);
+    AfxMessageBox(doneMsg);
 }
 
-/*
-
-
-
-*/
 void WorkTab::ToolPathTransform32(ToolPath ToolPapath_Ori, uint16_t* m_ToolPathData)
 {
     if (!m_ToolPathData || ToolPapath_Ori.Path.empty()) return;
