@@ -129,6 +129,20 @@ public:
 	CFont m_fontBoldBig;
 
 	void DrawPicToHDC(cv::Mat cvImg, UINT ID, bool bOnPaint);
+
+	// 一次讀取 139~156 共 18 個寄存器
+    // outValues 會被 resize 成 18 個元素，索引 0 對應 139，索引 17 對應 156
+	bool ReadSystemParaBatch_139_to_156(std::vector<uint16_t>& outValues, int stationID = 1);
+
+	// 一次寫入 139~156 共 18 個寄存器
+	// inValues 必須正好有 18 個元素，索引 0 寫入 139，索引 17 寫入 156
+	bool WriteSystemParaBatch_139_to_156(const std::vector<uint16_t>& inValues, int stationID = 1);
+
+	// 方便函數：讀取後自動更新到 pParent->m_SystemPara 的對應欄位
+	bool SyncReadAndUpdateSystemPara(int stationID = 1);
+
+	// 方便函數：從 m_SystemPara 收集值 → 寫入 PLC
+	bool SyncWriteFromSystemPara(int stationID = 1);
 	
 
 	

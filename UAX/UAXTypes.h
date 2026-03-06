@@ -87,7 +87,7 @@ struct SystemConfigA  // For AX-3 PLC, SP Shoe Last Machine
     int ImageBinary;
     int CreateToolPath;
     int DispalyToolPath;    // TODO: fix typo → DisplayToolPath
-    int DispayROI;          // TODO: fix typo → DisplayROI
+    int DisplayROI;          // TODO: fix typo → DisplayROI
     int BinaryUpper;
     int BinaryLower;
     int MaskX;              // ROI Mask X (TopX)

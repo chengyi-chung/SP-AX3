@@ -2079,3 +2079,152 @@ void WorkTab::HMIReadHoldingRegistersTest(int stationID)
 	} // unlock here
  
 }
+
+// ============================================================================
+// 在 WorkTab.cpp 中實作
+// ============================================================================
+
+bool WorkTab::ReadSystemParaBatch_139_to_156(std::vector<uint16_t>& outValues, int stationID)
+{
+    CSPDlg* pParent = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
+    if (!pParent) {
+        AfxMessageBox(_T("無法取得父視窗指標"));
+        return false;
+    }
+
+    if (!pParent->m_modbusCtx) {
+        bool ok = pParent->InitModbusWithRetry(
+            pParent->m_SystemPara.IpAddress,
+            pParent->Port,
+            stationID,
+            3,
+            1000);
+        if (!ok) {
+            AfxMessageBox(_T("Modbus 初始化失敗"));
+            return false;
+        }
+    }
+
+    std::lock_guard<std::mutex> lock(pParent->m_modbusMutex);
+    modbus_set_slave(pParent->m_modbusCtx, stationID);
+
+    const int START_ADDR = 139;
+    const int COUNT = 18;
+
+    outValues.resize(COUNT);
+    if (modbus_read_registers(pParent->m_modbusCtx, START_ADDR, COUNT, outValues.data()) == -1) {
+        CString err;
+        err.Format(_T("批量讀取 139~156 失敗：%S"), modbus_strerror(errno));
+        AfxMessageBox(err);
+        return false;
+    }
+
+    return true;
+}
+
+bool WorkTab::WriteSystemParaBatch_139_to_156(const std::vector<uint16_t>& inValues, int stationID)
+{
+    if (inValues.size() != 18) {
+        AfxMessageBox(_T("寫入資料必須正好 18 個值 (139~156)"));
+        return false;
+    }
+
+    CSPDlg* pParent = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
+    if (!pParent) return false;
+
+    if (!pParent->m_modbusCtx) {
+        if (!pParent->InitModbusWithRetry(pParent->m_SystemPara.IpAddress, pParent->Port, stationID, 3, 1000)) return false;
+    }
+
+    std::lock_guard<std::mutex> lock(pParent->m_modbusMutex);
+    modbus_set_slave(pParent->m_modbusCtx, stationID);
+
+    const int START_ADDR = 139;
+    const int COUNT = 18;
+
+    if (modbus_write_registers(pParent->m_modbusCtx, START_ADDR, COUNT, inValues.data()) == -1) {
+        CString err;
+        err.Format(_T("批量寫入 139~156 失敗：%S"), modbus_strerror(errno));
+        AfxMessageBox(err);
+        return false;
+    }
+
+    return true;
+}
+
+
+bool WorkTab::SyncReadAndUpdateSystemPara(int stationID)
+{
+    std::vector<uint16_t> values;
+    if (!ReadSystemParaBatch_139_to_156(values, stationID)) {
+        return false;
+    }
+
+    CSPDlg* pParent = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
+    if (!pParent) return false;
+
+    // 注意：以下假設 m_SystemPara 的成員是 int / long / float 等
+    // 如果是 float 或其他類型，需要自行轉換（例如除以 100.0f 等）
+
+    pParent->m_SystemPara.ImageBinary = values[0];   // 139
+    pParent->m_SystemPara.CreateToolPath = values[1];   // 140
+    pParent->m_SystemPara.DispalyToolPath = values[2];   // 141 (DiplayToolPath)
+    pParent->m_SystemPara.DisplayROI = values[3];   // 142
+    pParent->m_SystemPara.DisplayRefLine = values[4];   // 143
+    pParent->m_SystemPara.TabWork = values[5];   // 144  (1=Work,2=Sys,4=Modbus)
+
+    pParent->m_SystemPara.OffsetValue = static_cast<double>(values[6]);  // 145 可考慮單位轉換
+    pParent->m_SystemPara.BinaryUpper = values[7];   // 146
+    pParent->m_SystemPara.BinaryLower = values[8];   // 147
+
+    pParent->m_SystemPara.MaskX = values[9];   // 148 TopX
+    pParent->m_SystemPara.MaskY = values[10];  // 149 TopY
+    pParent->m_SystemPara.MaskWidth = values[11];  // 150
+    pParent->m_SystemPara.MaskHeight = values[12];  // 151
+
+    // 153 IPAddress 通常不是單一 uint16，建議另外處理或只存部分
+    // pParent->m_SystemPara.IPAddress  = ??? values[14];
+
+    pParent->m_SystemPara.RefCenterX = values[15];  // 154
+    pParent->m_SystemPara.RefCenterY = values[16];  // 155
+    pParent->m_SystemPara.ImageFlip = values[17];  // 156
+
+    // 觸發 UI 更新（很重要！）
+    Invalidate(FALSE);
+    // 或呼叫 UpdateData(FALSE); 如果有對應的 DDX 控制項
+
+    return true;
+}
+
+bool WorkTab::SyncWriteFromSystemPara(int stationID)
+{
+    std::vector<uint16_t> values(18);
+
+    CSPDlg* pParent = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
+    if (!pParent) return false;
+
+    values[0] = static_cast<uint16_t>(pParent->m_SystemPara.ImageBinary);
+    values[1] = static_cast<uint16_t>(pParent->m_SystemPara.CreateToolPath);
+    values[2] = static_cast<uint16_t>(pParent->m_SystemPara.DispalyToolPath);
+    values[3] = static_cast<uint16_t>(pParent->m_SystemPara.DisplayROI);
+    values[4] = static_cast<uint16_t>(pParent->m_SystemPara.DisplayRefLine);
+    values[5] = static_cast<uint16_t>(pParent->m_SystemPara.TabWork);
+
+    values[6] = static_cast<uint16_t>(std::lround(pParent->m_SystemPara.OffsetValue)); // 注意單位！
+    values[7] = static_cast<uint16_t>(pParent->m_SystemPara.BinaryUpper);
+    values[8] = static_cast<uint16_t>(pParent->m_SystemPara.BinaryLower);
+
+    values[9] = static_cast<uint16_t>(pParent->m_SystemPara.MaskX);
+    values[10] = static_cast<uint16_t>(pParent->m_SystemPara.MaskY);
+    values[11] = static_cast<uint16_t>(pParent->m_SystemPara.MaskWidth);
+    values[12] = static_cast<uint16_t>(pParent->m_SystemPara.MaskHeight);
+
+    // values[13] = SerialNumber (152) 如果有對應欄位
+    // values[14] = IPAddress (153) ← 通常不適合單 uint16，建議另外處理
+
+    values[15] = static_cast<uint16_t>(pParent->m_SystemPara.RefCenterX);
+    values[16] = static_cast<uint16_t>(pParent->m_SystemPara.RefCenterY);
+    values[17] = static_cast<uint16_t>(pParent->m_SystemPara.ImageFlip);
+
+    return WriteSystemParaBatch_139_to_156(values, stationID);
+}

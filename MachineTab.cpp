@@ -114,7 +114,7 @@ void MachineTab::OpenModBus()
 	int port = pParentWnd->m_SystemPara.Port;
 	int slaveId = pParentWnd->m_SystemPara.StationID;
 
-	// 呼叫 YUFADlg 的重試連線
+	// 呼叫 SPDlg 的重試連線
 	bool ok = pParentWnd->InitModbusWithRetry(ip, port, slaveId, 3, 1000);
 
 	if (!ok) 
