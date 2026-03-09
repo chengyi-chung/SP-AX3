@@ -194,8 +194,6 @@ extern "C" UAX_API int DeleteData(sqlite3* db, const char* db_name, const char* 
 extern "C" UAX_API int CloseDatabase(sqlite3* db);
 
 
-
-
 //Data Tools
 
 // Double Word split to Hight Word and Low Word

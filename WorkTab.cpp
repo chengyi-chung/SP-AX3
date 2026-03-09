@@ -1185,6 +1185,28 @@ void WorkTab::OnBnClickedIdcWorkGo()
         return;
     }
 
+
+    /*
+     //增加測試功能：將優化後的膠路點位寫入 PLC (AX-3 系列) 的 Modbus TCP 寄存器中
+ //讀、寫 Address 145, 146,147
+    uint16_t test_data[3] = { 0 };
+
+    int rc = modbus_read_registers(pParentWnd->m_modbusCtx, 145, 3, test_data);
+
+    if (rc == -1) {
+        CString err;
+        err.Format(_T("讀取失敗！錯誤: %S"), modbus_strerror(errno));
+        MessageBox(err);
+        return;
+    }
+
+    CString msg;
+    msg.Format(_T("讀取成功！\n數據: %u, %u, %u"), test_data[0], test_data[1], test_data[2]);
+
+    MessageBox(msg);
+	return; // 測試完成後直接返回，正式使用時請移除這行
+    */
+
     // 3. 定義 PLC 暫存器位址 (對應 AX-3 系列 PLC 內部配置)
     constexpr int kAxisStartX1 = 14; // 右手 X 軸路徑起始位址 (D14~D43)
     constexpr int kAxisStartY = 44; // 共有 Y 軸路徑起始位址 (D44~D73)

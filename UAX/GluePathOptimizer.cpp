@@ -216,7 +216,7 @@ GluePathOptimizer::FitCurveAtGivenY(const std::vector<cv::Point2d>& pts,
 std::vector<double>
 GluePathOptimizer::PolyFit(const std::vector<double>& y,
     const std::vector<double>& x,
-    int                         degree)
+    int  degree)
 {
     assert(y.size() == x.size() && !y.empty());
 
