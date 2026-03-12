@@ -6,6 +6,7 @@
 #include "afxdialogex.h"
 #include "WorkTab.h"
 #include <string>
+#include "UAX\\UAXVision.cpp" // bring UAXVision implementation into this module
 //Add pylon header files to MFC project
 
 #include <pylon/PylonIncludes.h>
@@ -1479,6 +1480,7 @@ inline void AppendPointSafeA(std::vector<uint16_t>& buffer,  // 輸出：數據�
     buffer[idx++] = pz[0];  buffer[idx++] = pz[1];
 }
 
+
 // 類別 WorkTab 的成員函數
 // 此函數將原始工具路徑轉換為機器可讀的 uint16_t 數據格式
 // 並在分群變換時插入中間點以處理 Z 軸的 retract 操作
@@ -2031,8 +2033,42 @@ void WorkTab::OnBnClickedWorkImageProcess()
 
 void WorkTab::OnBnClickedMfcbtnWorkImgCalibrate()
 {
-    // TODO: 在此加入控制項告知處理常式程式碼
-	MessageBox(_T("Work Image Calibrate Button Clicked"));
+   // 開啟檔案對話框取得校正影像
+#ifdef _WIN32
+    std::vector<std::string> files = m_vision.selectCalibrationFiles();
+    if (files.empty())
+    {
+        AfxMessageBox(L"未選取任何影像");
+        return;
+    }
+
+    // 依需求調整棋盤內部角點數與邊長
+    const cv::Size boardSize(9, 6); // 9x6 內部角點
+    const float squareSize = 25.0f; // 毫米
+
+    double rms = m_vision.calibrate(files, boardSize, squareSize);
+    if (rms < 0.0)
+    {
+        AfxMessageBox(L"校正失敗，無法找到角點");
+        return;
+    }
+
+    // 儲存校正結果
+    const std::string outFile = "calibration.yml";
+    bool saved = m_vision.saveCalibrationData(outFile);
+    if (!saved)
+    {
+        AfxMessageBox(L"校正資料儲存失敗");
+        return;
+    }
+
+    std::wstring outFileW(outFile.begin(), outFile.end());
+    CString msg;
+    msg.Format(L"校正完成，RMS=%.3f px\n儲存於: %s", rms, outFileW.c_str());
+    AfxMessageBox(msg);
+#else
+    AfxMessageBox(L"此功能僅支援 Windows 平台");
+#endif
 }
 
 // 新增：讀取 Holding Registers

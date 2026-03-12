@@ -4,6 +4,7 @@
 #include <opencv2/opencv.hpp>
 #include <pylon/PylonIncludes.h>
 #include "UAX.h"
+#include "UAXVision.h"
 #include "afxcmn.h"
 #include "afxbutton.h" // 加入 MFC Button 支援
 #include "UAXTypes.h"
@@ -20,7 +21,6 @@ enum class CrossStyle
 //float imagePts[6] = { 1035, 844, 1311, 1247, 1511, 963 };  // 像素點座標
 //float worldPts[6] = { -0.01f, 67.59f, 150.79f, 288.83f, 259.71f, 134.03f };  // 對應世界座標 (mm)
 
-
 class WorkTab : public CDialogEx
 {
 	DECLARE_DYNAMIC(WorkTab)
@@ -28,6 +28,8 @@ class WorkTab : public CDialogEx
 public:
 	WorkTab(CWnd* pParent = nullptr);
 	virtual ~WorkTab();
+
+	UAXVision m_vision;
 
 #ifdef AFX_DESIGN_TIME
 	enum { IDD = IDD_OLE_PROPPAGE_LARGE };

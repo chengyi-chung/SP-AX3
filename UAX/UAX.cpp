@@ -1775,7 +1775,7 @@ void WriteConfigToFile_SP(const std::string& filename, const SystemConfigA& SysC
 	file << "[ROI]\n";
 	file << "RefCenterX=" << SysConfig.RefCenterX << "\n";
 	file << "RefCenterY=" << SysConfig.RefCenterY << "\n";
-	file << "DispayROI=" << SysConfig.DispayROI << "\n";
+	file << "DispayROI=" << SysConfig.DisplayROI << "\n";
 
 	file << "[Mask]\n";
 	file << "MaskX=" << SysConfig.MaskX << "\n";
@@ -2028,7 +2028,7 @@ int ReadSystemConfig_SP(const std::string& filename, SystemConfigA& SysConfig)
 
 			else if (key == "RefCenterX")        SysConfig.RefCenterX = std::stoi(val);
 			else if (key == "RefCenterY")        SysConfig.RefCenterY = std::stoi(val);
-			else if (key == "DispayROI")         SysConfig.DispayROI = std::stoi(val);
+			else if (key == "DisplayROI")        SysConfig.DisplayROI = std::stoi(val);
 
 			else if (key == "MaskX")             SysConfig.MaskX = std::stoi(val);
 			else if (key == "MaskY")             SysConfig.MaskY = std::stoi(val);
