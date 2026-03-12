@@ -155,6 +155,7 @@ BEGIN_MESSAGE_MAP(WorkTab, CDialogEx)
     ON_BN_CLICKED(IDC_CHECK_WORK_CENTER, &WorkTab::OnBnClickedCheckWorkCenter)
     ON_BN_CLICKED(IDC_MFCBTN_WORK_IMG_PROCESS, &WorkTab::OnBnClickedWorkImageProcess) // ← 新增
     ON_BN_CLICKED(IDC_MFCBTN_WORK_IMG_Calibrate, &WorkTab::OnBnClickedMfcbtnWorkImgCalibrate)
+    ON_BN_CLICKED(IDC_CHECK_WORK_ROI, &WorkTab::OnBnClickedCheckWorkRoi)
 END_MESSAGE_MAP()
 
 
@@ -2022,6 +2023,8 @@ void WorkTab::OnBnClickedCheckWorkCenter()
     {
         flgCenter = false;
 	}
+	//觸發重繪
+	Invalidate();
 
 }
 
@@ -2285,4 +2288,14 @@ bool WorkTab::SyncWriteFromSystemPara(int stationID)
     values[17] = static_cast<uint16_t>(pParent->m_SystemPara.ImageFlip);
 
     return WriteSystemParaBatch_139_to_156(values, stationID);
+}
+void WorkTab::OnBnClickedCheckWorkRoi()
+{
+    // TODO: 在此加入控制項告知處理常式程式碼
+	CButton* pCheckBox = (CButton*)GetDlgItem(IDC_CHECK_WORK_ROI);
+    	if (pCheckBox) {
+            		m_bROIMode = (pCheckBox->GetCheck() == BST_CHECKED);
+                    	}
+            Invalidate(); // 觸發重繪
+
 }

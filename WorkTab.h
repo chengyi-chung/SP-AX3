@@ -54,6 +54,8 @@ public:
 
 	uint16_t m_ToolPathData[30000];
 	bool flgCenter;
+	// 可選：用來記錄是否處於「ROI 選取模式」
+	bool m_bROIMode = false;
 
 	protected:
 	CBrush m_brush;
@@ -159,8 +161,7 @@ private:
 
 	bool m_bROIConfirmed = false;      // 是否已確認 ROI（可選）
 
-	// 可選：用來記錄是否處於「ROI 選取模式」
-	bool m_bROIMode = false;
+	
 
 
 
@@ -193,5 +194,6 @@ public:
 
 	// 新增：讀取 Holding Registers
 	bool ReadModbusRegisters(int startAddress, int numRegisters, std::vector<uint16_t>& outRegs, int stationID = 1);
+	afx_msg void OnBnClickedCheckWorkRoi();
 };
 
