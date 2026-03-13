@@ -8,36 +8,32 @@
 
 #include "UAXVision.h"
 #include <algorithm>
+#include <iostream>
 
 // Constructor (init)
 UAXVision::UAXVision() {
     // Initialize with identity / zeros
     cameraMatrix = cv::Mat::eye(3, 3, CV_64F);
-    distCoeffs = cv::Mat::zeros(8, 1, CV_64F);
+    distCoeffs = cv::Mat::zeros(4, 1, CV_64F);   // 魚眼模型使用 4 個畸變係數
+    imageSize = cv::Size(0, 0);
 }
 
-// [修正 3] 判斷校正參數是否已被實際設定（非建構子預設值）
+// Check if calibration is actually set (not default)
 bool UAXVision::isCalibrated() const {
-    // 若 fx（cameraMatrix[0,0]）仍為預設的 1.0 且 distCoeffs 全為零，
-    // 視為尚未校正
-    if (cameraMatrix.at<double>(0, 0) == 1.0 &&
-        cameraMatrix.at<double>(1, 1) == 1.0 &&
+    // In fisheye model fx/fy should be >1 and distCoeffs not all zero
+    if (cameraMatrix.at<double>(0, 0) <= 1.0001 &&
+        cameraMatrix.at<double>(1, 1) <= 1.0001 &&
         cv::countNonZero(distCoeffs) == 0) {
         return false;
     }
     return true;
 }
 
-// ─────────────────────────────────────────────
-// [修正 5] 僅在 Windows 平台編譯 Win32 對話框
-// ─────────────────────────────────────────────
 #ifdef _WIN32
-// Open a Windows file dialog (supports multi-select)
+// Open a Windows file dialog (multi-select supported)
 std::vector<std::string> UAXVision::selectCalibrationFiles()
 {
     std::vector<std::string> filePaths;
-
-    // Use a dedicated buffer name to avoid clashing with std::string variables
     char fileBuffer[MAX_PATH * 100] = { 0 };
 
     OPENFILENAMEA ofn;
@@ -48,7 +44,7 @@ std::vector<std::string> UAXVision::selectCalibrationFiles()
     ofn.nMaxFile = static_cast<DWORD>(sizeof(fileBuffer));
     ofn.lpstrFilter = "Image Files\0*.jpg;*.jpeg;*.png;*.bmp\0All Files\0*.*\0";
     ofn.nFilterIndex = 1;
-    ofn.lpstrTitle = "Select images (multi-select supported)";
+    ofn.lpstrTitle = "Select calibration images (multi-select supported)";
     ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_ALLOWMULTISELECT | OFN_EXPLORER;
 
     if (GetOpenFileNameA(&ofn))
@@ -59,12 +55,10 @@ std::vector<std::string> UAXVision::selectCalibrationFiles()
 
         if (*ptr == '\0')
         {
-            // Single selection: lpstrFile already contains the full path
             filePaths.push_back(directory);
         }
         else
         {
-            // Multiple selection: first segment is directory, following are file names
             while (*ptr != '\0')
             {
                 std::string entryName = ptr;
@@ -75,219 +69,225 @@ std::vector<std::string> UAXVision::selectCalibrationFiles()
     }
     else
     {
-        std::cout << "Selection canceled or an error occurred." << std::endl;
+        std::cout << "File selection canceled or failed." << std::endl;
     }
 
     return filePaths;
 }
 #endif // _WIN32
 
-// ─────────────────────────────────────────────
-// Camera calibration
-// [修正 1] 文件說明 boardSize 為「內部角點」數量
-// [修正 2] 回傳 RMS 誤差（double），失敗時回傳 -1.0
-// [修正 6] 偵測影像尺寸不一致並跳過問題影像
-// ─────────────────────────────────────────────
+// Fisheye camera calibration (fisheye model)
 double UAXVision::calibrate(const std::vector<std::string>& imagePaths,
     cv::Size boardSize,
-    float squareSize) {
-
+    float squareSize)
+{
     std::vector<std::vector<cv::Point3f>> objectPoints;
     std::vector<std::vector<cv::Point2f>> imagePoints;
 
-    // Generate ideal chessboard 3D coordinates (Z=0 plane)
+    // Generate ideal 3D chessboard points (Z=0)
     std::vector<cv::Point3f> obj;
-    for (int i = 0; i < boardSize.height; i++) {
-        for (int j = 0; j < boardSize.width; j++) {
-            obj.push_back(cv::Point3f(j * squareSize, i * squareSize, 0.0f));
+    for (int i = 0; i < boardSize.height; ++i) {
+        for (int j = 0; j < boardSize.width; ++j) {
+            obj.emplace_back(j * squareSize, i * squareSize, 0.0f);
         }
     }
 
-    cv::Size imageSize;
+    cv::Size currentSize(0, 0);
 
-    for (const auto& path : imagePaths) {
+    for (const auto& path : imagePaths)
+    {
         cv::Mat img = cv::imread(path, cv::IMREAD_GRAYSCALE);
         if (img.empty()) {
-            std::cerr << "Warning: cannot read image " << path << ", skip." << std::endl;
+        std::cerr << "Cannot read image: " << path << " -> skipped\n";
             continue;
         }
 
-        // Check if image size matches the first successful image
-        if (imageSize.width > 0 && imageSize.height > 0 && (img.size() != imageSize)) {
-            std::cerr << "Warning: inconsistent image size in " << path
-                << " (expected " << imageSize.width << "x" << imageSize.height
-                << ", got " << img.cols << "x" << img.rows << "), skip." << std::endl;
+        // Check size consistency
+        if (currentSize.area() > 0 && img.size() != currentSize) {
+            std::cerr << "Inconsistent size in " << path
+                << " (expected " << currentSize << ", got " << img.size() << ") -> skipped\n";
             continue;
         }
-        if (imageSize.width == 0 && imageSize.height == 0) {
-            imageSize = img.size();
+        if (currentSize.area() == 0) {
+            currentSize = img.size();
         }
 
         std::vector<cv::Point2f> corners;
-
         bool found = cv::findChessboardCorners(
             img, boardSize, corners,
             cv::CALIB_CB_ADAPTIVE_THRESH |
             cv::CALIB_CB_NORMALIZE_IMAGE |
             cv::CALIB_CB_FAST_CHECK);
 
-        if (found) {
+        if (found)
+        {
             cv::cornerSubPix(
                 img, corners,
                 cv::Size(11, 11), cv::Size(-1, -1),
-                cv::TermCriteria(
-                    cv::TermCriteria::EPS | cv::TermCriteria::MAX_ITER,
-                    30, 0.001));
+                cv::TermCriteria(cv::TermCriteria::EPS | cv::TermCriteria::MAX_ITER, 40, 0.001));
 
             imagePoints.push_back(corners);
             objectPoints.push_back(obj);
         }
-        else {
-            std::cerr << "Warning: cannot find chessboard corners in " << path << ", skip." << std::endl;
+        else
+        {
+        std::cerr << "Chessboard not found in: " << path << " -> skipped\n";
         }
     }
 
-    if (imagePoints.empty()) {
-        std::cerr << "Error: no chessboard corners found in any image." << std::endl;
+    if (imagePoints.size() < 3) {
+        std::cerr << "Error: Not enough valid images (need at least 3)\n";
         return -1.0;
     }
 
     std::vector<cv::Mat> rvecs, tvecs;
-    double rms = cv::calibrateCamera(
-        objectPoints, imagePoints, imageSize,
-        cameraMatrix, distCoeffs, rvecs, tvecs);
 
-    std::cout << "Calibration done. RMS reprojection error: " << rms << " px";
-    if (rms > 1.0)
-        std::cout << "  *** Warning: RMS > 1.0, consider recapturing images ***";
-    std::cout << std::endl;
+    // Reset intrinsics and distortion
+    cameraMatrix = cv::Mat::eye(3, 3, CV_64F);
+    distCoeffs = cv::Mat::zeros(4, 1, CV_64F);
+
+    int flags = cv::fisheye::CALIB_RECOMPUTE_EXTRINSIC |
+        cv::fisheye::CALIB_CHECK_COND |
+        cv::fisheye::CALIB_FIX_SKEW;
+
+    double rms = cv::fisheye::calibrate(
+        objectPoints, imagePoints, currentSize,
+        cameraMatrix, distCoeffs, rvecs, tvecs,
+        flags,
+        cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 100, 1e-6));
+
+    imageSize = currentSize;
+
+    std::cout << "Fisheye calibration completed.\n"
+        << "RMS reprojection error: " << rms << " pixels\n";
+    if (rms > 0.8) {
+        std::cout << "  [Warning] RMS > 0.8 -> consider more images or better poses\n";
+    }
 
     return rms;
 }
 
-// ─────────────────────────────────────────────
-// Undistort image
-// [修正 3] 若校正參數尚未設定則印出警告
-// ─────────────────────────────────────────────
-cv::Mat UAXVision::undistortImage(const cv::Mat& inputImage) {
-    // [修正 3] 防呆：尚未校正時給出明確警告
+// 去畸變（支援 balance 參數控制黑邊與視場取捨）
+cv::Mat UAXVision::undistortImage(const cv::Mat& inputImage, double balance) const
+{
     if (!isCalibrated()) {
-        std::cerr << "Warning: undistortImage() called before calibration. "
-            << "Results will be incorrect. "
-            << "Call calibrate() or loadCalibrationData() first." << std::endl;
+        std::cerr << "[Warning] undistortImage called before calibration. "
+            << "Result will be incorrect.\n";
+        return inputImage.clone();
     }
 
-    cv::Mat outputImage;
-    cv::undistort(inputImage, outputImage, cameraMatrix, distCoeffs);
-    return outputImage;
+    if (inputImage.empty()) {
+        return cv::Mat();
+    }
+
+    cv::Mat newK;
+    cv::fisheye::estimateNewCameraMatrixForUndistortRectify(
+        cameraMatrix, distCoeffs, inputImage.size(),
+        cv::Matx33d::eye(), newK, balance);
+
+    cv::Mat output;
+    cv::fisheye::undistortImage(inputImage, output, cameraMatrix, distCoeffs, newK);
+
+    return output;
 }
 
-// ─────────────────────────────────────────────
-// Feature matching using ORB + BFMatcher
-// [修正 4] 自動將彩色影像轉換為灰階
-// ─────────────────────────────────────────────
-cv::Mat UAXVision::matchFeatures(const cv::Mat& img1, const cv::Mat& img2) {
-
-    // [修正 4] 自動轉灰階 lambda
+// Feature matching (basic ORB/BF)
+cv::Mat UAXVision::matchFeatures(const cv::Mat& img1, const cv::Mat& img2)
+{
     auto toGray = [](const cv::Mat& img) -> cv::Mat {
         if (img.channels() == 3) {
-            cv::Mat gray;
-            cv::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
-            return gray;
+            cv::Mat gray; cv::cvtColor(img, gray, cv::COLOR_BGR2GRAY); return gray;
         }
         if (img.channels() == 4) {
-            cv::Mat gray;
-            cv::cvtColor(img, gray, cv::COLOR_BGRA2GRAY);
-            return gray;
+            cv::Mat gray; cv::cvtColor(img, gray, cv::COLOR_BGRA2GRAY); return gray;
         }
-        return img; // already single channel
+        return img;
         };
 
     cv::Mat gray1 = toGray(img1);
     cv::Mat gray2 = toGray(img2);
 
-    cv::Ptr<cv::ORB> detector = cv::ORB::create();
+    cv::Ptr<cv::ORB> detector = cv::ORB::create(2000); // 增加一點特徵點數量
 
-    std::vector<cv::KeyPoint> keypoints1, keypoints2;
-    cv::Mat descriptors1, descriptors2;
+    std::vector<cv::KeyPoint> kp1, kp2;
+    cv::Mat desc1, desc2;
 
-    detector->detectAndCompute(gray1, cv::noArray(), keypoints1, descriptors1);
-    detector->detectAndCompute(gray2, cv::noArray(), keypoints2, descriptors2);
+    detector->detectAndCompute(gray1, cv::noArray(), kp1, desc1);
+    detector->detectAndCompute(gray2, cv::noArray(), kp2, desc2);
 
-    if (descriptors1.empty() || descriptors2.empty()) {
-        std::cerr << "Error: failed to extract features from image." << std::endl;
+    if (desc1.empty() || desc2.empty()) {
+        std::cerr << "Failed to extract descriptors.\n";
         return cv::Mat();
     }
 
-    // crossCheck=true keeps only mutual best matches
     cv::BFMatcher matcher(cv::NORM_HAMMING, true);
     std::vector<cv::DMatch> matches;
-    matcher.match(descriptors1, descriptors2, matches);
+    matcher.match(desc1, desc2, matches);
 
-    // Sort by distance and take top 50 matches
     std::sort(matches.begin(), matches.end(),
-        [](const cv::DMatch& a, const cv::DMatch& b) {
-            return a.distance < b.distance;
-        });
+        [](const cv::DMatch& a, const cv::DMatch& b) { return a.distance < b.distance; });
 
-    const int numGoodMatches = std::min(50, static_cast<int>(matches.size()));
-    std::vector<cv::DMatch> goodMatches(matches.begin(),
-        matches.begin() + numGoodMatches);
+    int n = std::min(60, (int)matches.size());
+    std::vector<cv::DMatch> good(matches.begin(), matches.begin() + n);
 
-    cv::Mat imgMatches;
-    cv::drawMatches(
-        gray1, keypoints1,
-        gray2, keypoints2,
-        goodMatches, imgMatches,
+    cv::Mat vis;
+    cv::drawMatches(gray1, kp1, gray2, kp2, good, vis,
         cv::Scalar::all(-1), cv::Scalar::all(-1),
-        std::vector<char>(),
-        cv::DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
+        std::vector<char>(), cv::DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
 
-    return imgMatches;
+    return vis;
 }
 
 // Getters
-cv::Mat UAXVision::getCameraMatrix() const {
-    return cameraMatrix.clone();
-}
+cv::Mat UAXVision::getCameraMatrix() const { return cameraMatrix.clone(); }
+cv::Mat UAXVision::getDistCoeffs()   const { return distCoeffs.clone(); }
+cv::Size UAXVision::getImageSize()   const { return imageSize; }
 
-cv::Mat UAXVision::getDistCoeffs() const {
-    return distCoeffs.clone();
-}
-
-// Save calibration data to .xml / .yml
-bool UAXVision::saveCalibrationData(const std::string& filename) const {
+// Save calibration data (包含 imageSize)
+bool UAXVision::saveCalibrationData(const std::string& filename) const
+{
     cv::FileStorage fs(filename, cv::FileStorage::WRITE);
     if (!fs.isOpened()) {
-        std::cerr << "Error: cannot open file " << filename << " for write." << std::endl;
+        std::cerr << "Cannot open file for writing: " << filename << "\n";
         return false;
     }
 
     fs << "cameraMatrix" << cameraMatrix;
     fs << "distCoeffs" << distCoeffs;
-    fs.release();
+    fs << "imageWidth" << imageSize.width;
+    fs << "imageHeight" << imageSize.height;
 
-    std::cout << "Calibration data saved to " << filename << std::endl;
+    fs.release();
+    std::cout << "Calibration saved to: " << filename << "\n";
     return true;
 }
 
-// Load calibration data from .xml / .yml
-bool UAXVision::loadCalibrationData(const std::string& filename) {
+// Load calibration data
+bool UAXVision::loadCalibrationData(const std::string& filename)
+{
     cv::FileStorage fs(filename, cv::FileStorage::READ);
     if (!fs.isOpened()) {
-        std::cerr << "Error: cannot open file " << filename << " for read." << std::endl;
+        std::cerr << "Cannot open file for reading: " << filename << "\n";
         return false;
     }
 
     fs["cameraMatrix"] >> cameraMatrix;
     fs["distCoeffs"] >> distCoeffs;
+
+    int w = 0, h = 0;
+    fs["imageWidth"] >> w;
+    fs["imageHeight"] >> h;
+    if (w > 0 && h > 0) {
+        imageSize = cv::Size(w, h);
+    }
+
     fs.release();
 
-    if (cameraMatrix.empty() || distCoeffs.empty()) {
-        std::cerr << "Error: failed to load calibration data from " << filename << "." << std::endl;
+    if (cameraMatrix.empty() || distCoeffs.empty() || distCoeffs.total() != 4) {
+        std::cerr << "Invalid calibration data loaded from " << filename << "\n";
         return false;
     }
 
-    std::cout << "Calibration data loaded from " << filename << std::endl;
+    std::cout << "Calibration loaded from: " << filename << "\n";
     return true;
 }

@@ -2293,9 +2293,10 @@ void WorkTab::OnBnClickedCheckWorkRoi()
 {
     // TODO: 在此加入控制項告知處理常式程式碼
 	CButton* pCheckBox = (CButton*)GetDlgItem(IDC_CHECK_WORK_ROI);
-    	if (pCheckBox) {
+    	if (pCheckBox) 
+        {
             		m_bROIMode = (pCheckBox->GetCheck() == BST_CHECKED);
-                    	}
-            Invalidate(); // 觸發重繪
+        }
+        Invalidate(); // 觸發重繪
 
 }
