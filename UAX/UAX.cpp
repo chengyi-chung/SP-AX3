@@ -350,17 +350,18 @@ void PreprocessImage(const cv::Mat& ImgSrc,
 
 
 
-// ====================== 主函數 1：Mask + 曲率優化 ======================
+// ====================== 主函數 1：Mask + 可選曲率優化 ======================
 void GetToolPath_CurvatureOptimized_Mask(
 	cv::Mat& ImgSrc,
-	const cv::Mat& Mask,      // ← 新增參數：Mask 輸入
+	const cv::Mat& Mask,              // Mask 輸入
 	cv::Point2d Offset,
 	ToolPath& toolpath,
-	double epsilonFactor)
+	double epsilonFactor,
+	bool enableCurvatureOptimization)   // ← Removed default value (= true)
 {
 	if (ImgSrc.empty()) throw std::invalid_argument("Input image is empty.");
 
-	// 1. 影像預處理 (腐蝕優化) - 完全保留你原本的寫法
+	// 1. 影像預處理 (腐蝕優化) - 保留原邏輯
 	cv::Mat processed;
 	int numPixelsToErode = static_cast<int>(Offset.x + Offset.y);
 	if (numPixelsToErode > 0) {
@@ -376,7 +377,7 @@ void GetToolPath_CurvatureOptimized_Mask(
 	if (processed.channels() == 3) cv::cvtColor(processed, gray, cv::COLOR_BGR2GRAY);
 	else gray = processed;
 
-	// ──────── 新增：Mask 濾除處理（強化版） ────────
+	// 3. Mask 濾除處理（強化版，保留原邏輯）
 	if (!Mask.empty()) {
 		cv::Mat maskGray;
 		if (Mask.channels() == 3)
@@ -384,57 +385,72 @@ void GetToolPath_CurvatureOptimized_Mask(
 		else
 			maskGray = Mask;
 
-		// 強制轉成標準二值 Mask（避免 Mask 是 0~255 中間值）
 		cv::threshold(maskGray, maskGray, 1, 255, cv::THRESH_BINARY);
 
-		// 自動處理尺寸不一致（最常造成 toolpath 為空的問題）
 		if (maskGray.size() != gray.size()) {
 			cv::resize(maskGray, maskGray, gray.size(), 0, 0, cv::INTER_NEAREST);
 		}
 
 		cv::bitwise_and(gray, maskGray, gray);
 
-		// Debug 訊息（執行時會顯示，方便你確認 Mask 有沒有把影像濾掉）
 		std::cout << "[DEBUG] After Mask, non-zero pixels: " << cv::countNonZero(gray) << std::endl;
 	}
-	// ────────────────────────────────────────
 
-	// 3. 二值化（保留你原本的 128 門檻，與原本行為完全一致）
+	// 4. 二值化（保留原 128 門檻）
 	cv::threshold(gray, gray, 128, 255, cv::THRESH_BINARY);
 
-	// 4. 提取初始輪廓 (與你原本完全相同)
+	// 5. 提取初始輪廓
 	std::vector<std::vector<cv::Point>> contours;
 	cv::findContours(gray, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_TC89_L1);
 
 	toolpath.Path.clear();
 	toolpath.Offset = Offset;
 
-	// 5. 基於曲率進行降點 (Douglas-Peucker) - 完全保留你原本的邏輯
+	// 6. 處理每個輪廓 - 根據 enableCurvatureOptimization 決定是否簡化
 	for (const auto& contour : contours)
 	{
-		if (contour.size() < 3) continue;   // 避免雜訊
+		if (contour.size() < 3) continue;
 
-		std::vector<cv::Point> simplifiedContour;
-		double arcLen = cv::arcLength(contour, true);
-		double epsilon = epsilonFactor * arcLen;
+		std::vector<cv::Point> finalContour;
 
-		cv::approxPolyDP(contour, simplifiedContour, epsilon, true);
+		if (enableCurvatureOptimization)
+		{
+			// 啟用曲率優化：Douglas-Peucker 簡化
+			double arcLen = cv::arcLength(contour, true);
+			double epsilon = epsilonFactor * arcLen;
 
-		for (const auto& point : simplifiedContour)
+			cv::approxPolyDP(contour, finalContour, epsilon, true);
+
+			std::cout << "[INFO] Simplified contour from " << contour.size()
+				<< " to " << finalContour.size() << " points (epsilon=" << epsilon << ")" << std::endl;
+		}
+		else
+		{
+			// 關閉簡化：直接使用原始輪廓點
+			finalContour = contour;
+
+			std::cout << "[INFO] Using original contour (" << contour.size() << " points) - simplification disabled" << std::endl;
+		}
+
+		// 轉成 cv::Point2d 加入 toolpath
+		for (const auto& point : finalContour)
 		{
 			toolpath.Path.emplace_back(static_cast<double>(point.x), static_cast<double>(point.y));
 		}
 	}
 
-	// 6. 繪製結果（與你原本完全相同）
-	cv::drawContours(ImgSrc, contours, -1, cv::Scalar(0, 0, 255), 1); // 原輪廓(紅)
+	// 7. 繪製結果（根據是否簡化，顏色可區分）
+	cv::drawContours(ImgSrc, contours, -1, cv::Scalar(0, 0, 255), 1); // 原輪廓 (紅色)
+
+	cv::Scalar drawColor = enableCurvatureOptimization ? cv::Scalar(0, 255, 0) : cv::Scalar(255, 255, 0); // 綠=簡化 / 黃=原始
 	for (const auto& p : toolpath.Path) {
-		cv::circle(ImgSrc, cv::Point(static_cast<int>(p.x), static_cast<int>(p.y)), 2, cv::Scalar(0, 255, 0), -1);
+		cv::circle(ImgSrc, cv::Point(static_cast<int>(p.x), static_cast<int>(p.y)), 2, drawColor, -1);
 	}
 
-	std::cout << "[INFO] GetToolPath_CurvatureOptimized_Mask: Generated " << toolpath.Path.size() << " points" << std::endl;
+	std::cout << "[INFO] GetToolPath_CurvatureOptimized_Mask: Generated " << toolpath.Path.size() << " points "
+		<< (enableCurvatureOptimization ? "(simplified)" : "(original)") << std::endl;
 
-	ShowZoomedImage("Masked & Reduced Points Result", ImgSrc);
+	ShowZoomedImage("Masked & " + std::string(enableCurvatureOptimization ? "Reduced" : "Original") + " Points Result", ImgSrc);
 }
 
 
@@ -708,7 +724,7 @@ int SmoothPath(const Point2D* input, int inputSize, int windowSize, Point2D* out
 		for (int j = -half; j <= half; ++j) {
 			int idx = std::min<int>(std::max<int>(i + j, 0), inputSize - 1);
 			sx += input[idx].x * coeff[j + half];
-		 sy += input[idx].y * coeff[j + half];
+			sy += input[idx].y * coeff[j + half];
 		}
 		output[i].x = sx / sum;
 		output[i].y = sy / sum;
@@ -1055,7 +1071,6 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
 
 
 */
-
 
 //Convert contour to tool path
 // cv::Mat& src: the input image
@@ -1673,7 +1688,6 @@ int DeleteData(sqlite3* db, const char* db_name, const char* table_name, const c
 	return 0; // Return success
 }
 
-
 //Close the database
 int CloseDatabase(sqlite3* db)
 {
@@ -2180,6 +2194,267 @@ void OptimizeGluePath(
 		std::cerr << "OptimizeGluePath Error: " << e.what() << std::endl;
 	}
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

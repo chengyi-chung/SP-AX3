@@ -1053,7 +1053,8 @@ void WorkTab::OnBnClickedWorkMatchTemp()
 }
 
 
-void WorkTab::OnBnClickedIdcWorkToolPath() {
+void WorkTab::OnBnClickedIdcWorkToolPath() 
+{
     // 1. 影像檢查
     if (m_mat.empty()) {
         AfxMessageBox(_T("Source image is empty."));
@@ -1090,9 +1091,10 @@ void WorkTab::OnBnClickedIdcWorkToolPath() {
     mask(roiRect) = cv::Scalar(255);
 
     // 6. 提取原始工具路徑 (直接操作成員變數)
+	//m_mat: 原始影像
     this->toolPath.Path.clear();
     cv::Mat imgClone = m_mat.clone();
-    GetToolPath_CurvatureOptimized_Mask(imgClone, mask, offsetPx, this->toolPath, 0.001);
+    GetToolPath_CurvatureOptimized_Mask(imgClone, mask, offsetPx, this->toolPath, 0.0008,false);
 
     if (this->toolPath.Path.empty()) {
         AfxMessageBox(_T("No path detected in ROI."));
@@ -1109,10 +1111,32 @@ void WorkTab::OnBnClickedIdcWorkToolPath() {
     // 直接傳入成員變數，避免重複拷貝
     // 注意：OutputPath 建議定義為類別成員，以便後續繪圖或傳送給 PLC
     GluePath finalPath;
-    OptimizeGluePath(this->toolPath.Path, roiOpt, finalPath, 1);
+    OptimizeGluePath(this->toolPath.Path, roiOpt, finalPath, 2);
 
     // 8. 儲存或顯示結果
     this->m_OptimizedGluePath = finalPath; // 假設你有一個成員變數儲存最終結果
+
+
+#ifdef _DEBUG
+    // 僅 Debug 模式顯示 OpenCV 視窗，方便開發階段檢查路徑正確性
+    cv::Mat displayImg = m_mat.clone();
+
+    // 建議：把 cv::Point2d 轉成整數座標再畫，避免 OpenCV 警告
+    for (const auto& pt : finalPath.PathLeft) {
+        cv::circle(displayImg,
+            cv::Point(cvRound(pt.x), cvRound(pt.y)),
+            2, cv::Scalar(0, 0, 255), cv::FILLED);
+    }
+
+     //可選：畫右側路徑（綠色）做對照
+     for (const auto& pt : finalPath.PathRight) {
+         cv::circle(displayImg, cv::Point(cvRound(pt.x), cvRound(pt.y)), 
+                    2, cv::Scalar(0, 255, 0), cv::FILLED);
+     }
+
+    cv::imshow("Optimized Glue Path (Debug only)", displayImg);
+    cv::waitKey(0);
+#endif
 
     // 觸發重繪或更新 UI
     Invalidate(FALSE);

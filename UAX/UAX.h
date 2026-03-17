@@ -124,10 +124,19 @@ extern "C" UAX_API void GetToolPath(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPat
 extern "C" UAX_API void GetToolPath_Optimized(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpath);
 extern "C" UAX_API void GetToolPath_CurvatureOptimized(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpath, double epsilonFactor = 0.01);
 extern "C" UAX_API void GetToolPath_CurvatureOptimized_Mask(cv::Mat& ImgSrc,
-                                                                                                const cv::Mat& Mask,      // 新增：Mask 輸入
-                                                                                                cv::Point2d Offset,
-                                                                                                ToolPath& toolpath,
-                                                                                                double epsilonFactor);
+    const cv::Mat& Mask,      // 新增：Mask 輸入
+    cv::Point2d Offset,
+    ToolPath& toolpath,
+    double epsilonFactor,
+    bool enableCurvatureOptimization = true);   // ← 新增：是否啟用 Douglas-Peucker 簡化
+
+//extern "C" UAX_API void GetToolPath_CurvatureOptimized_Mask(cv::Mat& ImgSrc,
+//                                                                                                const cv::Mat& Mask,      // 新增：Mask 輸入
+//                                                                                                cv::Point2d Offset,
+ //                                                                                               ToolPath& toolpath,
+ //                                                                                               double epsilonFactor);
+
+
 extern "C" UAX_API void GetToolPath_SymmetricOnly(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpath, double epsilonFactor = 0.01);
 
 

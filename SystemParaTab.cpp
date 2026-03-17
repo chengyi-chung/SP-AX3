@@ -105,11 +105,11 @@ void SystemParaTab::OnEnChangeTabSysOffsetValue()
 	CString str;
 	GetDlgItemText(IDD_TAB_SYS_OFFSET_VALUE, str);
 	//AfxMessageBox(str);
-	int iValue = _ttoi(str);
+	float fValue = _ttof(str);
 	double iResult;
 	double Radian = 45.0 * (M_PI / 180);
 		//iResult = iValue pluse cosine 45 degree
-	iResult = iValue * cos(Radian);
+	iResult = fValue * cos(Radian);
 	
 	//float iResult = iValue * 0.525322;
 	str.Format(_T("%0.3f"), iResult);
@@ -122,6 +122,7 @@ void SystemParaTab::OnEnChangeTabSysOffsetValue()
 	
 		if (pParentWnd)
 		{
+			pParentWnd->m_SystemPara.OffsetValue = fValue;
 			//pParentWnd->m_SystemPara.OffsetX = iResult;
 			//pParentWnd->m_SystemPara.OffsetY = iResult;
 		}
@@ -185,14 +186,13 @@ void SystemParaTab::UpdateControl()
 
 		//Fill in struct SystemConfig components to IDC_EDIT_SYSTEM_DATA
 		// 格式化資料以顯示在 IDC_EDIT_SYSTEM_DATA 控制項中
-		CString displayText;
+        CString displayText;
 		displayText.Format(_T("Modbus TCP 配置:\r\n")
 			_T("IP 地址: %s\r\n")
 			_T("端口: %d\r\n")
 			_T("站點 ID: %d\r\n\r\n")
 			_T("工具路徑配置:\r\n")
-			_T("偏移 X: %.4f\r\n")
-			_T("偏移 Y: %.4f\r\n\r\n")
+			_T("偏移值: %.4f\r\n\r\n")
 			_T("相機配置:\r\n")
 			_T("相機 ID: %d\r\n")
 			_T("MAC 位址: %s\r\n")
@@ -207,12 +207,7 @@ void SystemParaTab::UpdateControl()
 			_T("遮罩高度: %d\r\n")
 			_T("遮罩寬度: %d\r\n\r\n")
 			_T("機器配置:\r\n")
-			_T("機器類型: %s\r\n")
-			_T("點動速度: %d\r\n")
-			_T("自動速度: %d\r\n")
-			_T("減速加速度: %d\r\n")
-			_T("加速加速度: %d\r\n")
-			_T("螺距: %.2f"),
+			_T("機器類型: %s"),
 			CString(pParentWnd->m_SystemPara.IpAddress.c_str()),
 			pParentWnd->m_SystemPara.Port,
 			pParentWnd->m_SystemPara.StationID,

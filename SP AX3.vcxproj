@@ -174,8 +174,8 @@
       <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>opencv_world470.lib;sqlite3.lib;modbus.lib</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(OPENCV_path)\x64\vc16\lib;$(PYLON_DEV_DIR)lib\$(Platform);$(PYLON_LINK64);$(OutDir)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>opencv_world470.lib;sqlite3.lib;modbus.lib;UAX.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(OPENCV_path)\x64\vc16\lib;$(PYLON_DEV_DIR)lib\$(Platform);$(OutDir)</AdditionalLibraryDirectories>
     </Link>
     <Midl>
       <MkTypLibCompatible>false</MkTypLibCompatible>
@@ -225,6 +225,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="res\SP-AX.rc2" />
+    <None Include="SP\ AX3.vcxproj" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="res\YUFA.ico" />
@@ -233,4 +234,3 @@
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
 </Project>
-

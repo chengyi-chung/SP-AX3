@@ -108,9 +108,6 @@ D:\Git Repository\chengyi-chung\SP-AX3\UAX\UAX.cpp(1827,25): warning C4244: '=':
 D:\Git Repository\chengyi-chung\SP-AX3\UAX\UAX.cpp(1828,25): warning C4244: '=': 將 'float' 轉換為 'int'，由於類型不同，可能導致資料遺失
   UAXVision.cpp
 D:\Git Repository\chengyi-chung\SP-AX3\UAX\UAXVision.cpp(1,1): warning C4819: 檔案含有無法在目前字碼頁 (950) 中表示的字元。請以 Unicode 格式儲存檔案以防止資料遺失
-D:\Git Repository\chengyi-chung\SP-AX3\UAX\UAXVision.h(1,1): warning C4819: 檔案含有無法在目前字碼頁 (950) 中表示的字元。請以 Unicode 格式儲存檔案以防止資料遺失
-  (編譯來源檔案 'UAXVision.cpp')
-  
 C:\opencv\build\include\opencv2\core.hpp(1747,1): warning C4819: 檔案含有無法在目前字碼頁 (950) 中表示的字元。請以 Unicode 格式儲存檔案以防止資料遺失
   (編譯來源檔案 'UAXVision.cpp')
   

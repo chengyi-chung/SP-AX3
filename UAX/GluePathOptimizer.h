@@ -25,9 +25,21 @@ public:
      *   4. 再對次要側（左側）使用「相同Y序列」做擬合
      *   5. 輸出 PathRight 與 PathLeft（Y值完全一致）
      */
+    /**
+ * @brief 優化膠水路徑：根據鞋型（左腳/右腳）決定主導側，
+ *        對主導側進行平滑擬合得到標準 Y 序列，
+ *        次要側強制跟隨相同 Y 值進行擬合，確保左右路徑 Y 對齊。
+ *
+ * @param inputPath     原始輸入點序列（通常來自影像邊緣或分割結果，可能包含雜訊）
+ * @param optimizedPath 輸出結構，包含優化後的 PathLeft 與 PathRight
+ * @param shoeType      鞋型：1=右腳（右側為主），2=左腳（左側為主），其他=自動依點數判斷
+ */
     void OptimizePath(const std::vector<cv::Point2d>& inputPath,
         GluePath& optimizedPath,
-        int                              shoeType = 1);
+        int                              shoeType = 2);
+    // ── 新增這一行宣告 ──
+   // std::vector<double> ComputeArcLengthParam(const std::vector<cv::Point2d>& pts);
+    static std::vector<double> ComputeArcLengthParam(const std::vector<cv::Point2d>& pts);
 
 private:
     ROIMask mROI;
