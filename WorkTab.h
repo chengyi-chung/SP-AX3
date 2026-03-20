@@ -79,7 +79,11 @@ public:
 	int referenceX;
 	int referenceY;
 
-	GluePath m_OptimizedGluePath;  // 儲存優化後的膠水路徑
+	GluePath m_OptimizedGluePath;  // 儲存優化後的膠水路徑(相機座標mm，要先影像校正)
+	GluePath m_machineGluePath;  // 膠水機械座標
+
+	void ConvertToMachineCoordinates(const Point2D& MachineCoord);
+	//void convertToMachinePath(const GluePath& optimizedPath, GluePath& machinePath, const Point2d& machineOrigin);
 
 
 	void ToolPathTransform(ToolPath& toolpath, uint16_t* m_ToolPathData);

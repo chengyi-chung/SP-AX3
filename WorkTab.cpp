@@ -1102,7 +1102,7 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
     }
 
     // 7. 膠路同步優化 (核心步驟)
-    ROIMask roiOpt;
+    ROIMask roiOpt = {};
     roiOpt.MaskX = MaskX; roiOpt.MaskY = MaskY;
     roiOpt.MaskWidth = MaskWidth; roiOpt.MaskHeight = MaskHeight;
     roiOpt.RefCenterX = this->referenceX;
@@ -1116,6 +1116,15 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
     // 8. 儲存或顯示結果
     this->m_OptimizedGluePath = finalPath; // 假設你有一個成員變數儲存最終結果
 
+    // 9. 座標轉換將 m_OptimizedGluePath 轉換到 m_machineGluePath
+    Point2D OriginalMachineCoord;
+	OriginalMachineCoord.x = referenceX;  
+	OriginalMachineCoord.y = referenceY;
+
+    //函數將優化的膠水路徑轉換為機器座標系，通過從每個點的座標中減去給定的機器座標來實現。
+	//這樣做的目的是將路徑點從圖像座標系轉換到機器座標系，確保機器能夠正確地理解和執行路徑。
+	//轉換後的座標將存儲在 m_machineGluePath 中，這樣你就可以使用這些座標來控制機器的運動。
+    ConvertToMachineCoordinates(OriginalMachineCoord);
 
 #ifdef _DEBUG
     // 僅 Debug 模式顯示 OpenCV 視窗，方便開發階段檢查路徑正確性
@@ -1264,11 +1273,21 @@ void WorkTab::OnBnClickedIdcWorkGo()
         return static_cast<uint16_t>(val);
         };
 
+  
+    /*
     // 6. 資料轉換：將視覺座標轉換為 PLC 寄存器格式
     for (size_t i = 0; i < pointCount; ++i) {
         x1Regs[i] = toReg(m_OptimizedGluePath.PathRight[i].x);
         yRegs[i] = toReg(m_OptimizedGluePath.PathRight[i].y);
         x2Regs[i] = toReg(m_OptimizedGluePath.PathLeft[i].x);
+    }
+    */
+    // 6. 資料轉換：將膠水機械座標轉換為 PLC 寄存器格式
+    for (size_t i = 0; i < pointCount; ++i) 
+    {
+        x1Regs[i] = toReg(m_machineGluePath.PathRight[i].x);
+        yRegs[i] = toReg(m_machineGluePath.PathRight[i].y);
+        x2Regs[i] = toReg(m_machineGluePath.PathLeft[i].x);
     }
 
     // 7. Modbus 連線檢查與自動重連邏輯
@@ -2323,4 +2342,32 @@ void WorkTab::OnBnClickedCheckWorkRoi()
         }
         Invalidate(); // 觸發重繪
 
+}
+
+// 將 finalPath 中的每一點 轉換成 機械座標系
+// MachineCoord 是機械座標系的原點在圖像座標系中的位置
+// 轉換後的機械座標會存入 m_machineGluePath 中
+// 轉換公式：機械座標 = 圖像座標 - MachineCoord
+void WorkTab::ConvertToMachineCoordinates(const Point2D& MachineCoord)
+{
+    m_machineGluePath.PathRight.clear();
+    m_machineGluePath.PathLeft.clear();
+
+    // 右側
+    for (const auto& pt : m_OptimizedGluePath.PathRight)
+    {
+        cv::Point2d machinePt;
+        machinePt.x = pt.x - MachineCoord.x;
+        machinePt.y = pt.y - MachineCoord.y;
+        m_machineGluePath.PathRight.push_back(machinePt);
+    }
+
+    // 左側（獨立處理）
+    for (const auto& pt : m_OptimizedGluePath.PathLeft)
+    {
+        cv::Point2d machinePt;
+        machinePt.x = pt.x - MachineCoord.x;
+        machinePt.y = pt.y - MachineCoord.y;
+        m_machineGluePath.PathLeft.push_back(machinePt);
+    }
 }

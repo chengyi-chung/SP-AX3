@@ -58,7 +58,7 @@ void GluePathOptimizer::OptimizePath(const std::vector<cv::Point2d>& inputPath,
         primaryRawPtr = &rightRaw;
         secondaryRawPtr = &leftRaw;
         isLeftPrimary = false;
-    }
+    }                                                                                           
     else {
         // 自動模式（建議正式版務必傳正確 shoeType）
         if (rightRaw.size() >= leftRaw.size()) {
