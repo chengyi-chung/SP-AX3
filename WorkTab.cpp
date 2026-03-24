@@ -2348,6 +2348,7 @@ void WorkTab::OnBnClickedCheckWorkRoi()
 // MachineCoord 是機械座標系的原點在圖像座標系中的位置
 // 轉換後的機械座標會存入 m_machineGluePath 中
 // 轉換公式：機械座標 = 圖像座標 - MachineCoord
+/*
 void WorkTab::ConvertToMachineCoordinates(const Point2D& MachineCoord)
 {
     m_machineGluePath.PathRight.clear();
@@ -2369,5 +2370,68 @@ void WorkTab::ConvertToMachineCoordinates(const Point2D& MachineCoord)
         machinePt.x = pt.x - MachineCoord.x;
         machinePt.y = pt.y - MachineCoord.y;
         m_machineGluePath.PathLeft.push_back(machinePt);
+    }
+}
+*/
+
+
+// 完整座標轉換：相機座標 → 機械座標 → HMI座標
+// 流程：
+//   1. m_OptimizedGluePath - MachineCoord  → m_machineGluePath (機械原點歸零)
+//   2. m_machineGluePath + (400, 16)        → m_HMIGluePath_temp (映射至HMI原點)
+//   3. m_HMIGluePath_temp / (3, 5)          → m_HMIGluePath (縮放至HMI顯示)
+
+void WorkTab::ConvertToMachineCoordinates(const Point2D& MachineCoord)
+{
+    m_machineGluePath.PathRight.clear();
+    m_machineGluePath.PathLeft.clear();
+    m_HMIGluePath.PathRight.clear();
+    m_HMIGluePath.PathLeft.clear();
+
+    constexpr double HMI_ORIGIN_X = 400.0;
+    constexpr double HMI_ORIGIN_Y = 16.0;
+    constexpr double HMI_SCALE_X = 3.0;
+    constexpr double HMI_SCALE_Y = 5.0;
+
+    // 右側
+    for (const auto& pt : m_OptimizedGluePath.PathRight)
+    {
+        // Step 1: 相機座標 → 機械座標
+        cv::Point2d machinePt;
+        machinePt.x = pt.x - MachineCoord.x;
+        machinePt.y = pt.y - MachineCoord.y;
+        m_machineGluePath.PathRight.push_back(machinePt);
+
+        // Step 2: 機械座標 → HMI暫存（映射至HMI原點）
+        cv::Point2d hmiTemp;
+        hmiTemp.x = machinePt.x + HMI_ORIGIN_X;
+        hmiTemp.y = machinePt.y + HMI_ORIGIN_Y;
+
+        // Step 3: 縮放至HMI顯示座標
+        cv::Point2d hmiPt;
+        hmiPt.x = hmiTemp.x / HMI_SCALE_X;
+        hmiPt.y = hmiTemp.y / HMI_SCALE_Y;
+        m_HMIGluePath.PathRight.push_back(hmiPt);
+    }
+
+    // 左側
+    for (const auto& pt : m_OptimizedGluePath.PathLeft)
+    {
+        // Step 1: 相機座標 → 機械座標
+        cv::Point2d machinePt;
+        machinePt.x = pt.x - MachineCoord.x;
+        machinePt.y = pt.y - MachineCoord.y;
+        m_machineGluePath.PathLeft.push_back(machinePt);
+
+        // Step 2: 機械座標 → HMI暫存（映射至HMI原點）
+        cv::Point2d hmiTemp;
+        hmiTemp.x = machinePt.x + HMI_ORIGIN_X;
+        hmiTemp.y = machinePt.y + HMI_ORIGIN_Y;
+
+        // Step 3: 縮放至HMI顯示座標
+        cv::Point2d hmiPt;
+        hmiPt.x = hmiTemp.x / HMI_SCALE_X;
+        hmiPt.y = hmiTemp.y / HMI_SCALE_Y;
+        m_HMIGluePath.PathLeft.push_back(hmiPt);
     }
 }

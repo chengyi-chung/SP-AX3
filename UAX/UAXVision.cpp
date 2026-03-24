@@ -15,6 +15,7 @@ UAXVision::UAXVision() {
     // Initialize with identity / zeros
     cameraMatrix = cv::Mat::eye(3, 3, CV_64F);
     distCoeffs = cv::Mat::zeros(4, 1, CV_64F);   // 魚眼模型使用 4 個畸變係數
+
     imageSize = cv::Size(0, 0);
 }
 

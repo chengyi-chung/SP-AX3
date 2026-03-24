@@ -71,7 +71,7 @@ public:
 	int oriImageHeight;
 	int imgFlip;
 
-
+	
 	int MaskX;
 	int MaskY;
 	int MaskWidth;
@@ -81,6 +81,9 @@ public:
 
 	GluePath m_OptimizedGluePath;  // 儲存優化後的膠水路徑(相機座標mm，要先影像校正)
 	GluePath m_machineGluePath;  // 膠水機械座標
+	GluePath m_HMIGluePath;  // HMI 顯示座標
+
+
 
 	void ConvertToMachineCoordinates(const Point2D& MachineCoord);
 	//void convertToMachinePath(const GluePath& optimizedPath, GluePath& machinePath, const Point2d& machineOrigin);
