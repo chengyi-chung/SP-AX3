@@ -154,6 +154,8 @@ public:
 
 	// 方便函數：從 m_SystemPara 收集值 → 寫入 PLC
 	bool SyncWriteFromSystemPara(int stationID = 1);
+	bool SyncReadAndUpdateMemStruct(int stationID = 1);
+	bool SyncWriteFromMemStruct(int stationID = 1);
 	
 
 	
@@ -161,12 +163,34 @@ public:
 	HICON m_hIcon;
 
 private:
+	enum : UINT_PTR {
+		kHmiSyncTimerId = 0x5101
+	};
+
 	bool m_bDrawingROI = false;        // 是否正在拖曳框選
 	CPoint m_ROIStart;                 // ROI 起始點（Picture Control 客戶區座標）
 	CPoint m_ROICurrent;               // ROI 當前點（拖曳時的終點）
 	CRect m_SelectedROI;               // 最終確定的 ROI（像素座標，對應原始圖像）
 
 	bool m_bROIConfirmed = false;      // 是否已確認 ROI（可選）
+	bool m_hmiSyncEnabled = false;
+	bool m_hmiSyncBusy = false;
+	UINT m_hmiSyncIntervalMs = 300;
+	SystemConfigA m_lastSyncedSystemPara{};
+	MemStruct_SP m_lastSyncedMemStruct{};
+
+	void StartHmiSyncTimer();
+	void StopHmiSyncTimer();
+	void SyncHmiData(int stationID = 1);
+	bool ReadHoldingRegistersBlock(int startAddress, int count, std::vector<uint16_t>& outValues, int stationID = 1);
+	bool WriteHoldingRegistersBlock(int startAddress, const std::vector<uint16_t>& values, int stationID = 1);
+	void BuildSystemConfigRegisters(const SystemConfigA& src, std::vector<uint16_t>& outValues) const;
+	void ApplySystemConfigRegisters(const std::vector<uint16_t>& values, SystemConfigA& dst) const;
+	void BuildMemStructRegisters(const MemStruct_SP& src, std::vector<uint16_t>& outValues) const;
+	void ApplyMemStructRegisters(const std::vector<uint16_t>& values, MemStruct_SP& dst) const;
+	bool IsSystemConfigDisplayDataValid(const SystemConfigA& value) const;
+	bool IsSystemConfigEqual(const SystemConfigA& lhs, const SystemConfigA& rhs) const;
+	bool IsMemStructEqual(const MemStruct_SP& lhs, const MemStruct_SP& rhs) const;
 
 	
 
@@ -184,6 +208,7 @@ public:
 	afx_msg void OnBnClickedWorkGrab();
 	afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
 	afx_msg void OnPaint();
+ afx_msg void OnDestroy();
 	afx_msg void OnBnClickedWorkStopGrab();
 	virtual void OnOK();
 	virtual void OnCancel();
@@ -202,5 +227,6 @@ public:
 	// 新增：讀取 Holding Registers
 	bool ReadModbusRegisters(int startAddress, int numRegisters, std::vector<uint16_t>& outRegs, int stationID = 1);
 	afx_msg void OnBnClickedCheckWorkRoi();
+	afx_msg void OnTimer(UINT_PTR nIDEvent);
 };
 

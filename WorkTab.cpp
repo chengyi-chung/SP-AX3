@@ -5,7 +5,9 @@
 #include "SPDlg.h"
 #include "afxdialogex.h"
 #include "WorkTab.h"
+#include <algorithm>
 #include <string>
+#include <cmath>
 #include "UAX\\UAXVision.cpp" // bring UAXVision implementation into this module
 //Add pylon header files to MFC project
 
@@ -76,6 +78,13 @@ void mouseCallback(int event, int x, int y, int flags, void* userdata)
     }
 }
 
+void WorkTab::OnDestroy()
+{
+    // 在窗口被銷毀前先停止計時器，避免 HWND 已為 NULL 時 KillTimer 觸發斷點
+    StopHmiSyncTimer();
+    CDialogEx::OnDestroy();
+}
+
 cv::Mat showImageAndReturnROI(cv::Mat& m_mat, int screenHeight, int screenWidth)
 {
     if (m_mat.empty())
@@ -90,7 +99,7 @@ cv::Mat showImageAndReturnROI(cv::Mat& m_mat, int screenHeight, int screenWidth)
     // Resize the image to fit the screen if the image is larger than the screen
     if (m_mat.cols > screenWidth || m_mat.rows > screenHeight)
     {
-        double scaleFactor = std::min((double)screenWidth / m_mat.cols, (double)screenHeight / m_mat.rows);
+        double scaleFactor = (std::min)((double)screenWidth / m_mat.cols, (double)screenHeight / m_mat.rows);
         cv::resize(m_mat, dstImage, cv::Size(), scaleFactor, scaleFactor);
     }
 
@@ -122,6 +131,7 @@ WorkTab::WorkTab(CWnd* pParent /*=nullptr*/)
 
 WorkTab::~WorkTab()
 {
+    StopHmiSyncTimer();
     PylonTerminate();
 }
 
@@ -143,6 +153,8 @@ BEGIN_MESSAGE_MAP(WorkTab, CDialogEx)
 	ON_BN_CLICKED(IDC_WORK_GRAB, &WorkTab::OnBnClickedWorkGrab)
     ON_WM_CTLCOLOR()
     ON_WM_PAINT()
+    ON_WM_DESTROY()
+    ON_WM_TIMER()
     ON_BN_CLICKED(IDC_WORK_STOP_GRAB, &WorkTab::OnBnClickedWorkStopGrab)
     ON_WM_MOUSEMOVE()
     ON_WM_SETCURSOR()
@@ -171,7 +183,7 @@ BOOL WorkTab::OnInitDialog()
 
     //Picture Control IDC_PICCTL_DISPLAY
     pWnd = GetDlgItem(IDC_PICCTL_DISPLAY); // 假设你的Picture Control控件的ID是IDC_PICTURE_CONTROL。
-    pDC = pWnd->GetDC();
+    pDC = nullptr;
 
 
     // 建立字型 (高度 20, 粗體)
@@ -214,9 +226,11 @@ BOOL WorkTab::OnInitDialog()
 
     PylonInitialize();
 
-    CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
+	CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
 
 	imgFlip = pParentWnd->m_SystemPara.ImageFlip;
+    m_lastSyncedSystemPara = pParentWnd->m_SystemPara;
+    m_lastSyncedMemStruct = pParentWnd->m_MemStruct_SP;
 
 
     // 設定按鈕底色與文字顏色
@@ -258,6 +272,7 @@ BOOL WorkTab::OnInitDialog()
 	//Save Img按鈕
 	m_Work_SaveImg.SetFaceColor(RGB(200, 228, 255));
 	m_Work_SaveImg.SetTextColor(RGB(0, 0, 0));    //黑色字
+    StartHmiSyncTimer();
 	m_Work_SaveImg.SetFont(&m_fontBoldBig);
 
 	//Calibration按鈕
@@ -274,7 +289,14 @@ BOOL WorkTab::OnInitDialog()
 	MaskHeight = pParentWnd->m_SystemPara.MaskHeight;
 	referenceX = pParentWnd->m_SystemPara.RefCenterX;
 	referenceY = pParentWnd->m_SystemPara.RefCenterY;
-    return 0;
+   
+
+	// 預設check box 為勾選狀態
+	CheckDlgButton(IDC_CHECK_WORK_CENTER, BST_CHECKED);
+	CheckDlgButton(IDC_CHECK_WORK_ROI, BST_CHECKED);
+    m_bROIMode = (IsDlgButtonChecked(IDC_CHECK_WORK_ROI) == BST_CHECKED);
+    flgCenter = (IsDlgButtonChecked(IDC_CHECK_WORK_CENTER) == BST_CHECKED);
+    return TRUE;
 
 }
 
@@ -299,6 +321,349 @@ HBRUSH WorkTab::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
 
     // 否則，回傳預設的筆刷
    return hbr;
+}
+
+void WorkTab::StartHmiSyncTimer()
+{
+    if (!m_hmiSyncEnabled) {
+        SetTimer(kHmiSyncTimerId, m_hmiSyncIntervalMs, nullptr);
+        m_hmiSyncEnabled = true;
+    }
+}
+
+void WorkTab::StopHmiSyncTimer()
+{
+    // 安全停用：確保視窗尚有有效 HWND 才呼叫 KillTimer
+    if (m_hmiSyncEnabled && m_hWnd) {
+        KillTimer(kHmiSyncTimerId);
+    }
+    m_hmiSyncEnabled = false;
+}
+
+bool WorkTab::ReadHoldingRegistersBlock(int startAddress, int count, std::vector<uint16_t>& outValues, int stationID)
+{
+    CSPDlg* pParent = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
+    if (!pParent) {
+        return false;
+    }
+
+    if (!pParent->m_modbusCtx) {
+        if (!pParent->InitModbusWithRetry(pParent->m_SystemPara.IpAddress, pParent->Port, stationID, 3, 1000)) {
+            return false;
+        }
+    }
+
+    std::lock_guard<std::mutex> lock(pParent->m_modbusMutex);
+    modbus_set_slave(pParent->m_modbusCtx, stationID);
+
+    outValues.assign(count, 0);
+    return modbus_read_registers(pParent->m_modbusCtx, startAddress, count, outValues.data()) != -1;
+}
+
+bool WorkTab::WriteHoldingRegistersBlock(int startAddress, const std::vector<uint16_t>& values, int stationID)
+{
+    if (values.empty()) {
+        return true;
+    }
+
+    CSPDlg* pParent = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
+    if (!pParent) {
+        return false;
+    }
+
+    if (!pParent->m_modbusCtx) {
+        if (!pParent->InitModbusWithRetry(pParent->m_SystemPara.IpAddress, pParent->Port, stationID, 3, 1000)) {
+            return false;
+        }
+    }
+
+    std::lock_guard<std::mutex> lock(pParent->m_modbusMutex);
+    modbus_set_slave(pParent->m_modbusCtx, stationID);
+    return modbus_write_registers(pParent->m_modbusCtx, startAddress, static_cast<int>(values.size()), values.data()) != -1;
+}
+
+void WorkTab::BuildSystemConfigRegisters(const SystemConfigA& src, std::vector<uint16_t>& outValues) const
+{
+    outValues.assign(18, 0);
+    outValues[0] = static_cast<uint16_t>(src.ImageBinary);
+    outValues[1] = static_cast<uint16_t>(src.CreateToolPath);
+    outValues[2] = static_cast<uint16_t>(src.DispalyToolPath);
+    outValues[3] = static_cast<uint16_t>(src.DisplayROI);
+    outValues[4] = static_cast<uint16_t>(src.DisplayRefLine);
+    outValues[5] = static_cast<uint16_t>(src.TabWork);
+    outValues[6] = static_cast<uint16_t>(std::lround(src.OffsetValue));
+    outValues[7] = static_cast<uint16_t>(src.BinaryUpper);
+    outValues[8] = static_cast<uint16_t>(src.BinaryLower);
+    outValues[9] = static_cast<uint16_t>(src.MaskX);
+    outValues[10] = static_cast<uint16_t>(src.MaskY);
+    outValues[11] = static_cast<uint16_t>(src.MaskWidth);
+    outValues[12] = static_cast<uint16_t>(src.MaskHeight);
+    outValues[13] = static_cast<uint16_t>(src.StationID);
+    outValues[14] = static_cast<uint16_t>(src.CameraID);
+    outValues[15] = static_cast<uint16_t>(src.RefCenterX);
+    outValues[16] = static_cast<uint16_t>(src.RefCenterY);
+    outValues[17] = static_cast<uint16_t>(src.ImageFlip);
+}
+
+void WorkTab::ApplySystemConfigRegisters(const std::vector<uint16_t>& values, SystemConfigA& dst) const
+{
+    if (values.size() < 18) {
+        return;
+    }
+
+    dst.ImageBinary = values[0];
+    dst.CreateToolPath = values[1];
+    dst.DispalyToolPath = values[2];
+    dst.DisplayROI = values[3];
+    dst.DisplayRefLine = values[4];
+    dst.TabWork = values[5];
+    dst.OffsetValue = static_cast<float>(values[6]);
+    dst.BinaryUpper = values[7];
+    dst.BinaryLower = values[8];
+    dst.MaskX = values[9];
+    dst.MaskY = values[10];
+    dst.MaskWidth = values[11];
+    dst.MaskHeight = values[12];
+    dst.StationID = values[13];
+    dst.CameraID = values[14];
+    dst.RefCenterX = values[15];
+    dst.RefCenterY = values[16];
+    dst.ImageFlip = static_cast<short>(values[17]);
+}
+
+void WorkTab::BuildMemStructRegisters(const MemStruct_SP& src, std::vector<uint16_t>& outValues) const
+{
+    outValues.assign(26, 0);
+    outValues[0] = static_cast<uint16_t>(src.RecipeID);
+    outValues[1] = static_cast<uint16_t>(src.CurrentProduction);
+    outValues[2] = static_cast<uint16_t>(src.Set_temperature0);
+    outValues[3] = static_cast<uint16_t>(src.Temperature0);
+    outValues[4] = static_cast<uint16_t>(src.Set_Temperature1);
+    outValues[5] = static_cast<uint16_t>(src.Temperature1);
+    outValues[6] = static_cast<uint16_t>(src.Set_temperature2);
+    outValues[7] = static_cast<uint16_t>(src.Temperature2);
+    outValues[8] = static_cast<uint16_t>(src.Servo_ALE0);
+    outValues[9] = static_cast<uint16_t>(src.Servo_ALE1);
+    outValues[10] = static_cast<uint16_t>(src.Servo_ALE2);
+    outValues[11] = static_cast<uint16_t>(src.Servo_ALE3);
+    outValues[12] = static_cast<uint16_t>(src.i_ProcessingTimeCount);
+    outValues[13] = static_cast<uint16_t>(src.i_SystemTimeCount);
+    outValues[14] = static_cast<uint16_t>(src.MachineID);
+    outValues[15] = static_cast<uint16_t>(src.MachineModel);
+    outValues[16] = src.Alm_tem_not_reach;
+    outValues[17] = src.flag_AL_overload;
+    outValues[18] = src.Alm_airPressureLow;
+    outValues[19] = src.flag_AL_emergency;
+    outValues[20] = src.flag_AL_midside_sensor;
+    outValues[21] = src.Alm_ManualY_GoOut;
+    outValues[22] = src.MachineStatus;
+    outValues[23] = src.WorkingMode;
+
+    union FloatBits {
+        float f;
+        uint32_t u;
+    } value{};
+    value.f = src.p19;
+    outValues[24] = static_cast<uint16_t>((value.u >> 16) & 0xFFFF);
+    outValues[25] = static_cast<uint16_t>(value.u & 0xFFFF);
+}
+
+void WorkTab::ApplyMemStructRegisters(const std::vector<uint16_t>& values, MemStruct_SP& dst) const
+{
+    if (values.size() < 26) {
+        return;
+    }
+
+    dst.RecipeID = values[0];
+    dst.CurrentProduction = values[1];
+    dst.Set_temperature0 = values[2];
+    dst.Temperature0 = values[3];
+    dst.Set_Temperature1 = values[4];
+    dst.Temperature1 = values[5];
+    dst.Set_temperature2 = values[6];
+    dst.Temperature2 = values[7];
+    dst.Servo_ALE0 = values[8];
+    dst.Servo_ALE1 = values[9];
+    dst.Servo_ALE2 = values[10];
+    dst.Servo_ALE3 = values[11];
+    dst.i_ProcessingTimeCount = values[12];
+    dst.i_SystemTimeCount = values[13];
+    dst.MachineID = values[14];
+    dst.MachineModel = values[15];
+    dst.Alm_tem_not_reach = static_cast<uint8_t>(values[16]);
+    dst.flag_AL_overload = static_cast<uint8_t>(values[17]);
+    dst.Alm_airPressureLow = static_cast<uint8_t>(values[18]);
+    dst.flag_AL_emergency = static_cast<uint8_t>(values[19]);
+    dst.flag_AL_midside_sensor = static_cast<uint8_t>(values[20]);
+    dst.Alm_ManualY_GoOut = static_cast<uint8_t>(values[21]);
+    dst.MachineStatus = static_cast<uint8_t>(values[22]);
+    dst.WorkingMode = static_cast<uint8_t>(values[23]);
+
+    union FloatBits {
+        float f;
+        uint32_t u;
+    } value{};
+    value.u = (static_cast<uint32_t>(values[24]) << 16) | values[25];
+    dst.p19 = value.f;
+}
+
+bool WorkTab::IsSystemConfigEqual(const SystemConfigA& lhs, const SystemConfigA& rhs) const
+{
+    return lhs.IpAddress == rhs.IpAddress &&
+        lhs.Port == rhs.Port &&
+        lhs.StationID == rhs.StationID &&
+        lhs.OffsetValue == rhs.OffsetValue &&
+        lhs.CameraID == rhs.CameraID &&
+        lhs.CameraWidth == rhs.CameraWidth &&
+        lhs.CameraHeight == rhs.CameraHeight &&
+        lhs.TransferFactor == rhs.TransferFactor &&
+        lhs.ImageFlip == rhs.ImageFlip &&
+        lhs.ImageBinary == rhs.ImageBinary &&
+        lhs.CreateToolPath == rhs.CreateToolPath &&
+        lhs.DispalyToolPath == rhs.DispalyToolPath &&
+        lhs.DisplayROI == rhs.DisplayROI &&
+        lhs.BinaryUpper == rhs.BinaryUpper &&
+        lhs.BinaryLower == rhs.BinaryLower &&
+        lhs.MaskX == rhs.MaskX &&
+        lhs.MaskY == rhs.MaskY &&
+        lhs.MaskWidth == rhs.MaskWidth &&
+        lhs.MaskHeight == rhs.MaskHeight &&
+        lhs.RefCenterX == rhs.RefCenterX &&
+        lhs.RefCenterY == rhs.RefCenterY &&
+        lhs.MachineType == rhs.MachineType &&
+        lhs.DisplayRefLine == rhs.DisplayRefLine &&
+        lhs.TabWork == rhs.TabWork &&
+        lhs.CameraSerialNumber == rhs.CameraSerialNumber;
+}
+
+bool WorkTab::IsSystemConfigDisplayDataValid(const SystemConfigA& value) const
+{
+    if (value.MaskWidth <= 0 || value.MaskHeight <= 0) {
+        return false;
+    }
+
+    if (value.MaskX < 0 || value.MaskY < 0) {
+        return false;
+    }
+
+    if (!m_mat.empty()) {
+        if (value.MaskX + value.MaskWidth > m_mat.cols) {
+            return false;
+        }
+        if (value.MaskY + value.MaskHeight > m_mat.rows) {
+            return false;
+        }
+        if (value.RefCenterX < 0 || value.RefCenterX >= m_mat.cols) {
+            return false;
+        }
+        if (value.RefCenterY < 0 || value.RefCenterY >= m_mat.rows) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool WorkTab::IsMemStructEqual(const MemStruct_SP& lhs, const MemStruct_SP& rhs) const
+{
+    return lhs.RecipeID == rhs.RecipeID &&
+        lhs.CurrentProduction == rhs.CurrentProduction &&
+        lhs.Set_temperature0 == rhs.Set_temperature0 &&
+        lhs.Temperature0 == rhs.Temperature0 &&
+        lhs.Set_Temperature1 == rhs.Set_Temperature1 &&
+        lhs.Temperature1 == rhs.Temperature1 &&
+        lhs.Set_temperature2 == rhs.Set_temperature2 &&
+        lhs.Temperature2 == rhs.Temperature2 &&
+        lhs.Servo_ALE0 == rhs.Servo_ALE0 &&
+        lhs.Servo_ALE1 == rhs.Servo_ALE1 &&
+        lhs.Servo_ALE2 == rhs.Servo_ALE2 &&
+        lhs.Servo_ALE3 == rhs.Servo_ALE3 &&
+        lhs.i_ProcessingTimeCount == rhs.i_ProcessingTimeCount &&
+        lhs.i_SystemTimeCount == rhs.i_SystemTimeCount &&
+        lhs.MachineID == rhs.MachineID &&
+        lhs.MachineModel == rhs.MachineModel &&
+        lhs.Alm_tem_not_reach == rhs.Alm_tem_not_reach &&
+        lhs.flag_AL_overload == rhs.flag_AL_overload &&
+        lhs.Alm_airPressureLow == rhs.Alm_airPressureLow &&
+        lhs.flag_AL_emergency == rhs.flag_AL_emergency &&
+        lhs.flag_AL_midside_sensor == rhs.flag_AL_midside_sensor &&
+        lhs.Alm_ManualY_GoOut == rhs.Alm_ManualY_GoOut &&
+        lhs.MachineStatus == rhs.MachineStatus &&
+        lhs.WorkingMode == rhs.WorkingMode &&
+        lhs.p19 == rhs.p19;
+}
+
+void WorkTab::SyncHmiData(int stationID)
+{
+    if (m_hmiSyncBusy) {
+        return;
+    }
+
+    m_hmiSyncBusy = true;
+
+    constexpr int kSystemConfigStart = 139;
+    constexpr int kMemStructStart = 157;   // Assumption: contiguous HMI block after 139~156
+
+    CSPDlg* pParent = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
+    if (pParent) {
+        std::vector<uint16_t> regs;
+        SystemConfigA remoteSystem = pParent->m_SystemPara;
+        if (ReadHoldingRegistersBlock(kSystemConfigStart, 18, regs, stationID)) {
+            ApplySystemConfigRegisters(regs, remoteSystem);
+            if (IsSystemConfigDisplayDataValid(remoteSystem) &&
+                !IsSystemConfigEqual(remoteSystem, m_lastSyncedSystemPara)) {
+                pParent->m_SystemPara = remoteSystem;
+                m_lastSyncedSystemPara = remoteSystem;
+                MaskX = pParent->m_SystemPara.MaskX;
+                MaskY = pParent->m_SystemPara.MaskY;
+                MaskWidth = pParent->m_SystemPara.MaskWidth;
+                MaskHeight = pParent->m_SystemPara.MaskHeight;
+                referenceX = pParent->m_SystemPara.RefCenterX;
+                referenceY = pParent->m_SystemPara.RefCenterY;
+                if (m_bROIMode || flgCenter) {
+                    ShowImageOnPictureControl(flgCenter, cv::Scalar(0, 0, 255, 255), 1, CrossStyle::Solid);
+                }
+            }
+        }
+
+        if (!IsSystemConfigEqual(pParent->m_SystemPara, m_lastSyncedSystemPara)) {
+            BuildSystemConfigRegisters(pParent->m_SystemPara, regs);
+            if (WriteHoldingRegistersBlock(kSystemConfigStart, regs, stationID)) {
+                m_lastSyncedSystemPara = pParent->m_SystemPara;
+            }
+        }
+
+        MemStruct_SP remoteMem = pParent->m_MemStruct_SP;
+        if (ReadHoldingRegistersBlock(kMemStructStart, 26, regs, stationID)) {
+            ApplyMemStructRegisters(regs, remoteMem);
+            if (!IsMemStructEqual(remoteMem, m_lastSyncedMemStruct)) {
+                pParent->m_MemStruct_SP = remoteMem;
+                m_lastSyncedMemStruct = remoteMem;
+            }
+        }
+
+        if (!IsMemStructEqual(pParent->m_MemStruct_SP, m_lastSyncedMemStruct)) {
+            BuildMemStructRegisters(pParent->m_MemStruct_SP, regs);
+            if (WriteHoldingRegistersBlock(kMemStructStart, regs, stationID)) {
+                m_lastSyncedMemStruct = pParent->m_MemStruct_SP;
+            }
+        }
+    }
+
+    m_hmiSyncBusy = false;
+}
+
+void WorkTab::OnTimer(UINT_PTR nIDEvent)
+{
+    if (nIDEvent == kHmiSyncTimerId) {
+        CSPDlg* pParent = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
+        if (pParent) {
+            SyncHmiData(pParent->m_SystemPara.StationID);
+        }
+        return;
+    }
+
+    CDialogEx::OnTimer(nIDEvent);
 }
 
 
@@ -749,7 +1114,7 @@ void WorkTab::DisplayGrayImageInControl(uint8_t* pImage, int width, int height, 
 
 }
 
-// pImageBuffer, Zoom All  在Picture Control上直接显示图像的函数。
+// pImageBuffer, Zoom All  在Picture Control上直接显示图像的函數。
 void WorkTab::ShowImageOnPictureCtl()
 {
 	// if pImageBuffer is empty, return
@@ -773,22 +1138,34 @@ void WorkTab::ShowImageOnPictureCtl()
 
 void WorkTab::ShowImageOnPictureControl(bool flgCenter, cv::Scalar crossColor, int lineThickness, CrossStyle style)
 {
-    if (m_mat.empty()) return;
+    if (m_mat.empty() || pWnd == nullptr || !::IsWindow(pWnd->GetSafeHwnd())) return;
 
     CRect rect;
     pWnd->GetClientRect(&rect);
+    if (rect.Width() <= 0 || rect.Height() <= 0) return;
 
     cv::Mat resizedImage;
     cv::resize(m_mat, resizedImage, cv::Size(rect.Width(), rect.Height()));
 
     cv::Mat imageToShow;
-    cv::cvtColor(resizedImage, imageToShow, cv::COLOR_BGR2BGRA);
+    if (resizedImage.channels() == 1) {
+        cv::cvtColor(resizedImage, imageToShow, cv::COLOR_GRAY2BGRA);
+    }
+    else if (resizedImage.channels() == 3) {
+        cv::cvtColor(resizedImage, imageToShow, cv::COLOR_BGR2BGRA);
+    }
+    else if (resizedImage.channels() == 4) {
+        imageToShow = resizedImage.clone();
+    }
+    else {
+        return;
+    }
 
 
 
 	//取得 ROI checkbox 狀態，決定是否繪製 Mask 矩形
 
-	if (IsDlgButtonChecked(IDC_CHECK_WORK_ROI))
+	if (m_bROIMode)
     {
         // --- 新增：繪製 Mask 矩形 ---
      // Calculate scale factors
@@ -801,11 +1178,19 @@ void WorkTab::ShowImageOnPictureControl(bool flgCenter, cv::Scalar crossColor, i
             //double scaleX = static_cast<double>(imageToShow.cols) / rect.Width();
             //double scaleY = static_cast<double>(imageToShow.rows) / rect.Height();
 
-            int x = static_cast<int>(MaskX * scaleX);
-            int y = static_cast<int>(MaskY * scaleY);
-            int w = static_cast<int>(MaskWidth * scaleX);
-            int h = static_cast<int>(MaskHeight * scaleY);
-            cv::rectangle(imageToShow, cv::Rect(x, y, w, h), cv::Scalar(0, 255, 0, 255), 1);
+            int x = static_cast<int>(std::lround(MaskX * scaleX));
+            int y = static_cast<int>(std::lround(MaskY * scaleY));
+            int w = static_cast<int>(std::lround(MaskWidth * scaleX));
+            int h = static_cast<int>(std::lround(MaskHeight * scaleY));
+
+            x = (std::max)(0, (std::min)(x, imageToShow.cols - 1));
+            y = (std::max)(0, (std::min)(y, imageToShow.rows - 1));
+            w = (std::max)(0, (std::min)(w, imageToShow.cols - x));
+            h = (std::max)(0, (std::min)(h, imageToShow.rows - y));
+
+            if (w > 0 && h > 0) {
+                cv::rectangle(imageToShow, cv::Rect(x, y, w, h), cv::Scalar(0, 255, 0, 255), 1);
+            }
         }
         // --- End ---
     }
@@ -815,9 +1200,12 @@ void WorkTab::ShowImageOnPictureControl(bool flgCenter, cv::Scalar crossColor, i
     if (flgCenter)
     {
 
-        int centerX = imageToShow.cols / 2;
-        //int centerY = imageToShow.rows / 2;
-        int centerY = referenceY; // *static_cast<double>(rect.Height()) / m_mat.rows; // 使用 referenceY 計算 centerY
+        double scaleX = static_cast<double>(rect.Width()) / m_mat.cols;
+        double scaleY = static_cast<double>(rect.Height()) / m_mat.rows;
+        int centerX = static_cast<int>(std::lround(referenceX * scaleX));
+        int centerY = static_cast<int>(std::lround(referenceY * scaleY));
+        centerX = (std::max)(0, (std::min)(centerX, imageToShow.cols - 1));
+        centerY = (std::max)(0, (std::min)(centerY, imageToShow.rows - 1));
 
         auto drawDashedLine = [&](cv::Point start, cv::Point end, int dashLength)
             {
@@ -827,7 +1215,7 @@ void WorkTab::ShowImageOnPictureControl(bool flgCenter, cv::Scalar crossColor, i
                 for (double d = 0; d < totalLength; d += dashLength * 2)
                 {
                     cv::Point2f p1f = cv::Point2f(start) + dir * static_cast<float>(d);
-                    cv::Point2f p2f = cv::Point2f(start) + dir * static_cast<float>(std::min(d + dashLength, totalLength));
+                    cv::Point2f p2f = cv::Point2f(start) + dir * static_cast<float>((std::min)(d + dashLength, totalLength));
 
                     cv::line(imageToShow, cv::Point(cvRound(p1f.x), cvRound(p1f.y)),
                         cv::Point(cvRound(p2f.x), cvRound(p2f.y)),
@@ -865,8 +1253,9 @@ void WorkTab::ShowImageOnPictureControl(bool flgCenter, cv::Scalar crossColor, i
     bitmapInfo.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
     bitmapInfo.bmiHeader.biCompression = BI_RGB;
 
+    CClientDC controlDC(pWnd);
     ::StretchDIBits(
-        pDC->GetSafeHdc(),
+        controlDC.GetSafeHdc(),
         0, 0, rect.Width(), rect.Height(),
         0, 0, imageToShow.cols, imageToShow.rows,
         imageToShow.data,
@@ -893,7 +1282,7 @@ void WorkTab::OnBnClickedWorkStopGrab()
 void WorkTab::OnOK()
 {
     // TODO: 在此加入特定的程式碼和 (或) 呼叫基底類別
-
+    StopHmiSyncTimer();
     CDialogEx::OnOK();
 }
 
@@ -901,8 +1290,13 @@ void WorkTab::OnOK()
 void WorkTab::OnCancel()
 {
     // TODO: 在此加入特定的程式碼和 (或) 呼叫基底類別
-
+    StopHmiSyncTimer();
     CDialogEx::OnCancel();
+}
+
+BOOL WorkTab::PreTranslateMessage(MSG* pMsg)
+{
+    return CDialogEx::PreTranslateMessage(pMsg);
 }
 
 
@@ -1249,11 +1643,9 @@ void WorkTab::OnBnClickedIdcWorkGo()
     constexpr int kAxisCount = 30; // PLC 陣列預留長度
 
     // 4. 計算實際寫入點數 (取 PLC 長度與路徑資料長度的最小值，防止陣列越界)
-    const size_t pointCount = std::min({
+    const size_t pointCount = (std::min)(
         static_cast<size_t>(kAxisCount),
-        m_OptimizedGluePath.PathRight.size(),
-        m_OptimizedGluePath.PathLeft.size()
-        });
+        (std::min)(m_OptimizedGluePath.PathRight.size(), m_OptimizedGluePath.PathLeft.size()));
 
     if (pointCount == 0) {
         AfxMessageBox(_T("優化後的點位數為 0。"));
@@ -1444,15 +1836,15 @@ inline void AppendPointSafe(uint16_t* data, size_t& idx, size_t capacity,
     }
     // 處理負值：添加偏移，使其正（假設最小值-100mm，scale後-10000，偏移+10000）
     constexpr int32_t offset = 10000;  // 根據實際範圍調整
-    uint32_t xu = static_cast<uint32_t>(x + offset);
-    uint32_t yu = static_cast<uint32_t>(y + offset);
-    uint32_t zu = static_cast<uint32_t>(z + offset);  // z可能負？
-    data[idx++] = static_cast<uint16_t>(xu & 0xFFFF);
-    data[idx++] = static_cast<uint16_t>((xu >> 16) & 0xFFFF);
-    data[idx++] = static_cast<uint16_t>(yu & 0xFFFF);
-    data[idx++] = static_cast<uint16_t>((yu >> 16) & 0xFFFF);
-    data[idx++] = static_cast<uint16_t>(zu & 0xFFFF);
-    data[idx++] = static_cast<uint16_t>((zu >> 16) & 0xFFFF);
+    uint32_t x_u = static_cast<uint32_t>(x + offset);
+    uint32_t y_u = static_cast<uint32_t>(y + offset);
+    uint32_t z_u = static_cast<uint32_t>(z + offset);  // z可能負？
+    data[idx++] = static_cast<uint16_t>(x_u & 0xFFFF);
+    data[idx++] = static_cast<uint16_t>((x_u >> 16) & 0xFFFF);
+    data[idx++] = static_cast<uint16_t>(y_u & 0xFFFF);
+    data[idx++] = static_cast<uint16_t>((y_u >> 16) & 0xFFFF);
+    data[idx++] = static_cast<uint16_t>(z_u & 0xFFFF);
+    data[idx++] = static_cast<uint16_t>((z_u >> 16) & 0xFFFF);
 }
 
 
@@ -1461,80 +1853,6 @@ void WorkTab::ToolPathTransform32A(ToolPath pathOri, uint16_t* outData, size_t o
     if (!outData || pathOri.Path.empty() || pathOri.Path.size() != pathOri.numClusters.size()) {
         throw std::invalid_argument("Invalid input in ToolPathTransform32A");
         return;
-    }
-	float scaleFactor = 100.0f; // mm → 整數
-     static float imagePts[] = { 1035, 844, 1311, 1247, 1511, 963 };
-     static float worldPts[] = { -0.01f, 67.59f, 150.79f, 288.83f, 259.71f, 134.03f };
-
-    // 靜態初始化仿射矩陣，只計算一次
-    static cv::Mat affine = []() {
-        cv::Mat mat;
-        InitTransformer(imagePts, worldPts, 3, mat);
-        return mat;
-        }();
-
-    // 預計算世界座標
-    std::vector<std::pair<float, float>> worldCoords(pathOri.Path.size());
-    for (size_t i = 0; i < pathOri.Path.size(); ++i) {
-        PixelToWorld(pathOri.Path[i].x, pathOri.Path[i].y, worldCoords[i].first, worldCoords[i].second, affine);
-    }
-
-    // 估計總點數：原始點 + 簇變更數
-    size_t numClustersChanges = 0;
-    for (size_t i = 1; i < pathOri.Path.size(); ++i) {
-        if (pathOri.numClusters[i] != pathOri.numClusters[i - 1]) ++numClustersChanges;
-    }
-    size_t totalPoints = pathOri.Path.size() + numClustersChanges;
-    if (totalPoints * 6 > outCapacity) {
-        throw std::runtime_error("Insufficient output capacity");
-    }
-
-    size_t idx = 0;
-    for (size_t i = 0; i < pathOri.Path.size(); ++i) {
-        if (i > 0 && pathOri.numClusters[i] != pathOri.numClusters[i - 1]) {
-            auto& prev = worldCoords[i - 1];
-            auto& curr = worldCoords[i];
-            int32_t mx_int = static_cast<int32_t>(std::lround((prev.first + curr.first) / 2 * scaleFactor));
-            int32_t my_int = static_cast<int32_t>(std::lround((prev.second + curr.second) / 2 * scaleFactor));
-            int32_t zRet_int = static_cast<int32_t>(std::lround(zRetract * scaleFactor));
-            AppendPointSafe(outData, idx, outCapacity, mx_int, my_int, zRet_int);
-        }
-        auto& curr = worldCoords[i];
-        int32_t x_int = static_cast<int32_t>(std::lround(curr.first * scaleFactor));
-        int32_t y_int = static_cast<int32_t>(std::lround(curr.second * scaleFactor));
-        int32_t zWork_int = static_cast<int32_t>(std::lround(z_Machining * scaleFactor));
-        AppendPointSafe(outData, idx, outCapacity, x_int, y_int, zWork_int);
-    }
-}
-
-// 內聯函數：安全附加一個點到緩衝區
-// 將 int32_t 的 X, Y, Z 拆分成低/高 16 位 uint16_t，並處理負數（維持二補數）
-inline void AppendPointSafeA(std::vector<uint16_t>& buffer,  // 輸出：數據緩衝區
-    size_t& idx,                    // 輸入/輸出：當前索引
-    int32_t x, int32_t y, int32_t z) {  // 輸入：點的 X, Y, Z 值 (已縮放)
-    if (idx + 6 > buffer.size())
-        throw std::runtime_error("AppendPointSafe: buffer overflow");
-
-    const uint16_t* px = reinterpret_cast<const uint16_t*>(&x);
-    const uint16_t* py = reinterpret_cast<const uint16_t*>(&y);
-    const uint16_t* pz = reinterpret_cast<const uint16_t*>(&z);
-
-    buffer[idx++] = px[0];  buffer[idx++] = px[1];
-    buffer[idx++] = py[0];  buffer[idx++] = py[1];
-    buffer[idx++] = pz[0];  buffer[idx++] = pz[1];
-}
-
-
-// 類別 WorkTab 的成員函數
-// 此函數將原始工具路徑轉換為機器可讀的 uint16_t 數據格式
-// 並在分群變換時插入中間點以處理 Z 軸的 retract 操作
-void WorkTab::ToolPathTransform32B(ToolPath ToolPath_Ori,      // 輸入：原始工具路徑結構
-                                                                   float z_Machining,          // 輸入：加工時的 Z 值 (mm)
-                                                                    float zRetract) {           // 輸入：退刀時的 Z 值 (mm)
-    // 輸入驗證：檢查路徑是否為空，或 Path 和 numClusters 大小是否匹配
-    if (ToolPath_Ori.Path.empty() ||
-        ToolPath_Ori.Path.size() != ToolPath_Ori.numClusters.size()) {
-        throw std::invalid_argument("Invalid input in ToolPathTransform32A");
     }
 
     // 定義縮放因子：將 mm 轉換為整數 (x100)
@@ -1553,11 +1871,15 @@ void WorkTab::ToolPathTransform32B(ToolPath ToolPath_Ori,      // 輸入：原�
 
     // 預計算所有點的世界座標：避免在迴圈中重複計算，提高效率
     // 變更: 儲存縮放後的 int32_t 座標，而不是轉換後的 float
-    std::vector<std::pair<int32_t, int32_t>> worldCoords(ToolPath_Ori.Path.size());
-    for (size_t i = 0; i < ToolPath_Ori.Path.size(); ++i)
-    {
-        float x_mm = 0.0f, y_mm = 0.0f;
-        PixelToWorld(ToolPath_Ori.Path[i].x, ToolPath_Ori.Path[i].y, x_mm, y_mm, affine);
+    std::vector<std::pair<int32_t, int32_t>> worldCoords(pathOri.Path.size());
+    for (size_t i = 0; i < pathOri.Path.size(); ++i) {
+        float x_mm = 0.0f;
+        float y_mm = 0.0f;
+        PixelToWorld(static_cast<float>(pathOri.Path[i].x),
+            static_cast<float>(pathOri.Path[i].y),
+            x_mm,
+            y_mm,
+            affine);
 
         // 放大並取整
         int32_t x_int = static_cast<int32_t>(std::lround(x_mm * scaleFactor));
@@ -1569,30 +1891,29 @@ void WorkTab::ToolPathTransform32B(ToolPath ToolPath_Ori,      // 輸入：原�
 
     // 計算分群變換次數：用於預估輸出數據大小
     size_t numClustersChanges = 0;
-    for (size_t i = 1; i < ToolPath_Ori.Path.size(); ++i) {
-        if (ToolPath_Ori.numClusters[i] != ToolPath_Ori.numClusters[i - 1]) ++numClustersChanges;
+    for (size_t i = 1; i < pathOri.Path.size(); ++i) {
+        if (pathOri.numClusters[i] != pathOri.numClusters[i - 1]) ++numClustersChanges;
     }
-    size_t totalPoints = ToolPath_Ori.Path.size() + numClustersChanges;
-	int outCapacity = static_cast<int>(m_ToolPathDataA.size());
+    size_t totalPoints = pathOri.Path.size() + numClustersChanges;
     if (totalPoints * 6 > outCapacity) {
         throw std::runtime_error("Insufficient output capacity");
     }
 
     size_t idx = 0;
-    for (size_t i = 0; i < ToolPath_Ori.Path.size(); ++i) {
-        if (i > 0 && ToolPath_Ori.numClusters[i] != ToolPath_Ori.numClusters[i - 1]) {
+    for (size_t i = 0; i < pathOri.Path.size(); ++i) {
+        if (i > 0 && pathOri.numClusters[i] != pathOri.numClusters[i - 1]) {
             auto& prev = worldCoords[i - 1];
             auto& curr = worldCoords[i];
-            int32_t mx_int = static_cast<int32_t>(std::lround((prev.first + curr.first) / 2 * scaleFactor));
-            int32_t my_int = static_cast<int32_t>(std::lround((prev.second + curr.second) / 2 * scaleFactor));
+            int32_t mx_int = (prev.first + curr.first) / 2;
+            int32_t my_int = (prev.second + curr.second) / 2;
             int32_t zRet_int = static_cast<int32_t>(std::lround(zRetract * scaleFactor));
-            AppendPointSafeA(m_ToolPathDataA, idx, mx_int, my_int, zRet_int);
+            AppendPointSafe(outData, idx, outCapacity, mx_int, my_int, zRet_int);
         }
         auto& curr = worldCoords[i];
         int32_t x_int = curr.first;
         int32_t y_int = curr.second;
         int32_t zWork_int = static_cast<int32_t>(std::lround(z_Machining * scaleFactor));
-        AppendPointSafeA(m_ToolPathDataA, idx, x_int, y_int, zWork_int);
+        AppendPointSafe(outData, idx, outCapacity, x_int, y_int, zWork_int);
     }
 
     // --- 新增 Debug 輸出檢查（改用 OutputDebugStringA）---
@@ -1602,7 +1923,7 @@ void WorkTab::ToolPathTransform32B(ToolPath ToolPath_Ori,      // 輸入：原�
         debugOutput.reserve(8192);  // 預留足夠空間避免頻繁重新配置
 
         debugOutput += "\n-------------------------------------------------------------------------------------------------------------------------------------------\n";
-        debugOutput += "\n--- ToolPathTransform32B(ToolPath ToolPath_Ori, float z_Machining, float zRetract)  ---\n";
+        debugOutput += "\n--- ToolPathTransform32A(ToolPath ToolPath_Ori, float z_Machining, float zRetract)  ---\n";
 
         // 每個點由 6 個 uint16_t 組成
         size_t numPoints = idx / 6;
@@ -1640,7 +1961,7 @@ void WorkTab::ToolPathTransform32B(ToolPath ToolPath_Ori,      // 輸入：原�
             }
         }
 
-        debugOutput += "-----------------------   ToolPathTransform32B()     END -----------------------------------------\n";
+        debugOutput += "-----------------------   ToolPathTransform32A()     END -----------------------------------------\n";
 
         // 一次性輸出，避免 OutputDebugStringA 被呼叫太多次（效能較好）
         OutputDebugStringA(debugOutput.c_str());
@@ -1699,7 +2020,7 @@ void WorkTab::SendToolPathData(uint16_t *m_ToolPathData, int sizeOfArray, int st
         while (index < sizeOfArray) 
         {
             int batchSize = (sizeOfArray - index > maxBatchSize) ? maxBatchSize : (sizeOfArray - index);
-            batchSize = std::min(batchSize, maxModbusBatchSize);
+            batchSize = (std::min)(batchSize, maxModbusBatchSize);
 
             int rc = modbus_write_registers(pParentWnd->m_modbusCtx, index, batchSize, &m_ToolPathData[index]);
             if (rc == -1) 
@@ -1720,6 +2041,8 @@ void WorkTab::SendToolPathDataA(uint16_t* m_ToolPathData, int sizeOfArray, int s
 {
     const int maxBatchSize = 100;
     const int maxModbusBatchSize = MODBUS_MAX_WRITE_REGISTERS; // 123
+    const int regsPerPointPerAxis = 2;
+    const int maxBatchPoints = maxModbusBatchSize / regsPerPointPerAxis;
 
     CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
     if (pParentWnd == NULL) {
@@ -1748,310 +2071,68 @@ void WorkTab::SendToolPathDataA(uint16_t* m_ToolPathData, int sizeOfArray, int s
             return;
         }
 
-        uint16_t index = 0;
+        int index = 0;
         while (index < sizeOfArray)
         {
-            int batchSize = (sizeOfArray - index > maxBatchSize) ? maxBatchSize : (sizeOfArray - index);
-            batchSize = std::min(batchSize, maxModbusBatchSize);
+            int remainingPoints = sizeOfArray - index;
+            // 每批最多傳輸 maxBatchPoints 點
+            int batchPoints = (std::min)(maxBatchPoints, remainingPoints);
 
-            // original logic wrote X block and Y block separately; here preserve addresses
-            int startAddressX = 0;
-            int startAddressY = 10000;
+            // 單軸傳輸的寄存器數量 (每個點 2 個寄存器)
+            const int batchRegsPerAxis = batchPoints * regsPerPointPerAxis;
 
-            // write X block
-            rc = modbus_write_registers(pParentWnd->m_modbusCtx, startAddressX + index, batchSize, &m_ToolPathData[index]);
-            if (rc == -1) {
+            // 預先分配空間，用於存放分軸後的數據
+            std::vector<uint16_t> xRegs(batchRegsPerAxis);
+            std::vector<uint16_t> yRegs(batchRegsPerAxis);
+            std::vector<uint16_t> zRegs(batchRegsPerAxis);
+
+            // 填入本批次資料：從原始陣列中將 X, Y, Z 分離
+            for (int i = 0; i < batchPoints; ++i)
+            {
+                size_t base = (index + i) * 6;
+                int regIndex = i * 2;
+
+                xRegs[regIndex + 0] = m_ToolPathDataA[base + 0]; // X 低位
+                xRegs[regIndex + 1] = m_ToolPathDataA[base + 1]; // X 高位
+
+                yRegs[regIndex + 0] = m_ToolPathDataA[base + 2]; // Y 低位
+                yRegs[regIndex + 1] = m_ToolPathDataA[base + 3]; // Y 高位
+
+                zRegs[regIndex + 0] = m_ToolPathDataA[base + 4]; // Z 低位
+                zRegs[regIndex + 1] = m_ToolPathDataA[base + 5]; // Z 高位
+            }
+
+            // 計算當前批次的寫入偏移量 (每個座標佔 2 個寄存器)
+            int writeOffset = index * 2;
+
+            // 寫入 X (0 + writeOffset)
+            if (modbus_write_registers(pParentWnd->m_modbusCtx, 0 + writeOffset, batchRegsPerAxis, xRegs.data()) == -1) {
                 CString err;
-                err.Format(_T("Failed to write X registers at %d: %S"), index, modbus_strerror(errno));
+                err.Format(_T("Failed to write X block at %d: %S"), writeOffset, modbus_strerror(errno));
                 AfxMessageBox(err);
                 return;
             }
 
-            // write Y block (offset by 1 if original layout interleaved)
-            // Keep existing behavior: write starting from index+1 to represent odd index layout
-            rc = modbus_write_registers(pParentWnd->m_modbusCtx, startAddressY + index, batchSize, &m_ToolPathData[index + 1]);
-            if (rc == -1) {
+            // 寫入 Y (2 + writeOffset)
+            if (modbus_write_registers(pParentWnd->m_modbusCtx, 2 + writeOffset, batchRegsPerAxis, yRegs.data()) == -1) {
                 CString err;
-                err.Format(_T("Failed to write Y registers at %d: %S"), index, modbus_strerror(errno));
+                err.Format(_T("Failed to write Y block at %d: %S"), writeOffset, modbus_strerror(errno));
                 AfxMessageBox(err);
                 return;
             }
 
-            index += batchSize;
+            // 寫入 Z (4 + writeOffset)
+            if (modbus_write_registers(pParentWnd->m_modbusCtx, 4 + writeOffset, batchRegsPerAxis, zRegs.data()) == -1) {
+                CString err;
+                err.Format(_T("Failed to write Z block at %d: %S"), writeOffset, modbus_strerror(errno));
+                AfxMessageBox(err);
+                return;
+            }
+
+            index += batchPoints;
         }
     } // unlock
 }
-
-// 將工具路徑資料 m_ToolPathData 寫入 PLC，使用 Modbus 通訊
-void WorkTab::SendToolPathData32(uint16_t* m_ToolPathData, int sizeOfArray, int stationID)
-{
-    const int maxBatchSize = 100; // 每次最多寫入 100 個暫存器（Modbus 限制）
-
-    // 取得主視窗指標（用於存取 Modbus 相關設定）
-    CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
-    if (!pParentWnd) {
-        AfxMessageBox(_T("Parent window is NULL."));
-        return;
-    }
-
-    // 若尚未建立 Modbus 連線，則嘗試初始化
-    if (!pParentWnd->m_modbusCtx) {
-        bool ok = pParentWnd->InitModbusWithRetry(pParentWnd->m_SystemPara.IpAddress, pParentWnd->Port, stationID, 3, 1000);
-        if (!ok) {
-            AfxMessageBox(_T("Failed to initialize Modbus connection."));
-            return;
-        }
-    }
-
-    // 加鎖，確保 Modbus 操作執行緒安全
-    std::lock_guard<std::mutex> lock(pParentWnd->m_modbusMutex);
-    modbus_set_slave(pParentWnd->m_modbusCtx, stationID); // 設定目標站號
-
-    // 每個點佔 4 個暫存器（X低、X高、Y低、Y高）
-    int totalPoints = sizeOfArray / 4;
-
-    // 將總點數寫入 PLC 的 40026 暫存器
-    if (modbus_write_register(pParentWnd->m_modbusCtx, 40026, totalPoints) == -1) {
-        CString err;
-        err.Format(_T("Failed to write total points: %S"), modbus_strerror(errno));
-        AfxMessageBox(err);
-        return;
-    }
-
-    // 開始分批寫入資料
-    int pointIndex = 0;
-    while (pointIndex < totalPoints)
-    {
-        // 計算剩餘點數與本批次要處理的點數（最多 50 點）
-        int remainingPoints = totalPoints - pointIndex;
-        int batchPoints = std::min(maxBatchSize / 2, remainingPoints); // 每批最多 50 點
-        int batchSize = batchPoints * 2; // 每個座標佔 2 個寄存器（低位、高位）
-
-        // 建立 X/Y 暫存器資料陣列
-        std::vector<uint16_t> xRegs(batchSize);
-        std::vector<uint16_t> yRegs(batchSize);
-
-        // 從 m_ToolPathData 中擷取 X/Y 座標資料
-        for (int i = 0; i < batchPoints; ++i)
-        {
-            size_t base = (pointIndex + i) * 4;
-            xRegs[i * 2] = m_ToolPathData[base + 0]; // X 低位
-            xRegs[i * 2 + 1] = m_ToolPathData[base + 1]; // X 高位
-            yRegs[i * 2] = m_ToolPathData[base + 2]; // Y 低位
-            yRegs[i * 2 + 1] = m_ToolPathData[base + 3]; // Y 高位
-        }
-
-        // 計算寫入暫存器的起始位置（每個座標佔 2 個暫存器）
-        int writeIndex = pointIndex * 2;
-
-        // 寫入 X 座標資料到暫存器區段 0–19999
-        if (modbus_write_registers(pParentWnd->m_modbusCtx, writeIndex, batchSize, xRegs.data()) == -1) {
-            CString err;
-            err.Format(_T("Failed to write X block at %d: %S"), writeIndex, modbus_strerror(errno));
-            AfxMessageBox(err);
-            return;
-        }
-
-        // 寫入 Y 座標資料到暫存器區段 20000–39999
-        if (modbus_write_registers(pParentWnd->m_modbusCtx, 20000 + writeIndex, batchSize, yRegs.data()) == -1) {
-            CString err;
-            err.Format(_T("Failed to write Y block at %d: %S"), 20000 + writeIndex, modbus_strerror(errno));
-            AfxMessageBox(err);
-            return;
-        }
-
-        // 移動到下一批點資料
-        pointIndex += batchPoints;
-    }
-}
-
-
-void WorkTab::SendToolPathData32A(const std::vector<uint16_t>& m_ToolPathDataA, int sizeOfArray, int stationID)
-{
-    // sizeOfArray 必須是 6 的倍數（每點 6 個 uint16）
-    if (sizeOfArray <= 0 || sizeOfArray % 6 != 0) {
-        AfxMessageBox(_T("Tool path data size must be a multiple of 6 (XLo,XHi,YLo,YHi,ZLo,ZHi)."));
-        return;
-    }
-
-    const int maxBatchRegs = 100; // Modbus 一次最多寫 100~125 個暫存器
-    const int maxBatchPoints = maxBatchRegs / 6; // 每批最多傳輸 16 點 (96 個寄存器)
-
-    // 獲取父視窗指標（假設 CYUFADlg 存在）
-    CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
-    if (!pParentWnd) {
-        AfxMessageBox(_T("Parent window is NULL."));
-        return;
-    }
-
-    // 初始化 Modbus（如尚未連線）
-    if (!pParentWnd->m_modbusCtx) {
-        bool ok = pParentWnd->InitModbusWithRetry(pParentWnd->m_SystemPara.IpAddress,
-            pParentWnd->Port, stationID, 3, 1000);
-        if (!ok) {
-            AfxMessageBox(_T("Failed to initialize Modbus connection."));
-            return;
-        }
-    }
-
-    // 鎖定 Modbus 資源並設置從機 ID
-    std::lock_guard<std::mutex> lock(pParentWnd->m_modbusMutex);
-    modbus_set_slave(pParentWnd->m_modbusCtx, stationID);
-
-    int totalPoints = sizeOfArray / 6;
-
-    // 寫入總點數到 60016 (假設這是 PLC 用於讀取的長度暫存器)
-    if (modbus_write_register(pParentWnd->m_modbusCtx, 60016, static_cast<uint16_t>(totalPoints)) == -1) {
-        CString err;
-        err.Format(_T("Failed to write total points: %S"), modbus_strerror(errno));
-        AfxMessageBox(err);
-        return;
-    }
-
-    int pointIndex = 0;
-    while (pointIndex < totalPoints)
-    {
-        int remainingPoints = totalPoints - pointIndex;
-        // 每批最多傳輸 maxBatchPoints 點
-        int batchPoints = std::min(maxBatchPoints, remainingPoints);
-
-        // 單軸傳輸的寄存器數量 (每個點 2 個寄存器)
-        const int batchRegsPerAxis = batchPoints * 2;
-
-        // 預先分配空間，用於存放分軸後的數據
-        std::vector<uint16_t> xRegs(batchRegsPerAxis);
-        std::vector<uint16_t> yRegs(batchRegsPerAxis);
-        std::vector<uint16_t> zRegs(batchRegsPerAxis);
-
-        // 填入本批次資料：從原始陣列中將 X, Y, Z 分離
-        for (int i = 0; i < batchPoints; ++i)
-        {
-            size_t base = (pointIndex + i) * 6;
-            int regIndex = i * 2;
-
-            xRegs[regIndex + 0] = m_ToolPathDataA[base + 0]; // X 低位
-            xRegs[regIndex + 1] = m_ToolPathDataA[base + 1]; // X 高位
-
-            yRegs[regIndex + 0] = m_ToolPathDataA[base + 2]; // Y 低位
-            yRegs[regIndex + 1] = m_ToolPathDataA[base + 3]; // Y 高位
-
-            zRegs[regIndex + 0] = m_ToolPathDataA[base + 4]; // Z 低位
-            zRegs[regIndex + 1] = m_ToolPathDataA[base + 5]; // Z 高位
-        }
-
-        // 計算當前批次的寫入偏移量 (每個點佔 2 個寄存器)
-        int writeOffset = pointIndex * 2;
-
-        // 寫入 X (0 + writeOffset)
-        if (modbus_write_registers(pParentWnd->m_modbusCtx, 0 + writeOffset, batchRegsPerAxis, xRegs.data()) == -1) {
-            CString err;
-            err.Format(_T("Failed to write X block at %d: %S"), writeOffset, modbus_strerror(errno));
-            AfxMessageBox(err);
-            return;
-        }
-
-        // 寫入 Y (20000 + writeOffset)
-        if (modbus_write_registers(pParentWnd->m_modbusCtx, 20000 + writeOffset, batchRegsPerAxis, yRegs.data()) == -1) {
-            CString err;
-            err.Format(_T("Failed to write Y block at %d: %S"), 20000 + writeOffset, modbus_strerror(errno));
-            AfxMessageBox(err);
-            return;
-        }
-
-        // 寫入 Z (40000 + writeOffset)
-        if (modbus_write_registers(pParentWnd->m_modbusCtx, 40000 + writeOffset, batchRegsPerAxis, zRegs.data()) == -1) {
-            CString err;
-            err.Format(_T("Failed to write Z block at %d: %S"), 40000 + writeOffset, modbus_strerror(errno));
-            AfxMessageBox(err);
-            return;
-        }
-
-        pointIndex += batchPoints;
-    }
-
-    // 可選：傳送完成後發送一個通知訊號給 PLC
-    // if (modbus_write_register(pParentWnd->m_modbusCtx, 40027, 1) == -1) { /* 錯誤處理 */ }
-}
-
-
-
-
-BOOL WorkTab::PreTranslateMessage(MSG* pMsg)
-{
-    if (pMsg->message == WM_KEYDOWN)
-    {
-        int bitAddress = -1;
-        int bitValue = 1;
-        int nID = -1;
-
-        switch (pMsg->wParam)
-        {
-        case VK_LEFT:  // 左方向鍵，模擬 X- 按鈕
-            bitAddress = 4;
-            nID = IDC_BTN_JOG_X_MINUS;
-            break;
-        case VK_RIGHT:  // 右方向鍵，模擬 X+ 按鈕
-            bitAddress = 3;
-            nID = IDC_BTN_JOG_X_PLUS;
-            break;
-        case VK_UP:  // 上方向鍵，模擬 Y+ 按鈕
-            bitAddress = 5;
-            nID = IDC_BTN_JOG_Y_PLUS;
-            break;
-        case VK_DOWN:  // 下方向鍵，模擬 Y- 按鈕
-            bitAddress = 6;
-            nID = IDC_BTN_JOG_Y_MINUS;
-            break;
-        }
-
-        if (bitAddress != -1)
-        {
-            //ClearDiscrete3000(0, 8);
-            //Discrete3000Change(1, bitAddress, bitValue, nID);
-            return TRUE;  // 處理完鍵盤事件，不再繼續傳遞訊息
-        }
-    }
-    else if (pMsg->message == WM_KEYUP)
-    {
-        int bitAddress = -1;
-        int bitValue = 0;
-        int nID = -1;
-
-        switch (pMsg->wParam)
-        {
-        case VK_LEFT:  // 左方向鍵釋放，模擬 X- 按鈕釋放
-            bitAddress = 4;
-            nID = IDC_BTN_JOG_X_MINUS;
-            break;
-        case VK_RIGHT:  // 右方向鍵釋放，模擬 X+ 按鈕釋放
-            bitAddress = 3;
-            nID = IDC_BTN_JOG_X_PLUS;
-            break;
-        case VK_UP:  // 上方向鍵釋放，模擬 Y+ 按鈕釋放
-            bitAddress = 5;
-            nID = IDC_BTN_JOG_Y_PLUS;
-            break;
-        case VK_DOWN:  // 下方向鍵釋放，模擬 Y- 按鈕釋放
-            bitAddress = 6;
-            nID = IDC_BTN_JOG_Y_MINUS;
-            break;
-        }
-
-        if (bitAddress != -1)
-        {
-            //ClearDiscrete3000(0, 8);
-            // 註釋掉 Discrete3000Change 以避免在釋放時更新狀態
-            // Discrete3000Change(1, bitAddress, bitValue, nID);
-            return TRUE;  // 處理完鍵盤事件，不再繼續傳遞訊息
-        }
-    }
-
-    return CDialogEx::PreTranslateMessage(pMsg);
-}
-
-// 假設 InitTransformer 的正確宣告如下：
-// void InitTransformer(const std::vector<cv::Point2f>& imagePts, const std::vector<cv::Point2f>& worldPts, cv::Mat& affineMatrix);
-
 
 void WorkTab::OnBnClickedCheckWorkCenter()
 {
@@ -2068,6 +2149,12 @@ void WorkTab::OnBnClickedCheckWorkCenter()
 	}
 	//觸發重繪
 	Invalidate();
+    if (!m_mat.empty()) {
+        ShowImageOnPictureControl(flgCenter, cv::Scalar(0, 0, 255, 255), 1, CrossStyle::Solid);
+    }
+    if (pWnd && ::IsWindow(pWnd->GetSafeHwnd())) {
+        pWnd->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW | RDW_ERASE);
+    }
 
 }
 
@@ -2154,7 +2241,7 @@ void WorkTab::HMIReadHoldingRegistersTest(int stationID)
     const int startAddress = 145;
     const int numRegisters = 3;
     std::vector<uint16_t> regs;
-    CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(AfxGetMainWnd());
+    CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
     if (!pParentWnd) {
         AfxMessageBox(_T("Parent window is NULL."));
         return;
@@ -2267,31 +2354,8 @@ bool WorkTab::SyncReadAndUpdateSystemPara(int stationID)
     CSPDlg* pParent = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
     if (!pParent) return false;
 
-    // 注意：以下假設 m_SystemPara 的成員是 int / long / float 等
-    // 如果是 float 或其他類型，需要自行轉換（例如除以 100.0f 等）
-
-    pParent->m_SystemPara.ImageBinary = values[0];   // 139
-    pParent->m_SystemPara.CreateToolPath = values[1];   // 140
-    pParent->m_SystemPara.DispalyToolPath = values[2];   // 141 (DiplayToolPath)
-    pParent->m_SystemPara.DisplayROI = values[3];   // 142
-    pParent->m_SystemPara.DisplayRefLine = values[4];   // 143
-    pParent->m_SystemPara.TabWork = values[5];   // 144  (1=Work,2=Sys,4=Modbus)
-
-    pParent->m_SystemPara.OffsetValue = static_cast<double>(values[6]);  // 145 可考慮單位轉換
-    pParent->m_SystemPara.BinaryUpper = values[7];   // 146
-    pParent->m_SystemPara.BinaryLower = values[8];   // 147
-
-    pParent->m_SystemPara.MaskX = values[9];   // 148 TopX
-    pParent->m_SystemPara.MaskY = values[10];  // 149 TopY
-    pParent->m_SystemPara.MaskWidth = values[11];  // 150
-    pParent->m_SystemPara.MaskHeight = values[12];  // 151
-
-    // 153 IPAddress 通常不是單一 uint16，建議另外處理或只存部分
-    // pParent->m_SystemPara.IPAddress  = ??? values[14];
-
-    pParent->m_SystemPara.RefCenterX = values[15];  // 154
-    pParent->m_SystemPara.RefCenterY = values[16];  // 155
-    pParent->m_SystemPara.ImageFlip = values[17];  // 156
+    ApplySystemConfigRegisters(values, pParent->m_SystemPara);
+    m_lastSyncedSystemPara = pParent->m_SystemPara;
 
     // 觸發 UI 更新（很重要！）
     Invalidate(FALSE);
@@ -2302,36 +2366,51 @@ bool WorkTab::SyncReadAndUpdateSystemPara(int stationID)
 
 bool WorkTab::SyncWriteFromSystemPara(int stationID)
 {
-    std::vector<uint16_t> values(18);
-
     CSPDlg* pParent = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
     if (!pParent) return false;
 
-    values[0] = static_cast<uint16_t>(pParent->m_SystemPara.ImageBinary);
-    values[1] = static_cast<uint16_t>(pParent->m_SystemPara.CreateToolPath);
-    values[2] = static_cast<uint16_t>(pParent->m_SystemPara.DispalyToolPath);
-    values[3] = static_cast<uint16_t>(pParent->m_SystemPara.DisplayROI);
-    values[4] = static_cast<uint16_t>(pParent->m_SystemPara.DisplayRefLine);
-    values[5] = static_cast<uint16_t>(pParent->m_SystemPara.TabWork);
-
-    values[6] = static_cast<uint16_t>(std::lround(pParent->m_SystemPara.OffsetValue)); // 注意單位！
-    values[7] = static_cast<uint16_t>(pParent->m_SystemPara.BinaryUpper);
-    values[8] = static_cast<uint16_t>(pParent->m_SystemPara.BinaryLower);
-
-    values[9] = static_cast<uint16_t>(pParent->m_SystemPara.MaskX);
-    values[10] = static_cast<uint16_t>(pParent->m_SystemPara.MaskY);
-    values[11] = static_cast<uint16_t>(pParent->m_SystemPara.MaskWidth);
-    values[12] = static_cast<uint16_t>(pParent->m_SystemPara.MaskHeight);
-
-    // values[13] = SerialNumber (152) 如果有對應欄位
-    // values[14] = IPAddress (153) ← 通常不適合單 uint16，建議另外處理
-
-    values[15] = static_cast<uint16_t>(pParent->m_SystemPara.RefCenterX);
-    values[16] = static_cast<uint16_t>(pParent->m_SystemPara.RefCenterY);
-    values[17] = static_cast<uint16_t>(pParent->m_SystemPara.ImageFlip);
+    std::vector<uint16_t> values;
+    BuildSystemConfigRegisters(pParent->m_SystemPara, values);
 
     return WriteSystemParaBatch_139_to_156(values, stationID);
 }
+
+bool WorkTab::SyncReadAndUpdateMemStruct(int stationID)
+{
+    constexpr int kMemStructStart = 157;
+    std::vector<uint16_t> values;
+    if (!ReadHoldingRegistersBlock(kMemStructStart, 26, values, stationID)) {
+        return false;
+    }
+
+    CSPDlg* pParent = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
+    if (!pParent) {
+        return false;
+    }
+
+    ApplyMemStructRegisters(values, pParent->m_MemStruct_SP);
+    m_lastSyncedMemStruct = pParent->m_MemStruct_SP;
+    return true;
+}
+
+bool WorkTab::SyncWriteFromMemStruct(int stationID)
+{
+    constexpr int kMemStructStart = 157;
+    CSPDlg* pParent = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
+    if (!pParent) {
+        return false;
+    }
+
+    std::vector<uint16_t> values;
+    BuildMemStructRegisters(pParent->m_MemStruct_SP, values);
+    if (!WriteHoldingRegistersBlock(kMemStructStart, values, stationID)) {
+        return false;
+    }
+
+    m_lastSyncedMemStruct = pParent->m_MemStruct_SP;
+    return true;
+}
+
 void WorkTab::OnBnClickedCheckWorkRoi()
 {
     // TODO: 在此加入控制項告知處理常式程式碼
@@ -2341,46 +2420,19 @@ void WorkTab::OnBnClickedCheckWorkRoi()
             		m_bROIMode = (pCheckBox->GetCheck() == BST_CHECKED);
         }
         Invalidate(); // 觸發重繪
-
+        if (!m_mat.empty()) {
+            ShowImageOnPictureControl(flgCenter, cv::Scalar(0, 0, 255, 255), 1, CrossStyle::Solid);
+        }
+        if (pWnd && ::IsWindow(pWnd->GetSafeHwnd())) {
+            pWnd->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW | RDW_ERASE);
+        }
 }
-
-// 將 finalPath 中的每一點 轉換成 機械座標系
-// MachineCoord 是機械座標系的原點在圖像座標系中的位置
-// 轉換後的機械座標會存入 m_machineGluePath 中
-// 轉換公式：機械座標 = 圖像座標 - MachineCoord
-/*
-void WorkTab::ConvertToMachineCoordinates(const Point2D& MachineCoord)
-{
-    m_machineGluePath.PathRight.clear();
-    m_machineGluePath.PathLeft.clear();
-
-    // 右側
-    for (const auto& pt : m_OptimizedGluePath.PathRight)
-    {
-        cv::Point2d machinePt;
-        machinePt.x = pt.x - MachineCoord.x;
-        machinePt.y = pt.y - MachineCoord.y;
-        m_machineGluePath.PathRight.push_back(machinePt);
-    }
-
-    // 左側（獨立處理）
-    for (const auto& pt : m_OptimizedGluePath.PathLeft)
-    {
-        cv::Point2d machinePt;
-        machinePt.x = pt.x - MachineCoord.x;
-        machinePt.y = pt.y - MachineCoord.y;
-        m_machineGluePath.PathLeft.push_back(machinePt);
-    }
-}
-*/
-
 
 // 完整座標轉換：相機座標 → 機械座標 → HMI座標
 // 流程：
 //   1. m_OptimizedGluePath - MachineCoord  → m_machineGluePath (機械原點歸零)
-//   2. m_machineGluePath + (400, 16)        → m_HMIGluePath_temp (映射至HMI原點)
-//   3. m_HMIGluePath_temp / (3, 5)          → m_HMIGluePath (縮放至HMI顯示)
-
+//   2. m_machineGluePath + (400, 16)       → HMI 原點映射
+//   3. HMI 暫存座標 / (3, 5)               → HMI 顯示座標
 void WorkTab::ConvertToMachineCoordinates(const Point2D& MachineCoord)
 {
     m_machineGluePath.PathRight.clear();
@@ -2393,42 +2445,32 @@ void WorkTab::ConvertToMachineCoordinates(const Point2D& MachineCoord)
     constexpr double HMI_SCALE_X = 3.0;
     constexpr double HMI_SCALE_Y = 5.0;
 
-    // 右側
-    for (const auto& pt : m_OptimizedGluePath.PathRight)
-    {
-        // Step 1: 相機座標 → 機械座標
+    for (const auto& pt : m_OptimizedGluePath.PathRight) {
         cv::Point2d machinePt;
         machinePt.x = pt.x - MachineCoord.x;
         machinePt.y = pt.y - MachineCoord.y;
         m_machineGluePath.PathRight.push_back(machinePt);
 
-        // Step 2: 機械座標 → HMI暫存（映射至HMI原點）
         cv::Point2d hmiTemp;
         hmiTemp.x = machinePt.x + HMI_ORIGIN_X;
         hmiTemp.y = machinePt.y + HMI_ORIGIN_Y;
 
-        // Step 3: 縮放至HMI顯示座標
         cv::Point2d hmiPt;
         hmiPt.x = hmiTemp.x / HMI_SCALE_X;
         hmiPt.y = hmiTemp.y / HMI_SCALE_Y;
         m_HMIGluePath.PathRight.push_back(hmiPt);
     }
 
-    // 左側
-    for (const auto& pt : m_OptimizedGluePath.PathLeft)
-    {
-        // Step 1: 相機座標 → 機械座標
+    for (const auto& pt : m_OptimizedGluePath.PathLeft) {
         cv::Point2d machinePt;
         machinePt.x = pt.x - MachineCoord.x;
         machinePt.y = pt.y - MachineCoord.y;
         m_machineGluePath.PathLeft.push_back(machinePt);
 
-        // Step 2: 機械座標 → HMI暫存（映射至HMI原點）
         cv::Point2d hmiTemp;
         hmiTemp.x = machinePt.x + HMI_ORIGIN_X;
         hmiTemp.y = machinePt.y + HMI_ORIGIN_Y;
 
-        // Step 3: 縮放至HMI顯示座標
         cv::Point2d hmiPt;
         hmiPt.x = hmiTemp.x / HMI_SCALE_X;
         hmiPt.y = hmiTemp.y / HMI_SCALE_Y;
