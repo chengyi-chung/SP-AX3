@@ -8,14 +8,19 @@ public:
     UAXVision();
 
     bool isCalibrated() const;
+    void setCalibrationPattern(const cv::Size& boardSize, float squareSize);
+    cv::Size getCalibrationBoardSize() const;
+    float getCalibrationSquareSize() const;
 
 #ifdef _WIN32
     std::vector<std::string> selectCalibrationFiles();
 #endif
 
+    double calibrate(const std::vector<std::string>& imagePaths);
     double calibrate(const std::vector<std::string>& imagePaths,
         cv::Size boardSize,
         float squareSize);
+    cv::Mat getCalibrationPreviewImage() const;
 
     cv::Mat undistortImage(const cv::Mat& inputImage,
         double balance = 0.8) const;
@@ -30,7 +35,10 @@ public:
     bool loadCalibrationData(const std::string& filename);
 
 private:
+    cv::Size calibrationBoardSize;
+    float calibrationSquareSize;
     cv::Mat cameraMatrix;
     cv::Mat distCoeffs;
     cv::Size imageSize;
+    cv::Mat calibrationPreviewImage;
 };

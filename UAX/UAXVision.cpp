@@ -12,6 +12,8 @@
 
 // Constructor (init)
 UAXVision::UAXVision() {
+    calibrationBoardSize = cv::Size(9, 6);
+    calibrationSquareSize = 25.0f;
     // Initialize with identity / zeros
     cameraMatrix = cv::Mat::eye(3, 3, CV_64F);
     distCoeffs = cv::Mat::zeros(4, 1, CV_64F);   // 魚眼模型使用 4 個畸變係數
@@ -28,6 +30,22 @@ bool UAXVision::isCalibrated() const {
         return false;
     }
     return true;
+}
+
+void UAXVision::setCalibrationPattern(const cv::Size& boardSize, float squareSize)
+{
+    calibrationBoardSize = boardSize;
+    calibrationSquareSize = squareSize;
+}
+
+cv::Size UAXVision::getCalibrationBoardSize() const
+{
+    return calibrationBoardSize;
+}
+
+float UAXVision::getCalibrationSquareSize() const
+{
+    return calibrationSquareSize;
 }
 
 #ifdef _WIN32
@@ -78,12 +96,21 @@ std::vector<std::string> UAXVision::selectCalibrationFiles()
 #endif // _WIN32
 
 // Fisheye camera calibration (fisheye model)
+double UAXVision::calibrate(const std::vector<std::string>& imagePaths)
+{
+    return calibrate(imagePaths, calibrationBoardSize, calibrationSquareSize);
+}
+
 double UAXVision::calibrate(const std::vector<std::string>& imagePaths,
     cv::Size boardSize,
     float squareSize)
 {
+    setCalibrationPattern(boardSize, squareSize);
+
     std::vector<std::vector<cv::Point3f>> objectPoints;
     std::vector<std::vector<cv::Point2f>> imagePoints;
+    std::vector<cv::Mat> previewTiles;
+    calibrationPreviewImage.release();
 
     // Generate ideal 3D chessboard points (Z=0)
     std::vector<cv::Point3f> obj;
@@ -98,9 +125,13 @@ double UAXVision::calibrate(const std::vector<std::string>& imagePaths,
     for (const auto& path : imagePaths)
     {
         cv::Mat img = cv::imread(path, cv::IMREAD_GRAYSCALE);
+        cv::Mat color = cv::imread(path, cv::IMREAD_COLOR);
         if (img.empty()) {
-        std::cerr << "Cannot read image: " << path << " -> skipped\n";
+            std::cerr << "Cannot read image: " << path << " -> skipped\n";
             continue;
+        }
+        if (color.empty()) {
+            cv::cvtColor(img, color, cv::COLOR_GRAY2BGR);
         }
 
         // Check size consistency
@@ -114,11 +145,18 @@ double UAXVision::calibrate(const std::vector<std::string>& imagePaths,
         }
 
         std::vector<cv::Point2f> corners;
-        bool found = cv::findChessboardCorners(
+        bool found = cv::findChessboardCornersSB(
             img, boardSize, corners,
-            cv::CALIB_CB_ADAPTIVE_THRESH |
-            cv::CALIB_CB_NORMALIZE_IMAGE |
-            cv::CALIB_CB_FAST_CHECK);
+            cv::CALIB_CB_EXHAUSTIVE |
+            cv::CALIB_CB_ACCURACY |
+            cv::CALIB_CB_NORMALIZE_IMAGE);
+
+        if (!found) {
+            found = cv::findChessboardCorners(
+                img, boardSize, corners,
+                cv::CALIB_CB_ADAPTIVE_THRESH |
+                cv::CALIB_CB_NORMALIZE_IMAGE);
+        }
 
         if (found)
         {
@@ -129,10 +167,18 @@ double UAXVision::calibrate(const std::vector<std::string>& imagePaths,
 
             imagePoints.push_back(corners);
             objectPoints.push_back(obj);
+
+            cv::drawChessboardCorners(color, boardSize, corners, true);
+            cv::putText(color, "FOUND", cv::Point(20, 40),
+                cv::FONT_HERSHEY_SIMPLEX, 1.0, cv::Scalar(0, 255, 0), 2);
+            previewTiles.push_back(color);
         }
         else
         {
-        std::cerr << "Chessboard not found in: " << path << " -> skipped\n";
+            cv::putText(color, "NOT FOUND", cv::Point(20, 40),
+                cv::FONT_HERSHEY_SIMPLEX, 1.0, cv::Scalar(0, 0, 255), 2);
+            previewTiles.push_back(color);
+            std::cerr << "Chessboard not found in: " << path << " -> skipped\n";
         }
     }
 
@@ -158,6 +204,33 @@ double UAXVision::calibrate(const std::vector<std::string>& imagePaths,
         cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 100, 1e-6));
 
     imageSize = currentSize;
+    if (!previewTiles.empty()) {
+        size_t previewCount = std::min<size_t>(previewTiles.size(), 4);
+        int cellWidth = 0;
+        int cellHeight = 0;
+        for (size_t i = 0; i < previewCount; ++i) {
+            cellWidth = std::max(cellWidth, previewTiles[i].cols);
+            cellHeight = std::max(cellHeight, previewTiles[i].rows);
+        }
+
+        int columns = previewCount > 1 ? 2 : 1;
+        int rows = static_cast<int>((previewCount + columns - 1) / columns);
+        calibrationPreviewImage = cv::Mat::zeros(rows * cellHeight, columns * cellWidth, CV_8UC3);
+
+        for (size_t i = 0; i < previewCount; ++i) {
+            cv::Mat resized;
+            if (previewTiles[i].cols != cellWidth || previewTiles[i].rows != cellHeight) {
+                cv::resize(previewTiles[i], resized, cv::Size(cellWidth, cellHeight));
+            }
+            else {
+                resized = previewTiles[i];
+            }
+
+            int row = static_cast<int>(i) / columns;
+            int col = static_cast<int>(i) % columns;
+            resized.copyTo(calibrationPreviewImage(cv::Rect(col * cellWidth, row * cellHeight, cellWidth, cellHeight)));
+        }
+    }
 
     std::cout << "Fisheye calibration completed.\n"
         << "RMS reprojection error: " << rms << " pixels\n";
@@ -166,6 +239,11 @@ double UAXVision::calibrate(const std::vector<std::string>& imagePaths,
     }
 
     return rms;
+}
+
+cv::Mat UAXVision::getCalibrationPreviewImage() const
+{
+    return calibrationPreviewImage.clone();
 }
 
 // 去畸變（支援 balance 參數控制黑邊與視場取捨）

@@ -2176,14 +2176,19 @@ void WorkTab::OnBnClickedMfcbtnWorkImgCalibrate()
     }
 
     // 依需求調整棋盤內部角點數與邊長
-    const cv::Size boardSize(9, 6); // 9x6 內部角點
-    const float squareSize = 25.0f; // 毫米
-
-    double rms = m_vision.calibrate(files, boardSize, squareSize);
+    m_vision.setCalibrationPattern(cv::Size(9, 6), 25.0f); // 可改成由 UI/成員設定
+    double rms = m_vision.calibrate(files);
     if (rms < 0.0)
     {
         AfxMessageBox(L"校正失敗，無法找到角點");
         return;
+    }
+
+    cv::Mat preview = m_vision.getCalibrationPreviewImage();
+    if (!preview.empty())
+    {
+        cv::imshow("Calibration Grid Preview", preview);
+        cv::waitKey(1);
     }
 
     // 儲存校正結果
