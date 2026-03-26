@@ -11,6 +11,9 @@ public:
     void setCalibrationPattern(const cv::Size& boardSize, float squareSize);
     cv::Size getCalibrationBoardSize() const;
     float getCalibrationSquareSize() const;
+    void setCalibrationROI(const cv::Rect& roi);
+    void clearCalibrationROI();
+    cv::Rect getCalibrationROI() const;
 
 #ifdef _WIN32
     std::vector<std::string> selectCalibrationFiles();
@@ -21,6 +24,7 @@ public:
         cv::Size boardSize,
         float squareSize);
     cv::Mat getCalibrationPreviewImage() const;
+    std::string getLastCalibrationMessage() const;
 
     cv::Mat undistortImage(const cv::Mat& inputImage,
         double balance = 0.8) const;
@@ -37,8 +41,10 @@ public:
 private:
     cv::Size calibrationBoardSize;
     float calibrationSquareSize;
+    cv::Rect calibrationROI;
     cv::Mat cameraMatrix;
     cv::Mat distCoeffs;
     cv::Size imageSize;
     cv::Mat calibrationPreviewImage;
+    std::string lastCalibrationMessage;
 };

@@ -8,6 +8,10 @@
 #include <algorithm>
 #include <string>
 #include <cmath>
+#include <fstream>
+#include <iomanip>
+#include <tuple>
+#include <vector>
 #include "UAX\\UAXVision.cpp" // bring UAXVision implementation into this module
 //Add pylon header files to MFC project
 
@@ -36,6 +40,145 @@ using namespace std;
 
 // Number of images to be grabbed.
 static const uint32_t c_countOfImagesToGrab = 3;
+
+namespace {
+std::string GetCalibrationFilePath()
+{
+    std::string appPath = GetAppPath();
+    if (!appPath.empty() && appPath.back() != '\\' && appPath.back() != '/') {
+        appPath += "\\";
+    }
+    return appPath + "calibration.yml";
+}
+
+std::string GetToolDebugExportPath()
+{
+    std::string appPath = GetAppPath();
+    if (!appPath.empty() && appPath.back() != '\\' && appPath.back() != '/') {
+        appPath += "\\";
+    }
+    return appPath + "tool.csv";
+}
+
+cv::Mat ApplyConfiguredFlip(const cv::Mat& image, int flipCode)
+{
+    if (image.empty()) {
+        return image;
+    }
+
+    if (flipCode == 0 || flipCode == 1 || flipCode == -1) {
+        cv::Mat flipped;
+        cv::flip(image, flipped, flipCode);
+        return flipped;
+    }
+
+    return image.clone();
+}
+
+cv::Point2d ApplyConfiguredFlipToPoint(const cv::Point2d& pt, const cv::Size& imageSize, int flipCode)
+{
+    if (imageSize.width <= 0 || imageSize.height <= 0) {
+        return pt;
+    }
+
+    cv::Point2d flipped = pt;
+    switch (flipCode) {
+    case 0:
+        flipped.y = (imageSize.height - 1) - pt.y;
+        break;
+    case 1:
+        flipped.x = (imageSize.width - 1) - pt.x;
+        break;
+    case -1:
+        flipped.x = (imageSize.width - 1) - pt.x;
+        flipped.y = (imageSize.height - 1) - pt.y;
+        break;
+    default:
+        break;
+    }
+    return flipped;
+}
+
+cv::Point2d RotatePoint180(const cv::Point2d& pt, const cv::Size& imageSize)
+{
+    if (imageSize.width <= 0 || imageSize.height <= 0) {
+        return pt;
+    }
+
+    return cv::Point2d(
+        (imageSize.width - 1) - pt.x,
+        (imageSize.height - 1) - pt.y
+    );
+}
+
+void ApplyConfiguredFlipToToolPath(ToolPath& toolPath, const cv::Size& imageSize, int flipCode)
+{
+    if (!(flipCode == 0 || flipCode == 1 || flipCode == -1)) {
+        return;
+    }
+
+    for (auto& pt : toolPath.Path) {
+        pt = ApplyConfiguredFlipToPoint(pt, imageSize, flipCode);
+    }
+}
+
+void RotateGluePath180(GluePath& gluePath, const cv::Size& imageSize)
+{
+    for (auto& pt : gluePath.PathLeft) {
+        pt = RotatePoint180(pt, imageSize);
+    }
+    for (auto& pt : gluePath.PathRight) {
+        pt = RotatePoint180(pt, imageSize);
+    }
+}
+
+void SortGluePathByAscendingY(GluePath& gluePath)
+{
+    const size_t count = (std::min)(gluePath.PathRight.size(), gluePath.PathLeft.size());
+    if (count == 0) {
+        return;
+    }
+
+    std::vector<std::tuple<double, cv::Point2d, cv::Point2d>> rows;
+    rows.reserve(count);
+
+    for (size_t i = 0; i < count; ++i) {
+        const double y = (gluePath.PathRight[i].y + gluePath.PathLeft[i].y) * 0.5;
+        rows.emplace_back(y, gluePath.PathRight[i], gluePath.PathLeft[i]);
+    }
+
+    std::sort(rows.begin(), rows.end(),
+        [](const auto& a, const auto& b) {
+            return std::get<0>(a) < std::get<0>(b);
+        });
+
+    for (size_t i = 0; i < count; ++i) {
+        gluePath.PathRight[i] = std::get<1>(rows[i]);
+        gluePath.PathLeft[i] = std::get<2>(rows[i]);
+    }
+}
+
+void ExportGluePathAsToolCs(const GluePath& gluePath)
+{
+    const size_t count = (std::min)(gluePath.PathRight.size(), gluePath.PathLeft.size());
+    std::ofstream out(GetToolDebugExportPath(), std::ios::trunc);
+    if (!out.is_open()) {
+        return;
+    }
+
+    out << "// Auto-generated debug export\n";
+    out << "// Format: Tool(X1,Y,X2)\n";
+    out << "Tool(X1,Y,X2)\n";
+    out << std::fixed << std::setprecision(3);
+
+    for (size_t i = 0; i < count; ++i) {
+        out << gluePath.PathRight[i].x << ","
+            << gluePath.PathRight[i].y << ","
+            << gluePath.PathLeft[i].x << "\n";
+    }
+}
+
+}
 
 
 ///// OpenCV zoon
@@ -289,6 +432,9 @@ BOOL WorkTab::OnInitDialog()
 	MaskHeight = pParentWnd->m_SystemPara.MaskHeight;
 	referenceX = pParentWnd->m_SystemPara.RefCenterX;
 	referenceY = pParentWnd->m_SystemPara.RefCenterY;
+
+    // 嘗試載入既有校正資料；若檔案不存在則維持未校正狀態。
+    m_vision.loadCalibrationData(GetCalibrationFilePath());
    
 
 	// 預設check box 為勾選狀態
@@ -1484,18 +1630,51 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
     cv::Rect roiRect(MaskX, MaskY, MaskWidth, MaskHeight);
     mask(roiRect) = cv::Scalar(255);
 
-    // 6. 提取原始工具路徑 (直接操作成員變數)
-	//m_mat: 原始影像
+    // 6. 提取原始工具路徑前，先做影像校正
+    cv::Mat correctedImage = m_mat;
+    cv::Mat pathSourceImage = m_mat;
+    cv::Mat pathMask = mask.clone();
+    if (!m_vision.isCalibrated()) {
+        m_vision.loadCalibrationData(GetCalibrationFilePath());
+    }
+
+    bool usedCalibrationCorrection = false;
+    if (m_vision.isCalibrated()) {
+        try {
+            // m_mat 在取像後可能已依 imgFlip 翻轉；校正參數通常是以原始相機方向建立。
+            // 因此在原始方向做去畸變與路徑提取，最後再把點座標翻回目前顯示座標。
+            cv::Mat rawOrientationImage = ApplyConfiguredFlip(m_mat, imgFlip);
+            cv::Mat undistortedRaw = m_vision.undistortImage(rawOrientationImage);
+            if (!undistortedRaw.empty()) {
+                correctedImage = ApplyConfiguredFlip(undistortedRaw, imgFlip);
+                pathSourceImage = undistortedRaw;
+                pathMask = ApplyConfiguredFlip(mask, imgFlip);
+                usedCalibrationCorrection = true;
+            }
+        }
+        catch (const cv::Exception&) {
+            correctedImage = m_mat;
+            pathSourceImage = m_mat;
+            pathMask = mask.clone();
+        }
+    }
+
+    // 7. 提取工具路徑 (直接操作成員變數)
+	// correctedImage: 顯示用校正後影像，若無校正資料則回退為原始影像
     this->toolPath.Path.clear();
-    cv::Mat imgClone = m_mat.clone();
-    GetToolPath_CurvatureOptimized_Mask(imgClone, mask, offsetPx, this->toolPath, 0.0008,false);
+    cv::Mat imgClone = pathSourceImage.clone();
+    GetToolPath_CurvatureOptimized_Mask(imgClone, pathMask, offsetPx, this->toolPath, 0.0008,false);
+
+    if (usedCalibrationCorrection) {
+        ApplyConfiguredFlipToToolPath(this->toolPath, pathSourceImage.size(), imgFlip);
+    }
 
     if (this->toolPath.Path.empty()) {
         AfxMessageBox(_T("No path detected in ROI."));
         return;
     }
 
-    // 7. 膠路同步優化 (核心步驟)
+    // 8. 膠路同步優化 (核心步驟)
     ROIMask roiOpt = {};
     roiOpt.MaskX = MaskX; roiOpt.MaskY = MaskY;
     roiOpt.MaskWidth = MaskWidth; roiOpt.MaskHeight = MaskHeight;
@@ -1507,10 +1686,16 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
     GluePath finalPath;
     OptimizeGluePath(this->toolPath.Path, roiOpt, finalPath, 2);
 
-    // 8. 儲存或顯示結果
+    if (usedCalibrationCorrection) {
+        RotateGluePath180(finalPath, correctedImage.size());
+    }
+
+    SortGluePathByAscendingY(finalPath);
+
+    // 9. 儲存或顯示結果
     this->m_OptimizedGluePath = finalPath; // 假設你有一個成員變數儲存最終結果
 
-    // 9. 座標轉換將 m_OptimizedGluePath 轉換到 m_machineGluePath
+    // 10. 座標轉換將 m_OptimizedGluePath 轉換到 m_machineGluePath
     Point2D OriginalMachineCoord;
 	OriginalMachineCoord.x = referenceX;  
 	OriginalMachineCoord.y = referenceY;
@@ -1521,8 +1706,15 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
     ConvertToMachineCoordinates(OriginalMachineCoord);
 
 #ifdef _DEBUG
+    ExportGluePathAsToolCs(finalPath);
+    ExportGluePathAsToolCs(this->m_machineGluePath);
+
     // 僅 Debug 模式顯示 OpenCV 視窗，方便開發階段檢查路徑正確性
-    cv::Mat displayImg = m_mat.clone();
+    cv::Mat displayImg = correctedImage.clone();
+
+    // Debug 驗證用：將底圖與顯示路徑同步旋轉 180 度，
+    // 用於比對校正後影像與實際輸出路徑是否一致。
+    cv::flip(displayImg, displayImg, -1);
 
     // 建議：把 cv::Point2d 轉成整數座標再畫，避免 OpenCV 警告
     for (const auto& pt : finalPath.PathLeft) {
@@ -1636,16 +1828,15 @@ void WorkTab::OnBnClickedIdcWorkGo()
 	return; // 測試完成後直接返回，正式使用時請移除這行
     */
 
-    // 3. 定義 PLC 暫存器位址 (對應 AX-3 系列 PLC 內部配置)
+    // 3. 定義 HMI 暫存器位址 (對應 HMI 內部配置)
     constexpr int kAxisStartX1 = 14; // 右手 X 軸路徑起始位址 (D14~D43)
     constexpr int kAxisStartY = 44; // 共有 Y 軸路徑起始位址 (D44~D73)
     constexpr int kAxisStartX2 = 74; // 左手 X 軸路徑起始位址 (D74~D103)
-    constexpr int kAxisCount = 30; // PLC 陣列預留長度
-
-    // 4. 計算實際寫入點數 (取 PLC 長度與路徑資料長度的最小值，防止陣列越界)
+    constexpr int kAxisCount = 30; // HMI 陣列預留長度
+    // 4. 計算實際寫入點數 (取 HMI 長度與路徑資料長度的最小值，防止陣列越界)
     const size_t pointCount = (std::min)(
         static_cast<size_t>(kAxisCount),
-        (std::min)(m_OptimizedGluePath.PathRight.size(), m_OptimizedGluePath.PathLeft.size()));
+        (std::min)(m_HMIGluePath.PathRight.size(), m_HMIGluePath.PathLeft.size()));
 
     if (pointCount == 0) {
         AfxMessageBox(_T("優化後的點位數為 0。"));
@@ -2168,42 +2359,65 @@ void WorkTab::OnBnClickedMfcbtnWorkImgCalibrate()
 {
    // 開啟檔案對話框取得校正影像
 #ifdef _WIN32
-    std::vector<std::string> files = m_vision.selectCalibrationFiles();
-    if (files.empty())
-    {
-        AfxMessageBox(L"未選取任何影像");
-        return;
-    }
+    try {
+        std::vector<std::string> files = m_vision.selectCalibrationFiles();
+        if (files.empty())
+        {
+            AfxMessageBox(L"未選取任何影像");
+            return;
+        }
 
-    // 依需求調整棋盤內部角點數與邊長
-    m_vision.setCalibrationPattern(cv::Size(9, 6), 25.0f); // 可改成由 UI/成員設定
-    double rms = m_vision.calibrate(files);
-    if (rms < 0.0)
-    {
-        AfxMessageBox(L"校正失敗，無法找到角點");
-        return;
-    }
+        if (MaskWidth > 0 && MaskHeight > 0) {
+            m_vision.setCalibrationROI(cv::Rect(MaskX, MaskY, MaskWidth, MaskHeight));
+        }
+        else {
+            m_vision.clearCalibrationROI();
+        }
 
-    cv::Mat preview = m_vision.getCalibrationPreviewImage();
-    if (!preview.empty())
-    {
-        cv::imshow("Calibration Grid Preview", preview);
-        cv::waitKey(1);
-    }
+        // 依需求調整棋盤內部角點數與邊長
+        // m_vision.setCalibrationPattern(cv::Size(9, 6), 25.0f); // 可改成由 UI/成員設定
+        double rms = m_vision.calibrate(files);
+        if (rms < 0.0)
+        {
+            CString message(m_vision.getLastCalibrationMessage().c_str());
+            if (message.IsEmpty()) {
+                message = L"校正失敗，無法找到角點";
+            }
+            AfxMessageBox(message);
+            return;
+        }
 
-    // 儲存校正結果
-    const std::string outFile = "calibration.yml";
-    bool saved = m_vision.saveCalibrationData(outFile);
-    if (!saved)
-    {
-        AfxMessageBox(L"校正資料儲存失敗");
-        return;
-    }
+        cv::Mat preview = m_vision.getCalibrationPreviewImage();
+        if (!preview.empty())
+        {
+            cv::imshow("Calibration Grid Preview", preview);
+            cv::waitKey(1);
+        }
 
-    std::wstring outFileW(outFile.begin(), outFile.end());
-    CString msg;
-    msg.Format(L"校正完成，RMS=%.3f px\n儲存於: %s", rms, outFileW.c_str());
-    AfxMessageBox(msg);
+        // 儲存校正結果
+        const std::string outFile = GetCalibrationFilePath();
+        bool saved = m_vision.saveCalibrationData(outFile);
+        if (!saved)
+        {
+            AfxMessageBox(L"校正資料儲存失敗");
+            return;
+        }
+
+        std::wstring outFileW(outFile.begin(), outFile.end());
+        CString msg;
+        msg.Format(L"校正完成，RMS=%.3f px\n儲存於: %s", rms, outFileW.c_str());
+        AfxMessageBox(msg);
+    }
+    catch (const cv::Exception& e) {
+        CString message;
+        message.Format(L"OpenCV 校正失敗:\n%S", e.what());
+        AfxMessageBox(message);
+    }
+    catch (const std::exception& e) {
+        CString message;
+        message.Format(L"校正失敗:\n%S", e.what());
+        AfxMessageBox(message);
+    }
 #else
     AfxMessageBox(L"此功能僅支援 Windows 平台");
 #endif
