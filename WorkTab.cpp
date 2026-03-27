@@ -51,13 +51,13 @@ std::string GetCalibrationFilePath()
     return appPath + "calibration.yml";
 }
 
-std::string GetToolDebugExportPath()
+std::string GetToolDebugExportPath(const std::string& fileName)
 {
     std::string appPath = GetAppPath();
     if (!appPath.empty() && appPath.back() != '\\' && appPath.back() != '/') {
         appPath += "\\";
     }
-    return appPath + "tool.csv";
+    return appPath + fileName;
 }
 
 cv::Mat ApplyConfiguredFlip(const cv::Mat& image, int flipCode)
@@ -158,21 +158,22 @@ void SortGluePathByAscendingY(GluePath& gluePath)
     }
 }
 
-void ExportGluePathAsToolCs(const GluePath& gluePath)
+void ExportGluePathAsToolCSV(const GluePath& gluePath, const std::string& fileName)
 {
     const size_t count = (std::min)(gluePath.PathRight.size(), gluePath.PathLeft.size());
-    std::ofstream out(GetToolDebugExportPath(), std::ios::trunc);
+    std::ofstream out(GetToolDebugExportPath(fileName), std::ios::trunc);
     if (!out.is_open()) {
         return;
     }
 
     out << "// Auto-generated debug export\n";
     out << "// Format: Tool(X1,Y,X2)\n";
-    out << "Tool(X1,Y,X2)\n";
+    out << "Index,X1,Y,X2\n";
     out << std::fixed << std::setprecision(3);
 
     for (size_t i = 0; i < count; ++i) {
-        out << gluePath.PathRight[i].x << ","
+        out << i << ","
+            << gluePath.PathRight[i].x << ","
             << gluePath.PathRight[i].y << ","
             << gluePath.PathLeft[i].x << "\n";
     }
@@ -1706,8 +1707,14 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
     ConvertToMachineCoordinates(OriginalMachineCoord);
 
 #ifdef _DEBUG
-    ExportGluePathAsToolCs(finalPath);
-    ExportGluePathAsToolCs(this->m_machineGluePath);
+    //刪除CSV檔
+     DeleteFile(_T("tool_optimized_glue_path.csv"));
+     DeleteFile(_T("tool_machine_glue_path.csv"));
+	 DeleteFile(_T("tool_hmi_glue_path.csv"));
+
+    ExportGluePathAsToolCSV(this->m_OptimizedGluePath, "tool_optimized_glue_path.csv");
+    ExportGluePathAsToolCSV(this->m_machineGluePath, "tool_machine_glue_path.csv");
+    ExportGluePathAsToolCSV(this->m_HMIGluePath, "tool_hmi_glue_path.csv");
 
     // 僅 Debug 模式顯示 OpenCV 視窗，方便開發階段檢查路徑正確性
     cv::Mat displayImg = correctedImage.clone();
@@ -1806,6 +1813,20 @@ void WorkTab::OnBnClickedIdcWorkGo()
         return;
     }
 
+    // 3. 依序重建路徑關聯：
+    //    m_OptimizedGluePath -> m_machineGluePath -> m_HMIGluePath
+    //    避免 HMI/機械座標殘留舊資料，確保本次送出的點位彼此對應。
+    Point2D originalMachineCoord;
+    originalMachineCoord.x = referenceX;
+    originalMachineCoord.y = referenceY;
+    ConvertToMachineCoordinates(originalMachineCoord);
+
+    if (m_machineGluePath.PathLeft.empty() || m_machineGluePath.PathRight.empty() ||
+        m_HMIGluePath.PathLeft.empty() || m_HMIGluePath.PathRight.empty()) {
+        AfxMessageBox(_T("路徑座標轉換失敗，無法產生 Machine/HMI 路徑。"));
+        return;
+    }
+
 
     /*
      //增加測試功能：將優化後的膠路點位寫入 PLC (AX-3 系列) 的 Modbus TCP 寄存器中
@@ -1828,12 +1849,12 @@ void WorkTab::OnBnClickedIdcWorkGo()
 	return; // 測試完成後直接返回，正式使用時請移除這行
     */
 
-    // 3. 定義 HMI 暫存器位址 (對應 HMI 內部配置)
+    // 4. 定義 HMI 暫存器位址 (對應 HMI 內部配置)
     constexpr int kAxisStartX1 = 14; // 右手 X 軸路徑起始位址 (D14~D43)
     constexpr int kAxisStartY = 44; // 共有 Y 軸路徑起始位址 (D44~D73)
     constexpr int kAxisStartX2 = 74; // 左手 X 軸路徑起始位址 (D74~D103)
     constexpr int kAxisCount = 30; // HMI 陣列預留長度
-    // 4. 計算實際寫入點數 (取 HMI 長度與路徑資料長度的最小值，防止陣列越界)
+    // 5. 計算實際寫入點數 (取 HMI 長度與路徑資料長度的最小值，防止陣列越界)
     const size_t pointCount = (std::min)(
         static_cast<size_t>(kAxisCount),
         (std::min)(m_HMIGluePath.PathRight.size(), m_HMIGluePath.PathLeft.size()));
@@ -1843,7 +1864,7 @@ void WorkTab::OnBnClickedIdcWorkGo()
         return;
     }
 
-    // 5. 準備 Modbus 寫入緩衝區 (uint16_t 格式)
+    // 6. 準備 Modbus 寫入緩衝區 (uint16_t 格式)
     std::vector<uint16_t> x1Regs(kAxisCount, 0);
     std::vector<uint16_t> yRegs(kAxisCount, 0);
     std::vector<uint16_t> x2Regs(kAxisCount, 0);
@@ -1865,15 +1886,15 @@ void WorkTab::OnBnClickedIdcWorkGo()
         x2Regs[i] = toReg(m_OptimizedGluePath.PathLeft[i].x);
     }
     */
-    // 6. 資料轉換：將膠水機械座標轉換為 PLC 寄存器格式
+    // 7. 資料轉換：將 HMI 顯示座標轉換為 PLC/HMI 暫存器格式
     for (size_t i = 0; i < pointCount; ++i) 
     {
-        x1Regs[i] = toReg(m_machineGluePath.PathRight[i].x);
-        yRegs[i] = toReg(m_machineGluePath.PathRight[i].y);
-        x2Regs[i] = toReg(m_machineGluePath.PathLeft[i].x);
+        x1Regs[i] = toReg(m_HMIGluePath.PathRight[i].x);
+        yRegs[i] = toReg(m_HMIGluePath.PathRight[i].y);
+        x2Regs[i] = toReg(m_HMIGluePath.PathLeft[i].x);
     }
 
-    // 7. Modbus 連線檢查與自動重連邏輯
+    // 8. Modbus 連線檢查與自動重連邏輯
     const int stationID = 1;
     if (!pParentWnd->m_modbusCtx) {
         bool ok = pParentWnd->InitModbusWithRetry(
@@ -1889,7 +1910,7 @@ void WorkTab::OnBnClickedIdcWorkGo()
         }
     }
 
-    // 8. 執行執行緒安全寫入操作
+    // 9. 執行執行緒安全寫入操作
     {
         // 鎖定 Mutex，避免多執行緒同時競爭同一 Modbus 句柄 (Handle)
         std::lock_guard<std::mutex> lock(pParentWnd->m_modbusMutex);
@@ -1921,9 +1942,9 @@ void WorkTab::OnBnClickedIdcWorkGo()
         }
     } // 離開 Scope 自動釋放 Lock
 
-    // 9. 完成提示
+    // 10. 完成提示
     CString doneMsg;
-    doneMsg.Format(_T("路徑已成功傳送至 PLC。點數=%u (最大限制 %d)。"), static_cast<unsigned>(pointCount), kAxisCount);
+    doneMsg.Format(_T("HMI 路徑已成功透過 Modbus TCP 傳送。點數=%u (最大限制 %d)。"), static_cast<unsigned>(pointCount), kAxisCount);
     AfxMessageBox(doneMsg);
 }
 
@@ -2651,7 +2672,9 @@ void WorkTab::OnBnClickedCheckWorkRoi()
 // 流程：
 //   1. m_OptimizedGluePath - MachineCoord  → m_machineGluePath (機械原點歸零)
 //   2. m_machineGluePath + (400, 16)       → HMI 原點映射
-//   3. HMI 暫存座標 / (3, 5)               → HMI 顯示座標
+//   3. HMI 暫存座標：
+//      hmiPt.x = std::lround(hmiTemp.x / 3)
+//      hmiPt.y = std::lround(hmiTemp.y / 5) → HMI 顯示座標
 void WorkTab::ConvertToMachineCoordinates(const Point2D& MachineCoord)
 {
     m_machineGluePath.PathRight.clear();
@@ -2675,8 +2698,9 @@ void WorkTab::ConvertToMachineCoordinates(const Point2D& MachineCoord)
         hmiTemp.y = machinePt.y + HMI_ORIGIN_Y;
 
         cv::Point2d hmiPt;
-        hmiPt.x = hmiTemp.x / HMI_SCALE_X;
-        hmiPt.y = hmiTemp.y / HMI_SCALE_Y;
+        // HMI 顯示座標採整數點位，避免 debug 匯出與實際寫入值不一致。
+        hmiPt.x = std::lround(hmiTemp.x / HMI_SCALE_X);
+        hmiPt.y = std::lround(hmiTemp.y / HMI_SCALE_Y);
         m_HMIGluePath.PathRight.push_back(hmiPt);
     }
 
@@ -2691,8 +2715,8 @@ void WorkTab::ConvertToMachineCoordinates(const Point2D& MachineCoord)
         hmiTemp.y = machinePt.y + HMI_ORIGIN_Y;
 
         cv::Point2d hmiPt;
-        hmiPt.x = hmiTemp.x / HMI_SCALE_X;
-        hmiPt.y = hmiTemp.y / HMI_SCALE_Y;
+        hmiPt.x = std::lround(hmiTemp.x / HMI_SCALE_X);
+        hmiPt.y = std::lround(hmiTemp.y / HMI_SCALE_Y);
         m_HMIGluePath.PathLeft.push_back(hmiPt);
     }
 }

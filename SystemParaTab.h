@@ -16,6 +16,8 @@ public:
 
 	void UpdateControl();
 
+	void UpdateHMI();
+
 // 對話方塊資料
 #ifdef AFX_DESIGN_TIME
 	enum { IDD = IDD_OLE_PROPPAGE_LARGE1 };
