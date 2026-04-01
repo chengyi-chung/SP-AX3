@@ -85,7 +85,7 @@ public:
 
 
 
-	void ConvertToMachineCoordinates(const Point2D& MachineCoord);
+	void ConvertToMachineCoordinates();
 	//void convertToMachinePath(const GluePath& optimizedPath, GluePath& machinePath, const Point2d& machineOrigin);
 
 

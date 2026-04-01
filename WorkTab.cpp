@@ -1696,15 +1696,11 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
     // 9. 儲存或顯示結果
     this->m_OptimizedGluePath = finalPath; // 假設你有一個成員變數儲存最終結果
 
-    // 10. 座標轉換將 m_OptimizedGluePath 轉換到 m_machineGluePath
-    Point2D OriginalMachineCoord;
-	OriginalMachineCoord.x = referenceX;  
-	OriginalMachineCoord.y = referenceY;
-
-    //函數將優化的膠水路徑轉換為機器座標系，通過從每個點的座標中減去給定的機器座標來實現。
-	//這樣做的目的是將路徑點從圖像座標系轉換到機器座標系，確保機器能夠正確地理解和執行路徑。
-	//轉換後的座標將存儲在 m_machineGluePath 中，這樣你就可以使用這些座標來控制機器的運動。
-    ConvertToMachineCoordinates(OriginalMachineCoord);
+    // 10. 重建顯示/輸出用座標
+    // m_machineGluePath 直接沿用 m_OptimizedGluePath，
+	// 再將 m_machineGluePath(0,0) 映射到 HMI 暫存原點 (1200,80)，
+	// 最後依 HMI 顯示比例 /3、/5 縮放後得到 m_HMIGluePath(400,16)。
+    ConvertToMachineCoordinates();
 
 #ifdef _DEBUG
     //刪除CSV檔
@@ -1815,11 +1811,16 @@ void WorkTab::OnBnClickedIdcWorkGo()
 
     // 3. 依序重建路徑關聯：
     //    m_OptimizedGluePath -> m_machineGluePath -> m_HMIGluePath
-    //    避免 HMI/機械座標殘留舊資料，確保本次送出的點位彼此對應。
-    Point2D originalMachineCoord;
-    originalMachineCoord.x = referenceX;
-    originalMachineCoord.y = referenceY;
-    ConvertToMachineCoordinates(originalMachineCoord);
+    //    這裡只在衍生路徑缺失時補建，避免重複計算。
+    const bool needRebuildDerivedPath =
+        m_machineGluePath.PathLeft.size() != m_OptimizedGluePath.PathLeft.size() ||
+        m_machineGluePath.PathRight.size() != m_OptimizedGluePath.PathRight.size() ||
+        m_HMIGluePath.PathLeft.size() != m_OptimizedGluePath.PathLeft.size() ||
+        m_HMIGluePath.PathRight.size() != m_OptimizedGluePath.PathRight.size();
+
+    if (needRebuildDerivedPath) {
+        ConvertToMachineCoordinates();
+    }
 
     if (m_machineGluePath.PathLeft.empty() || m_machineGluePath.PathRight.empty() ||
         m_HMIGluePath.PathLeft.empty() || m_HMIGluePath.PathRight.empty()) {
@@ -2668,29 +2669,29 @@ void WorkTab::OnBnClickedCheckWorkRoi()
         }
 }
 
-// 完整座標轉換：相機座標 → 機械座標 → HMI座標
+// 完整座標轉換：工具路徑座標 → HMI座標
 // 流程：
-//   1. m_OptimizedGluePath - MachineCoord  → m_machineGluePath (機械原點歸零)
-//   2. m_machineGluePath + (400, 16)       → HMI 原點映射
-//   3. HMI 暫存座標：
+//   1. m_OptimizedGluePath 直接作為 m_machineGluePath 使用，不在此做 MachineCoord 平移
+//   2. m_machineGluePath + (1200, 80)      → HMI 暫存原點映射
+//      也就是 m_machineGluePath(0,0) 對應到 m_HMIGluePath_temp(1200,80)
+//   3. HMI 暫存座標再依比例縮放成顯示座標：
 //      hmiPt.x = std::lround(hmiTemp.x / 3)
-//      hmiPt.y = std::lround(hmiTemp.y / 5) → HMI 顯示座標
-void WorkTab::ConvertToMachineCoordinates(const Point2D& MachineCoord)
+//      hmiPt.y = std::lround(hmiTemp.y / 5)
+//      因此 m_machineGluePath(0,0) 最終會對應到 m_HMIGluePath(400,16)
+void WorkTab::ConvertToMachineCoordinates()
 {
     m_machineGluePath.PathRight.clear();
     m_machineGluePath.PathLeft.clear();
     m_HMIGluePath.PathRight.clear();
     m_HMIGluePath.PathLeft.clear();
 
-    constexpr double HMI_ORIGIN_X = 400.0;
-    constexpr double HMI_ORIGIN_Y = 16.0;
+	constexpr double HMI_ORIGIN_X = 1200.0;  // 這裡的原點偏移是根據實際需求設定的，假設機器座標(0,0)對應到HMI座標(1200,80)
+	constexpr double HMI_ORIGIN_Y = 80.0;  // 縮放比例：根據實際需求設定，這裡假設機器座標的單位是 mm，而 HMI 顯示座標需要縮小到約 1/3 和 1/5
     constexpr double HMI_SCALE_X = 3.0;
     constexpr double HMI_SCALE_Y = 5.0;
 
     for (const auto& pt : m_OptimizedGluePath.PathRight) {
-        cv::Point2d machinePt;
-        machinePt.x = pt.x - MachineCoord.x;
-        machinePt.y = pt.y - MachineCoord.y;
+        cv::Point2d machinePt = pt;
         m_machineGluePath.PathRight.push_back(machinePt);
 
         cv::Point2d hmiTemp;
@@ -2705,9 +2706,7 @@ void WorkTab::ConvertToMachineCoordinates(const Point2D& MachineCoord)
     }
 
     for (const auto& pt : m_OptimizedGluePath.PathLeft) {
-        cv::Point2d machinePt;
-        machinePt.x = pt.x - MachineCoord.x;
-        machinePt.y = pt.y - MachineCoord.y;
+        cv::Point2d machinePt = pt;
         m_machineGluePath.PathLeft.push_back(machinePt);
 
         cv::Point2d hmiTemp;
