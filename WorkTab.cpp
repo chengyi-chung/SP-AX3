@@ -1614,9 +1614,9 @@ BOOL WorkTab::PreTranslateMessage(MSG* pMsg)
                         return TRUE;
                     }
 
-                    const int horizontalCells = maxCol - minCol;
-                    const int verticalCells = maxRow - minRow;
-                    if (horizontalCells <= 0 && verticalCells <= 0) {
+                    const int colCells = maxCol - minCol;
+                    const int rowCells = maxRow - minRow;
+                    if (colCells <= 0 && rowCells <= 0) {
                         AfxMessageBox(L"框選區域至少需要跨越 1 格以上，才能自動計算格數。");
                         return TRUE;
                     }
@@ -1640,6 +1640,38 @@ BOOL WorkTab::PreTranslateMessage(MSG* pMsg)
                     if (pixelSteps.empty()) {
                         AfxMessageBox(L"無法從所選區域計算角點間距。");
                         return TRUE;
+                    }
+
+                    double alongColsDx = 0.0, alongColsDy = 0.0;
+                    double alongRowsDx = 0.0, alongRowsDy = 0.0;
+                    int alongColsCount = 0, alongRowsCount = 0;
+                    for (int row = minRow; row <= maxRow; ++row) {
+                        for (int col = minCol; col < maxCol; ++col) {
+                            const cv::Point2f& p1 = m_factorCorners[row * m_factorBoardSize.width + col];
+                            const cv::Point2f& p2 = m_factorCorners[row * m_factorBoardSize.width + col + 1];
+                            alongColsDx += std::abs(p2.x - p1.x);
+                            alongColsDy += std::abs(p2.y - p1.y);
+                            ++alongColsCount;
+                        }
+                    }
+                    for (int row = minRow; row < maxRow; ++row) {
+                        for (int col = minCol; col <= maxCol; ++col) {
+                            const cv::Point2f& p1 = m_factorCorners[row * m_factorBoardSize.width + col];
+                            const cv::Point2f& p2 = m_factorCorners[(row + 1) * m_factorBoardSize.width + col];
+                            alongRowsDx += std::abs(p2.x - p1.x);
+                            alongRowsDy += std::abs(p2.y - p1.y);
+                            ++alongRowsCount;
+                        }
+                    }
+
+                    const bool alongColsLooksHorizontal =
+                        alongColsCount > 0 && (alongColsDx / alongColsCount) >= (alongColsDy / alongColsCount);
+
+                    int horizontalCells = colCells;
+                    int verticalCells = rowCells;
+                    if (!alongColsLooksHorizontal) {
+                        horizontalCells = rowCells;
+                        verticalCells = colCells;
                     }
 
                     CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
