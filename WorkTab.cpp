@@ -10,6 +10,7 @@
 #include <cmath>
 #include <fstream>
 #include <iomanip>
+#include <numeric>
 #include <tuple>
 #include <vector>
 #include "UAX\\UAXVision.cpp" // bring UAXVision implementation into this module
@@ -132,6 +133,7 @@ void RotateGluePath180(GluePath& gluePath, const cv::Size& imageSize)
     }
 }
 
+// Sort the glue path points by ascending Y coordinate (top to bottom)
 void SortGluePathByAscendingY(GluePath& gluePath)
 {
     const size_t count = (std::min)(gluePath.PathRight.size(), gluePath.PathLeft.size());
@@ -178,6 +180,72 @@ void ExportGluePathAsToolCSV(const GluePath& gluePath, const std::string& fileNa
             << gluePath.PathLeft[i].x << "\n";
     }
 }
+
+class GridLengthInputDialog : public CDialogEx
+{
+public:
+    explicit GridLengthInputDialog(double defaultLengthMm, CWnd* pParent = nullptr)
+        : CDialogEx(IDD_DLG_IMAGE_PRO, pParent), m_lengthMm(defaultLengthMm) {}
+
+    double GetLengthMm() const { return m_lengthMm; }
+
+protected:
+    BOOL OnInitDialog() override
+    {
+        CDialogEx::OnInitDialog();
+        SetWindowTextW(L"Grid Length");
+
+        CWnd* okButton = GetDlgItem(IDOK);
+        CWnd* cancelButton = GetDlgItem(IDCANCEL);
+        if (okButton) okButton->SetWindowTextW(L"確定");
+        if (cancelButton) cancelButton->SetWindowTextW(L"取消");
+
+        m_staticPrompt.Create(
+            L"請輸入單一格點邊長(mm)：",
+            WS_CHILD | WS_VISIBLE,
+            CRect(16, 20, 180, 40),
+            this);
+
+        m_editLength.Create(
+            WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL,
+            CRect(16, 48, 140, 68),
+            this,
+            20001);
+
+        CString text;
+        text.Format(L"%.3f", m_lengthMm);
+        m_editLength.SetWindowTextW(text);
+        m_editLength.SetFocus();
+        m_editLength.SetSel(0, -1);
+        return FALSE;
+    }
+
+    void OnOK() override
+    {
+        CString text;
+        m_editLength.GetWindowTextW(text);
+        text.Trim();
+        if (text.IsEmpty()) {
+            AfxMessageBox(L"請輸入格點邊長(mm)。");
+            return;
+        }
+
+        wchar_t* endPtr = nullptr;
+        const double value = wcstod(text, &endPtr);
+        if (endPtr == text.GetString() || value <= 0.0) {
+            AfxMessageBox(L"格點邊長必須是大於 0 的數值。");
+            return;
+        }
+
+        m_lengthMm = value;
+        CDialogEx::OnOK();
+    }
+
+private:
+    double m_lengthMm = 25.0;
+    CStatic m_staticPrompt;
+    CEdit m_editLength;
+};
 
 }
 
@@ -301,6 +369,8 @@ BEGIN_MESSAGE_MAP(WorkTab, CDialogEx)
     ON_WM_TIMER()
     ON_BN_CLICKED(IDC_WORK_STOP_GRAB, &WorkTab::OnBnClickedWorkStopGrab)
     ON_WM_MOUSEMOVE()
+    ON_WM_LBUTTONDOWN()
+    ON_WM_LBUTTONUP()
     ON_WM_SETCURSOR()
     ON_BN_CLICKED(IDC_WORK_TEMP_IMG, &WorkTab::OnBnClickedWorkTempImg)
     ON_BN_CLICKED(IDC_WORK_MATCH_TEMP, &WorkTab::OnBnClickedWorkMatchTemp)
@@ -312,6 +382,7 @@ BEGIN_MESSAGE_MAP(WorkTab, CDialogEx)
     ON_BN_CLICKED(IDC_MFCBTN_WORK_IMG_PROCESS, &WorkTab::OnBnClickedWorkImageProcess) // ← 新增
     ON_BN_CLICKED(IDC_MFCBTN_WORK_IMG_Calibrate, &WorkTab::OnBnClickedMfcbtnWorkImgCalibrate)
     ON_BN_CLICKED(IDC_CHECK_WORK_ROI, &WorkTab::OnBnClickedCheckWorkRoi)
+    ON_BN_CLICKED(IDC_MFCBTN_WORK_IMG_FACTOR, &WorkTab::OnBnClickedMfcbtnWorkImgFactor)
 END_MESSAGE_MAP()
 
 
@@ -767,7 +838,7 @@ void WorkTab::SyncHmiData(int stationID)
                 MaskHeight = pParent->m_SystemPara.MaskHeight;
                 referenceX = pParent->m_SystemPara.RefCenterX;
                 referenceY = pParent->m_SystemPara.RefCenterY;
-                if (m_bROIMode || flgCenter) {
+                if (!m_bFactorSelectMode && (m_bROIMode || flgCenter)) {
                     ShowImageOnPictureControl(flgCenter, cv::Scalar(0, 0, 255, 255), 1, CrossStyle::Solid);
                 }
             }
@@ -1285,14 +1356,15 @@ void WorkTab::ShowImageOnPictureCtl()
 
 void WorkTab::ShowImageOnPictureControl(bool flgCenter, cv::Scalar crossColor, int lineThickness, CrossStyle style)
 {
-    if (m_mat.empty() || pWnd == nullptr || !::IsWindow(pWnd->GetSafeHwnd())) return;
+    const cv::Mat& sourceMat = !m_factorPreviewMat.empty() ? m_factorPreviewMat : m_mat;
+    if (sourceMat.empty() || pWnd == nullptr || !::IsWindow(pWnd->GetSafeHwnd())) return;
 
     CRect rect;
     pWnd->GetClientRect(&rect);
     if (rect.Width() <= 0 || rect.Height() <= 0) return;
 
     cv::Mat resizedImage;
-    cv::resize(m_mat, resizedImage, cv::Size(rect.Width(), rect.Height()));
+    cv::resize(sourceMat, resizedImage, cv::Size(rect.Width(), rect.Height()));
 
     cv::Mat imageToShow;
     if (resizedImage.channels() == 1) {
@@ -1312,14 +1384,14 @@ void WorkTab::ShowImageOnPictureControl(bool flgCenter, cv::Scalar crossColor, i
 
 	//取得 ROI checkbox 狀態，決定是否繪製 Mask 矩形
 
-	if (m_bROIMode)
+	if (m_bROIMode && m_factorPreviewMat.empty())
     {
         // --- 新增：繪製 Mask 矩形 ---
      // Calculate scale factors
      // Draw the rectangle if MaskWidth and MaskHeight are greater than 0
         if (MaskWidth > 0 && MaskHeight > 0) {
-            double scaleX = static_cast<double>(rect.Width()) / m_mat.cols;
-            double scaleY = static_cast<double>(rect.Height()) / m_mat.rows;
+            double scaleX = static_cast<double>(rect.Width()) / sourceMat.cols;
+            double scaleY = static_cast<double>(rect.Height()) / sourceMat.rows;
            
 
             //double scaleX = static_cast<double>(imageToShow.cols) / rect.Width();
@@ -1347,8 +1419,8 @@ void WorkTab::ShowImageOnPictureControl(bool flgCenter, cv::Scalar crossColor, i
     if (flgCenter)
     {
 
-        double scaleX = static_cast<double>(rect.Width()) / m_mat.cols;
-        double scaleY = static_cast<double>(rect.Height()) / m_mat.rows;
+        double scaleX = static_cast<double>(rect.Width()) / sourceMat.cols;
+        double scaleY = static_cast<double>(rect.Height()) / sourceMat.rows;
         int centerX = static_cast<int>(std::lround(referenceX * scaleX));
         int centerY = static_cast<int>(std::lround(referenceY * scaleY));
         centerX = (std::max)(0, (std::min)(centerX, imageToShow.cols - 1));
@@ -1389,6 +1461,27 @@ void WorkTab::ShowImageOnPictureControl(bool flgCenter, cv::Scalar crossColor, i
             drawDashedLine(cv::Point(centerX, 0),
                 cv::Point(centerX, imageToShow.rows - 1), dashLength);
         }
+    }
+
+    if (m_bFactorSelectMode && (m_bDrawingROI || m_bROIConfirmed)) {
+        CRect roiRect(m_ROIStart, m_ROICurrent);
+        roiRect.NormalizeRect();
+        const int maxX = imageToShow.cols - 1;
+        const int maxY = imageToShow.rows - 1;
+        const int left = (std::max)(0, (std::min)(static_cast<int>(roiRect.left), maxX));
+        const int top = (std::max)(0, (std::min)(static_cast<int>(roiRect.top), maxY));
+        const int right = (std::max)(left + 1, (std::min)(static_cast<int>(roiRect.right), imageToShow.cols));
+        const int bottom = (std::max)(top + 1, (std::min)(static_cast<int>(roiRect.bottom), imageToShow.rows));
+        roiRect.left = left;
+        roiRect.top = top;
+        roiRect.right = right;
+        roiRect.bottom = bottom;
+
+        cv::rectangle(
+            imageToShow,
+            cv::Rect(roiRect.left, roiRect.top, roiRect.Width(), roiRect.Height()),
+            cv::Scalar(0, 255, 255, 255),
+            2);
     }
 
     BITMAPINFO bitmapInfo;
@@ -1443,23 +1536,323 @@ void WorkTab::OnCancel()
 
 BOOL WorkTab::PreTranslateMessage(MSG* pMsg)
 {
+    if (m_bFactorSelectMode && !m_factorPreviewMat.empty()) {
+        CRect picRectScreen;
+        if (GetDlgItem(IDC_PICCTL_DISPLAY) != nullptr) {
+            GetDlgItem(IDC_PICCTL_DISPLAY)->GetWindowRect(&picRectScreen);
+        }
+
+        if (!picRectScreen.IsRectEmpty() && picRectScreen.PtInRect(pMsg->pt)) {
+            const int localX = static_cast<int>(pMsg->pt.x - picRectScreen.left);
+            const int localY = static_cast<int>(pMsg->pt.y - picRectScreen.top);
+            const int maxLocalX = picRectScreen.Width() - 1;
+            const int maxLocalY = picRectScreen.Height() - 1;
+            const CPoint localPoint(
+                (std::max)(0, (std::min)(localX, maxLocalX)),
+                (std::max)(0, (std::min)(localY, maxLocalY)));
+
+            switch (pMsg->message) {
+            case WM_LBUTTONDOWN:
+                m_bDrawingROI = true;
+                m_bROIConfirmed = false;
+                m_ROIStart = localPoint;
+                m_ROICurrent = localPoint;
+                ShowImageOnPictureControl(flgCenter, cv::Scalar(0, 0, 255, 255), 1, CrossStyle::Solid);
+                return TRUE;
+
+            case WM_MOUSEMOVE:
+                if (m_bDrawingROI) {
+                    m_ROICurrent = localPoint;
+                    ShowImageOnPictureControl(flgCenter, cv::Scalar(0, 0, 255, 255), 1, CrossStyle::Solid);
+                    return TRUE;
+                }
+                break;
+
+            case WM_LBUTTONUP:
+                if (m_bDrawingROI) {
+                    m_bDrawingROI = false;
+                    m_ROICurrent = localPoint;
+                    m_bROIConfirmed = true;
+
+                    const double scaleX = static_cast<double>(m_factorPreviewMat.cols) / picRectScreen.Width();
+                    const double scaleY = static_cast<double>(m_factorPreviewMat.rows) / picRectScreen.Height();
+                    CRect roiRect(m_ROIStart, m_ROICurrent);
+                    roiRect.NormalizeRect();
+                    if (roiRect.Width() <= 1 || roiRect.Height() <= 1) {
+                        AfxMessageBox(L"框選區域太小。");
+                        m_bROIConfirmed = false;
+                        ShowImageOnPictureControl(flgCenter, cv::Scalar(0, 0, 255, 255), 1, CrossStyle::Solid);
+                        return TRUE;
+                    }
+
+                    cv::Rect imageRoi(
+                        cvRound(roiRect.left * scaleX),
+                        cvRound(roiRect.top * scaleY),
+                        (std::max)(1, cvRound(roiRect.Width() * scaleX)),
+                        (std::max)(1, cvRound(roiRect.Height() * scaleY)));
+                    imageRoi &= cv::Rect(0, 0, m_factorPreviewMat.cols, m_factorPreviewMat.rows);
+
+                    int minCol = m_factorBoardSize.width;
+                    int maxCol = -1;
+                    int minRow = m_factorBoardSize.height;
+                    int maxRow = -1;
+
+                    for (int row = 0; row < m_factorBoardSize.height; ++row) {
+                        for (int col = 0; col < m_factorBoardSize.width; ++col) {
+                            const cv::Point2f& pt = m_factorCorners[row * m_factorBoardSize.width + col];
+                            if (imageRoi.contains(cv::Point(cvRound(pt.x), cvRound(pt.y)))) {
+                                minCol = (std::min)(minCol, col);
+                                maxCol = (std::max)(maxCol, col);
+                                minRow = (std::min)(minRow, row);
+                                maxRow = (std::max)(maxRow, row);
+                            }
+                        }
+                    }
+
+                    if (maxCol < 0 || maxRow < 0) {
+                        AfxMessageBox(L"框選區域內沒有偵測到有效角點。");
+                        return TRUE;
+                    }
+
+                    const int horizontalCells = maxCol - minCol;
+                    const int verticalCells = maxRow - minRow;
+                    if (horizontalCells <= 0 && verticalCells <= 0) {
+                        AfxMessageBox(L"框選區域至少需要跨越 1 格以上，才能自動計算格數。");
+                        return TRUE;
+                    }
+
+                    std::vector<double> pixelSteps;
+                    for (int row = minRow; row <= maxRow; ++row) {
+                        for (int col = minCol; col < maxCol; ++col) {
+                            const cv::Point2f& p1 = m_factorCorners[row * m_factorBoardSize.width + col];
+                            const cv::Point2f& p2 = m_factorCorners[row * m_factorBoardSize.width + col + 1];
+                            pixelSteps.push_back(cv::norm(p2 - p1));
+                        }
+                    }
+                    for (int row = minRow; row < maxRow; ++row) {
+                        for (int col = minCol; col <= maxCol; ++col) {
+                            const cv::Point2f& p1 = m_factorCorners[row * m_factorBoardSize.width + col];
+                            const cv::Point2f& p2 = m_factorCorners[(row + 1) * m_factorBoardSize.width + col];
+                            pixelSteps.push_back(cv::norm(p2 - p1));
+                        }
+                    }
+
+                    if (pixelSteps.empty()) {
+                        AfxMessageBox(L"無法從所選區域計算角點間距。");
+                        return TRUE;
+                    }
+
+                    CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
+                    if (!pParentWnd) {
+                        AfxMessageBox(L"無法取得父視窗指標。");
+                        return TRUE;
+                    }
+
+                    const double gridLengthPx = std::accumulate(pixelSteps.begin(), pixelSteps.end(), 0.0) / static_cast<double>(pixelSteps.size());
+                    const double factorMmPerPixel = m_pendingGridLengthMm / gridLengthPx;
+                    pParentWnd->m_SystemPara.TransferFactor = static_cast<float>(factorMmPerPixel);
+
+                    std::string appPath = GetAppPath();
+                    std::string configPath = appPath;
+                    if (!configPath.empty() && configPath.back() != '\\' && configPath.back() != '/') {
+                        configPath += "\\";
+                    }
+                    configPath += "SystemConfig.ini";
+                    WriteConfigToFile_SP(configPath, pParentWnd->m_SystemPara);
+
+                    m_bFactorSelectMode = false;
+                    m_factorPreviewMat.release();
+                    m_factorCorners.clear();
+                    m_bROIConfirmed = false;
+
+                    ShowImageOnPictureControl(flgCenter, cv::Scalar(0, 0, 255, 255), 1, CrossStyle::Solid);
+
+                    CString msg;
+                    msg.Format(L"Factor 計算完成。\n橫向格數: %d\n縱向格數: %d\n單格長度: %.3f mm\n平均單格像素: %.3f px\nTransferFactor: %.6f mm/pixel\nINI已更新: %s",
+                        horizontalCells,
+                        verticalCells,
+                        m_pendingGridLengthMm,
+                        gridLengthPx,
+                        factorMmPerPixel,
+                        CString(configPath.c_str()));
+                    AfxMessageBox(msg);
+                    return TRUE;
+                }
+                break;
+            }
+        }
+    }
+
     return CDialogEx::PreTranslateMessage(pMsg);
 }
 
 
 void WorkTab::OnMouseMove(UINT nFlags, CPoint point)
 {
-    // TODO: 在此加入您的訊息處理常式程式碼和 (或) 呼叫預設值
+    m_MousePos = point;
 
-   //Set Mouse Cursor Position
-	//CString str;
-	//str.Format(_T("Mouse Cursor Position: (%d, %d)"), point.x, point.y);
-	m_MousePos = point;
+    if (m_bFactorSelectMode && m_bDrawingROI) {
+        CRect picRect;
+        GetDlgItem(IDC_PICCTL_DISPLAY)->GetWindowRect(&picRect);
+        ScreenToClient(&picRect);
+        if (picRect.PtInRect(point)) {
+            const int localX = static_cast<int>(point.x - picRect.left);
+            const int localY = static_cast<int>(point.y - picRect.top);
+            const int maxLocalX = picRect.Width() - 1;
+            const int maxLocalY = picRect.Height() - 1;
+            m_ROICurrent = CPoint(
+                (std::max)(0, (std::min)(localX, maxLocalX)),
+                (std::max)(0, (std::min)(localY, maxLocalY)));
+            ShowImageOnPictureControl(flgCenter, cv::Scalar(0, 0, 255, 255), 1, CrossStyle::Solid);
+        }
+    }
 
-	//Invalidate();
-
-   
     CDialogEx::OnMouseMove(nFlags, point);
+}
+
+void WorkTab::OnLButtonDown(UINT nFlags, CPoint point)
+{
+    if (m_bFactorSelectMode && !m_factorPreviewMat.empty()) {
+        CRect picRect;
+        GetDlgItem(IDC_PICCTL_DISPLAY)->GetWindowRect(&picRect);
+        ScreenToClient(&picRect);
+        if (picRect.PtInRect(point)) {
+            m_bDrawingROI = true;
+            m_bROIConfirmed = false;
+            m_ROIStart = CPoint(point.x - picRect.left, point.y - picRect.top);
+            m_ROICurrent = m_ROIStart;
+            ShowImageOnPictureControl(flgCenter, cv::Scalar(0, 0, 255, 255), 1, CrossStyle::Solid);
+            return;
+        }
+    }
+
+    CDialogEx::OnLButtonDown(nFlags, point);
+}
+
+void WorkTab::OnLButtonUp(UINT nFlags, CPoint point)
+{
+    if (m_bFactorSelectMode && m_bDrawingROI && !m_factorPreviewMat.empty()) {
+        CRect picRect;
+        GetDlgItem(IDC_PICCTL_DISPLAY)->GetWindowRect(&picRect);
+        ScreenToClient(&picRect);
+        m_bDrawingROI = false;
+
+        const int localX = static_cast<int>(point.x - picRect.left);
+        const int localY = static_cast<int>(point.y - picRect.top);
+        const int maxLocalX = picRect.Width() - 1;
+        const int maxLocalY = picRect.Height() - 1;
+        CPoint endPoint(
+            (std::max)(0, (std::min)(localX, maxLocalX)),
+            (std::max)(0, (std::min)(localY, maxLocalY)));
+        m_ROICurrent = endPoint;
+        m_bROIConfirmed = true;
+
+        CRect roiRect(m_ROIStart, m_ROICurrent);
+        roiRect.NormalizeRect();
+        if (roiRect.Width() <= 1 || roiRect.Height() <= 1) {
+            AfxMessageBox(L"框選區域太小。");
+            m_bROIConfirmed = false;
+            ShowImageOnPictureControl(flgCenter, cv::Scalar(0, 0, 255, 255), 1, CrossStyle::Solid);
+            return;
+        }
+
+        const double scaleX = static_cast<double>(m_factorPreviewMat.cols) / picRect.Width();
+        const double scaleY = static_cast<double>(m_factorPreviewMat.rows) / picRect.Height();
+        cv::Rect imageRoi(
+            cvRound(roiRect.left * scaleX),
+            cvRound(roiRect.top * scaleY),
+            (std::max)(1, cvRound(roiRect.Width() * scaleX)),
+            (std::max)(1, cvRound(roiRect.Height() * scaleY)));
+        imageRoi &= cv::Rect(0, 0, m_factorPreviewMat.cols, m_factorPreviewMat.rows);
+
+        int minCol = m_factorBoardSize.width;
+        int maxCol = -1;
+        int minRow = m_factorBoardSize.height;
+        int maxRow = -1;
+
+        for (int row = 0; row < m_factorBoardSize.height; ++row) {
+            for (int col = 0; col < m_factorBoardSize.width; ++col) {
+                const cv::Point2f& pt = m_factorCorners[row * m_factorBoardSize.width + col];
+                if (imageRoi.contains(cv::Point(cvRound(pt.x), cvRound(pt.y)))) {
+                    minCol = (std::min)(minCol, col);
+                    maxCol = (std::max)(maxCol, col);
+                    minRow = (std::min)(minRow, row);
+                    maxRow = (std::max)(maxRow, row);
+                }
+            }
+        }
+
+        if (maxCol < 0 || maxRow < 0) {
+            AfxMessageBox(L"框選區域內沒有偵測到有效角點。");
+            return;
+        }
+
+        const int horizontalCells = maxCol - minCol;
+        const int verticalCells = maxRow - minRow;
+        if (horizontalCells <= 0 && verticalCells <= 0) {
+            AfxMessageBox(L"框選區域至少需要跨越 1 格以上，才能自動計算格數。");
+            return;
+        }
+
+        std::vector<double> pixelSteps;
+        for (int row = minRow; row <= maxRow; ++row) {
+            for (int col = minCol; col < maxCol; ++col) {
+                const cv::Point2f& p1 = m_factorCorners[row * m_factorBoardSize.width + col];
+                const cv::Point2f& p2 = m_factorCorners[row * m_factorBoardSize.width + col + 1];
+                pixelSteps.push_back(cv::norm(p2 - p1));
+            }
+        }
+        for (int row = minRow; row < maxRow; ++row) {
+            for (int col = minCol; col <= maxCol; ++col) {
+                const cv::Point2f& p1 = m_factorCorners[row * m_factorBoardSize.width + col];
+                const cv::Point2f& p2 = m_factorCorners[(row + 1) * m_factorBoardSize.width + col];
+                pixelSteps.push_back(cv::norm(p2 - p1));
+            }
+        }
+
+        if (pixelSteps.empty()) {
+            AfxMessageBox(L"無法從所選區域計算角點間距。");
+            return;
+        }
+
+        CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
+        if (!pParentWnd) {
+            AfxMessageBox(L"無法取得父視窗指標。");
+            return;
+        }
+
+        const double gridLengthPx = std::accumulate(pixelSteps.begin(), pixelSteps.end(), 0.0) / static_cast<double>(pixelSteps.size());
+        const double factorMmPerPixel = m_pendingGridLengthMm / gridLengthPx;
+        pParentWnd->m_SystemPara.TransferFactor = static_cast<float>(factorMmPerPixel);
+
+        std::string appPath = GetAppPath();
+        std::string configPath = appPath;
+        if (!configPath.empty() && configPath.back() != '\\' && configPath.back() != '/') {
+            configPath += "\\";
+        }
+        configPath += "SystemConfig.ini";
+        WriteConfigToFile_SP(configPath, pParentWnd->m_SystemPara);
+
+        m_bFactorSelectMode = false;
+        m_factorPreviewMat.release();
+        m_factorCorners.clear();
+        m_bROIConfirmed = false;
+
+        ShowImageOnPictureControl(flgCenter, cv::Scalar(0, 0, 255, 255), 1, CrossStyle::Solid);
+
+        CString msg;
+        msg.Format(L"Factor 計算完成。\n橫向格數: %d\n縱向格數: %d\n單格長度: %.3f mm\n平均單格像素: %.3f px\nTransferFactor: %.6f mm/pixel\nINI已更新: %s",
+            horizontalCells,
+            verticalCells,
+            m_pendingGridLengthMm,
+            gridLengthPx,
+            factorMmPerPixel,
+            CString(configPath.c_str()));
+        AfxMessageBox(msg);
+        return;
+    }
+
+    CDialogEx::OnLButtonUp(nFlags, point);
 }
 
 BOOL WorkTab::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message)
@@ -1666,6 +2059,9 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
     cv::Mat imgClone = pathSourceImage.clone();
     GetToolPath_CurvatureOptimized_Mask(imgClone, pathMask, offsetPx, this->toolPath, 0.0008,false);
 
+	//此時 toolPath 中的點座標是基於 pathSourceImage 的，如果校正有翻轉過，則需要把座標翻回來對應到 correctedImage 的顯示座標。
+	//單位仍然是像素，後續優化與繪圖都基於 correctedImage 的座標系統。
+
     if (usedCalibrationCorrection) {
         ApplyConfiguredFlipToToolPath(this->toolPath, pathSourceImage.size(), imgFlip);
     }
@@ -1676,6 +2072,7 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
     }
 
     // 8. 膠路同步優化 (核心步驟)
+	// 直接使用成員變數 MaskX/Y/Width/Height 和 referenceX/Y
     ROIMask roiOpt = {};
     roiOpt.MaskX = MaskX; roiOpt.MaskY = MaskY;
     roiOpt.MaskWidth = MaskWidth; roiOpt.MaskHeight = MaskHeight;
@@ -1685,15 +2082,20 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
     // 直接傳入成員變數，避免重複拷貝
     // 注意：OutputPath 建議定義為類別成員，以便後續繪圖或傳送給 PLC
     GluePath finalPath;
+
+	//分割成左、右兩條路徑優化，最後再合併成一條完整路徑
     OptimizeGluePath(this->toolPath.Path, roiOpt, finalPath, 2);
 
     if (usedCalibrationCorrection) {
+        
         RotateGluePath180(finalPath, correctedImage.size());
     }
 
+	// 最後再依 Y 座標排序，確保路徑點是從上到下的順序，這對於後續的機器人運動規劃很重要。
     SortGluePathByAscendingY(finalPath);
 
     // 9. 儲存或顯示結果
+	//m_OptimizedGluePath : 單位為像素，座標系統與 correctedImage 一致
     this->m_OptimizedGluePath = finalPath; // 假設你有一個成員變數儲存最終結果
 
     // 10. 重建顯示/輸出用座標
@@ -2685,11 +3087,12 @@ void WorkTab::ConvertToMachineCoordinates()
     m_HMIGluePath.PathRight.clear();
     m_HMIGluePath.PathLeft.clear();
 
-	constexpr double HMI_ORIGIN_X = 1200.0;  // 這裡的原點偏移是根據實際需求設定的，假設機器座標(0,0)對應到HMI座標(1200,80)
-	constexpr double HMI_ORIGIN_Y = 80.0;  // 縮放比例：根據實際需求設定，這裡假設機器座標的單位是 mm，而 HMI 顯示座標需要縮小到約 1/3 和 1/5
+	constexpr double HMI_ORIGIN_X = 400.0;  // HMI :pixel 這裡的原點偏移是根據實際需求設定的，假設機器座標(0,0)對應到HMI座標(1200,80)
+	constexpr double HMI_ORIGIN_Y = 16.0;  // 縮放比例：根據實際需求設定，這裡假設機器座標的單位是 mm，而 HMI 顯示座標需要縮小到約 1/3 和 1/5
     constexpr double HMI_SCALE_X = 3.0;
     constexpr double HMI_SCALE_Y = 5.0;
 
+    //
     for (const auto& pt : m_OptimizedGluePath.PathRight) {
         cv::Point2d machinePt = pt;
         m_machineGluePath.PathRight.push_back(machinePt);
@@ -2718,4 +3121,139 @@ void WorkTab::ConvertToMachineCoordinates()
         hmiPt.y = std::lround(hmiTemp.y / HMI_SCALE_Y);
         m_HMIGluePath.PathLeft.push_back(hmiPt);
     }
+}
+
+void WorkTab::OnBnClickedMfcbtnWorkImgFactor()
+{
+    if (m_mat.empty()) {
+        AfxMessageBox(L"請先載入影像。");
+        return;
+    }
+
+    CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
+    if (!pParentWnd) {
+        AfxMessageBox(L"無法取得父視窗指標。");
+        return;
+    }
+
+    if (!m_vision.isCalibrated() && !m_vision.loadCalibrationData(GetCalibrationFilePath())) {
+        AfxMessageBox(L"無法載入校正參數檔 calibration.yml。");
+        return;
+    }
+
+    GridLengthInputDialog lengthDlg(25.0, this);
+    if (lengthDlg.DoModal() != IDOK) {
+        return;
+    }
+
+    CWaitCursor waitCursor;
+
+    cv::Mat rawOrientationImage = ApplyConfiguredFlip(m_mat, imgFlip);
+    cv::Mat undistortedRaw;
+    try {
+        undistortedRaw = m_vision.undistortImage(rawOrientationImage);
+    }
+    catch (const cv::Exception& e) {
+        CString msg;
+        msg.Format(L"影像校正失敗：\n%S", e.what());
+        AfxMessageBox(msg);
+        return;
+    }
+
+    if (undistortedRaw.empty()) {
+        AfxMessageBox(L"校正後影像為空，無法計算 Factor。");
+        return;
+    }
+
+    cv::Mat gray;
+    if (undistortedRaw.channels() == 1) {
+        gray = undistortedRaw;
+    }
+    else {
+        cv::cvtColor(undistortedRaw, gray, cv::COLOR_BGR2GRAY);
+    }
+
+    std::vector<cv::Point2f> corners;
+    cv::Size boardSize = m_vision.getCalibrationBoardSize();
+    std::vector<cv::Size> candidates = {
+        boardSize,
+        cv::Size(9, 6), cv::Size(8, 6), cv::Size(7, 6),
+        cv::Size(11, 8), cv::Size(10, 7), cv::Size(10, 8),
+        cv::Size(6, 4), cv::Size(5, 4)
+    };
+    candidates.erase(std::remove_if(candidates.begin(), candidates.end(),
+        [](const cv::Size& s) { return s.width <= 0 || s.height <= 0; }), candidates.end());
+    candidates.erase(std::unique(candidates.begin(), candidates.end(),
+        [](const cv::Size& a, const cv::Size& b) { return a.width == b.width && a.height == b.height; }),
+        candidates.end());
+
+    bool found = false;
+    for (const auto& candidate : candidates) {
+        corners.clear();
+        found = cv::findChessboardCornersSB(
+            gray,
+            candidate,
+            corners,
+            cv::CALIB_CB_EXHAUSTIVE | cv::CALIB_CB_ACCURACY);
+
+        if (!found) {
+            found = cv::findChessboardCorners(
+                gray,
+                candidate,
+                corners,
+                cv::CALIB_CB_ADAPTIVE_THRESH | cv::CALIB_CB_NORMALIZE_IMAGE);
+            if (found) {
+                cv::cornerSubPix(
+                    gray,
+                    corners,
+                    cv::Size(11, 11),
+                    cv::Size(-1, -1),
+                    cv::TermCriteria(cv::TermCriteria::EPS | cv::TermCriteria::COUNT, 30, 0.1));
+            }
+        }
+
+        if (found && !corners.empty()) {
+            boardSize = candidate;
+            m_vision.setCalibrationPattern(candidate, m_vision.getCalibrationSquareSize());
+            break;
+        }
+    }
+
+    if (!found || corners.empty()) {
+        AfxMessageBox(L"無法在校正後影像中偵測到棋盤格角點。請確認校正板格點數是否正確，或重新拍攝更清晰的格點影像。");
+        return;
+    }
+
+    cv::Mat preview;
+    if (undistortedRaw.channels() == 1) {
+        cv::cvtColor(undistortedRaw, preview, cv::COLOR_GRAY2BGRA);
+    }
+    else if (undistortedRaw.channels() == 3) {
+        cv::cvtColor(undistortedRaw, preview, cv::COLOR_BGR2BGRA);
+    }
+    else if (undistortedRaw.channels() == 4) {
+        preview = undistortedRaw.clone();
+    }
+    else {
+        AfxMessageBox(L"不支援的影像格式。");
+        return;
+    }
+
+    cv::drawChessboardCorners(preview, boardSize, corners, found);
+
+    m_factorPreviewMat = preview;
+    m_factorCorners = corners;
+    m_factorBoardSize = boardSize;
+    m_pendingGridLengthMm = lengthDlg.GetLengthMm();
+    m_bFactorSelectMode = true;
+    m_bDrawingROI = false;
+    m_bROIConfirmed = false;
+
+    Invalidate(FALSE);
+    ShowImageOnPictureControl(flgCenter, cv::Scalar(0, 0, 255, 255), 1, CrossStyle::Solid);
+    if (pWnd && ::IsWindow(pWnd->GetSafeHwnd())) {
+        pWnd->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW | RDW_ERASE);
+    }
+    waitCursor.Restore();
+    AfxMessageBox(L"已切換到校正後預覽圖。請直接在主畫面的影像區拖拉框選多個格點，放開滑鼠後會自動計算 Factor。");
 }

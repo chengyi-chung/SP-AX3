@@ -173,6 +173,11 @@ private:
 	CRect m_SelectedROI;               // 最終確定的 ROI（像素座標，對應原始圖像）
 
 	bool m_bROIConfirmed = false;      // 是否已確認 ROI（可選）
+	bool m_bFactorSelectMode = false;  // 是否正在進行 Factor 框選
+	double m_pendingGridLengthMm = 0.0;
+	cv::Mat m_factorPreviewMat;        // Factor 計算用的校正後預覽圖
+	std::vector<cv::Point2f> m_factorCorners;
+	cv::Size m_factorBoardSize;
 	bool m_hmiSyncEnabled = false;
 	bool m_hmiSyncBusy = false;
 	UINT m_hmiSyncIntervalMs = 300;
@@ -213,6 +218,8 @@ public:
 	virtual void OnOK();
 	virtual void OnCancel();
 	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
+	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
+	afx_msg void OnLButtonUp(UINT nFlags, CPoint point);
 	afx_msg BOOL OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message);
 	afx_msg void OnBnClickedWorkTempImg();
 	afx_msg void OnBnClickedWorkMatchTemp();
@@ -228,5 +235,6 @@ public:
 	bool ReadModbusRegisters(int startAddress, int numRegisters, std::vector<uint16_t>& outRegs, int stationID = 1);
 	afx_msg void OnBnClickedCheckWorkRoi();
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
+	afx_msg void OnBnClickedMfcbtnWorkImgFactor();
 };
 

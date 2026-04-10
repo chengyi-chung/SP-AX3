@@ -98,6 +98,8 @@
 #define IDC_MFCBTN_WORK_IMG_PROCESS     1072
 #define IDC_MFCBUTTON1                  1073
 #define IDC_MFCBTN_WORK_IMG_Calibrate   1073
+#define IDC_BUTTON3                     1074
+#define IDC_MFCBTN_WORK_IMG_FACTOR      1074
 #define IDC_EDIT_MACHINE_X              11001
 #define IDC_EDIT_MACHINE_Y              11002
 #define IDC_EDIT_MACHINE_Z              11003
@@ -111,7 +113,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        146
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1074
+#define _APS_NEXT_CONTROL_VALUE         1075
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
