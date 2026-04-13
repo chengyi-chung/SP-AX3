@@ -2131,19 +2131,23 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
     this->m_OptimizedGluePath = finalPath; // 假設你有一個成員變數儲存最終結果
 
     // 10. 重建顯示/輸出用座標
-    // m_machineGluePath 直接沿用 m_OptimizedGluePath，
-	// 再將 m_machineGluePath(0,0) 映射到 HMI 暫存原點 (1200,80)，
-	// 最後依 HMI 顯示比例 /3、/5 縮放後得到 m_HMIGluePath(400,16)。
+    // 依序產生：
+	// m_OptimizedGluePath(pixel) -> m_machineGluePath(pixel) ->
+	// m_machineGluePath_mm(mm) -> m_HMIGluePath_temp(pixel) -> m_HMIGluePath
     ConvertToMachineCoordinates();
 
 #ifdef _DEBUG
     //刪除CSV檔
      DeleteFile(_T("tool_optimized_glue_path.csv"));
      DeleteFile(_T("tool_machine_glue_path.csv"));
+	 DeleteFile(_T("tool_machine_glue_path_mm.csv"));
+	 DeleteFile(_T("tool_HMIGluePath_temp.csv"));
 	 DeleteFile(_T("tool_hmi_glue_path.csv"));
 
     ExportGluePathAsToolCSV(this->m_OptimizedGluePath, "tool_optimized_glue_path.csv");
     ExportGluePathAsToolCSV(this->m_machineGluePath, "tool_machine_glue_path.csv");
+    ExportGluePathAsToolCSV(this->m_machineGluePath_mm, "tool_machine_glue_path_mm.csv");
+    ExportGluePathAsToolCSV(this->m_HMIGluePath_temp, "tool_HMIGluePath_temp.csv");
     ExportGluePathAsToolCSV(this->m_HMIGluePath, "tool_hmi_glue_path.csv");
 
     // 僅 Debug 模式顯示 OpenCV 視窗，方便開發階段檢查路徑正確性
@@ -3103,50 +3107,71 @@ void WorkTab::OnBnClickedCheckWorkRoi()
         }
 }
 
-// 完整座標轉換：工具路徑座標 → HMI座標
-// 流程：
-//   1. m_OptimizedGluePath 直接作為 m_machineGluePath 使用，不在此做 MachineCoord 平移
-//   2. m_machineGluePath + (1200, 80)      → HMI 暫存原點映射
-//      也就是 m_machineGluePath(0,0) 對應到 m_HMIGluePath_temp(1200,80)
-//   3. HMI 暫存座標再依比例縮放成顯示座標：
-//      hmiPt.x = std::lround(hmiTemp.x / 3)
-//      hmiPt.y = std::lround(hmiTemp.y / 5)
-//      因此 m_machineGluePath(0,0) 最終會對應到 m_HMIGluePath(400,16)
+// 完整座標轉換流程
+// 1. m_OptimizedGluePath(pixel) 以 referenceX/referenceY 為機械原點，轉成 m_machineGluePath(pixel)
+// 2. m_machineGluePath(pixel) 乘上 TransferFactor(mm/pixel)，轉成 m_machineGluePath_mm(mm)
+// 3. m_machineGluePath_mm 的 (0,0) 映射到 HMI 的 m_HMIGluePath_temp(400,16)
+// 4. m_HMIGluePath_temp 再依 HMI 比例 /3、/5 縮放並取整，得到 m_HMIGluePath
 void WorkTab::ConvertToMachineCoordinates()
 {
+    CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
+
     m_machineGluePath.PathRight.clear();
     m_machineGluePath.PathLeft.clear();
+    m_machineGluePath_mm.PathRight.clear();
+    m_machineGluePath_mm.PathLeft.clear();
+    m_HMIGluePath_temp.PathRight.clear();
+    m_HMIGluePath_temp.PathLeft.clear();
     m_HMIGluePath.PathRight.clear();
     m_HMIGluePath.PathLeft.clear();
 
-	constexpr double HMI_ORIGIN_X = 400.0;  // HMI :pixel 這裡的原點偏移是根據實際需求設定的，假設機器座標(0,0)對應到HMI座標(1200,80)
-	constexpr double HMI_ORIGIN_Y = 16.0;  // 縮放比例：根據實際需求設定，這裡假設機器座標的單位是 mm，而 HMI 顯示座標需要縮小到約 1/3 和 1/5
+    const double transferFactor =
+        (pParentWnd && pParentWnd->m_SystemPara.TransferFactor > 0.0f)
+        ? static_cast<double>(pParentWnd->m_SystemPara.TransferFactor)
+        : 1.0;
+
+	constexpr double HMI_ORIGIN_X = 400.0;
+	constexpr double HMI_ORIGIN_Y = 16.0;
     constexpr double HMI_SCALE_X = 3.0;
     constexpr double HMI_SCALE_Y = 5.0;
 
-    //
     for (const auto& pt : m_OptimizedGluePath.PathRight) {
-        cv::Point2d machinePt = pt;
+        cv::Point2d machinePt;
+        machinePt.x = pt.x - referenceX;
+        machinePt.y = pt.y - referenceY;
         m_machineGluePath.PathRight.push_back(machinePt);
 
+        cv::Point2d machinePtMm;
+        machinePtMm.x = machinePt.x * transferFactor;
+        machinePtMm.y = machinePt.y * transferFactor;
+        m_machineGluePath_mm.PathRight.push_back(machinePtMm);
+
         cv::Point2d hmiTemp;
-        hmiTemp.x = machinePt.x + HMI_ORIGIN_X;
-        hmiTemp.y = machinePt.y + HMI_ORIGIN_Y;
+        hmiTemp.x = machinePtMm.x + HMI_ORIGIN_X;
+        hmiTemp.y = machinePtMm.y + HMI_ORIGIN_Y;
+        m_HMIGluePath_temp.PathRight.push_back(hmiTemp);
 
         cv::Point2d hmiPt;
-        // HMI 顯示座標採整數點位，避免 debug 匯出與實際寫入值不一致。
         hmiPt.x = std::lround(hmiTemp.x / HMI_SCALE_X);
         hmiPt.y = std::lround(hmiTemp.y / HMI_SCALE_Y);
         m_HMIGluePath.PathRight.push_back(hmiPt);
     }
 
     for (const auto& pt : m_OptimizedGluePath.PathLeft) {
-        cv::Point2d machinePt = pt;
+        cv::Point2d machinePt;
+        machinePt.x = pt.x - referenceX;
+        machinePt.y = pt.y - referenceY;
         m_machineGluePath.PathLeft.push_back(machinePt);
 
+        cv::Point2d machinePtMm;
+        machinePtMm.x = machinePt.x * transferFactor;
+        machinePtMm.y = machinePt.y * transferFactor;
+        m_machineGluePath_mm.PathLeft.push_back(machinePtMm);
+
         cv::Point2d hmiTemp;
-        hmiTemp.x = machinePt.x + HMI_ORIGIN_X;
-        hmiTemp.y = machinePt.y + HMI_ORIGIN_Y;
+        hmiTemp.x = machinePtMm.x + HMI_ORIGIN_X;
+        hmiTemp.y = machinePtMm.y + HMI_ORIGIN_Y;
+        m_HMIGluePath_temp.PathLeft.push_back(hmiTemp);
 
         cv::Point2d hmiPt;
         hmiPt.x = std::lround(hmiTemp.x / HMI_SCALE_X);

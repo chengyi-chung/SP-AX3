@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1260" viewBox="0 0 1800 1260">
+  <defs>
+    <style>
+      .bg { fill: #f7f5ef; }
+      .title { font: 700 34px 'Segoe UI', Arial, sans-serif; fill: #1f2a37; }
+      .subtitle { font: 500 18px 'Segoe UI', Arial, sans-serif; fill: #4b5563; }
+      .box { fill: #ffffff; stroke: #243b53; stroke-width: 2.5; rx: 18; ry: 18; }
+      .box-pixel { fill: #fff8e8; }
+      .box-mm { fill: #eaf7ef; }
+      .text { font: 600 20px 'Segoe UI', Arial, sans-serif; fill: #102a43; }
+      .small { font: 500 17px 'Segoe UI', Arial, sans-serif; fill: #334e68; }
+      .unit-pixel { fill: #b45309; font-weight: 700; }
+      .unit-mm { fill: #15803d; font-weight: 700; }
+      .arrow { stroke: #486581; stroke-width: 3; fill: none; marker-end: url(#arrowhead); }
+      .note { fill: #eef2ff; stroke: #6366f1; stroke-width: 1.8; rx: 14; ry: 14; }
+      .note-text { font: 600 18px 'Segoe UI', Arial, sans-serif; fill: #3730a3; }
+      .danger { fill: #fff1f2; stroke: #e11d48; stroke-width: 2; rx: 14; ry: 14; }
+      .danger-text { font: 700 18px 'Segoe UI', Arial, sans-serif; fill: #be123c; }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+      <polygon points="0 0, 10 4, 0 8" fill="#486581"/>
+    </marker>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1800" height="1260"/>
+
+  <text class="title" x="70" y="70">WorkTab Tool Path Unit Flow</text>
+  <text class="subtitle" x="70" y="105">目前版本：在 ConvertToMachineCoordinates() 之前，toolPath / m_OptimizedGluePath 仍然是 pixel</text>
+
+  <!-- Left column -->
+  <rect class="box box-pixel" x="80" y="170" width="300" height="92"/>
+  <text class="text" x="110" y="208">m_mat</text>
+  <text class="small" x="110" y="238">原始影像 / 顯示影像</text>
+  <text class="small unit-pixel" x="110" y="263">單位: pixel</text>
+
+  <rect class="box box-pixel" x="80" y="330" width="300" height="92"/>
+  <text class="text" x="110" y="368">ApplyConfiguredFlip(...)</text>
+  <text class="small" x="110" y="398">轉回原始相機方向</text>
+  <text class="small unit-pixel" x="110" y="423">單位: pixel</text>
+
+  <rect class="box box-pixel" x="80" y="490" width="300" height="92"/>
+  <text class="text" x="110" y="528">undistortImage(...)</text>
+  <text class="small" x="110" y="558">影像去畸變 / 幾何校正</text>
+  <text class="small unit-pixel" x="110" y="583">單位: pixel</text>
+
+  <rect class="box box-pixel" x="80" y="650" width="300" height="92"/>
+  <text class="text" x="110" y="688">pathSourceImage</text>
+  <text class="small" x="110" y="718">校正後影像，供路徑提取</text>
+  <text class="small unit-pixel" x="110" y="743">單位: pixel</text>
+
+  <!-- Middle column -->
+  <rect class="box box-pixel" x="500" y="250" width="360" height="100"/>
+  <text class="text" x="530" y="290">GetToolPath_CurvatureOptimized_Mask(...)</text>
+  <text class="small" x="530" y="322">從校正後影像提取 toolPath</text>
+  <text class="small unit-pixel" x="530" y="347">輸出單位: pixel</text>
+
+  <rect class="box box-pixel" x="500" y="420" width="360" height="100"/>
+  <text class="text" x="530" y="460">ApplyConfiguredFlipToToolPath(...)</text>
+  <text class="small" x="530" y="492">翻回目前顯示方向</text>
+  <text class="small unit-pixel" x="530" y="517">單位仍然: pixel</text>
+
+  <rect class="box box-pixel" x="500" y="590" width="360" height="100"/>
+  <text class="text" x="530" y="630">OptimizeGluePath(...)</text>
+  <text class="small" x="530" y="662">平滑 / 分左右 / 重採樣</text>
+  <text class="small unit-pixel" x="530" y="687">單位仍然: pixel</text>
+
+  <rect class="box box-pixel" x="500" y="760" width="360" height="100"/>
+  <text class="text" x="530" y="800">m_OptimizedGluePath</text>
+  <text class="small" x="530" y="832">目前實作結果</text>
+  <text class="small unit-pixel" x="530" y="857">單位: pixel</text>
+
+  <!-- Right column -->
+  <rect class="box box-pixel" x="1010" y="470" width="360" height="100"/>
+  <text class="text" x="1040" y="510">ConvertToMachineCoordinates()</text>
+  <text class="small" x="1040" y="542">在這一步之前都還是 pixel</text>
+  <text class="small unit-pixel" x="1040" y="567">輸入: pixel</text>
+
+  <rect class="box box-pixel" x="1440" y="360" width="280" height="92"/>
+  <text class="text" x="1470" y="398">m_machineGluePath</text>
+  <text class="small" x="1470" y="428">目前沿用 pixel 邏輯</text>
+  <text class="small unit-pixel" x="1470" y="453">單位: pixel</text>
+
+  <rect class="box box-pixel" x="1440" y="560" width="280" height="92"/>
+  <text class="text" x="1470" y="598">m_HMIGluePath</text>
+  <text class="small" x="1470" y="628">目前依 HMI 映射處理</text>
+  <text class="small unit-pixel" x="1470" y="653">單位: pixel 邏輯</text>
+
+  <!-- Side notes -->
+  <rect class="note" x="980" y="170" width="700" height="130"/>
+  <text class="note-text" x="1010" y="212">重要</text>
+  <text class="small" x="1010" y="246">undistortImage(...) 只是把歪掉的影像修正成較正確的影像幾何。</text>
+  <text class="small" x="1010" y="274">它不會自動把座標從 pixel 轉成 mm。</text>
+
+  <rect class="danger" x="80" y="950" width="1600" height="170"/>
+  <text class="danger-text" x="110" y="995">目前版本結論</text>
+  <text class="small" x="110" y="1035">1. 在 OnBnClickedIdcWorkToolPath() 這條主流程中，還沒有呼叫 PixelToWorld(...) 去把路徑點轉成 mm。</text>
+  <text class="small" x="110" y="1070">2. 所以 m_OptimizedGluePath 在進入 ConvertToMachineCoordinates() 前，實際上仍然是 pixel，不是 mm。</text>
+  <text class="small" x="110" y="1105">3. 若未來要改成 mm 流程，正確位置應該是在 GetToolPath... 之後、OptimizeGluePath(...) 之前插入 PixelToWorld(...)。</text>
+
+  <!-- Arrows -->
+  <path class="arrow" d="M230 262 L230 330"/>
+  <path class="arrow" d="M230 422 L230 490"/>
+  <path class="arrow" d="M230 582 L230 650"/>
+
+  <path class="arrow" d="M380 696 C450 696, 430 300, 500 300"/>
+  <path class="arrow" d="M680 350 L680 420"/>
+  <path class="arrow" d="M680 520 L680 590"/>
+  <path class="arrow" d="M680 690 L680 760"/>
+  <path class="arrow" d="M860 810 C940 810, 930 520, 1010 520"/>
+  <path class="arrow" d="M1370 500 L1440 406"/>
+  <path class="arrow" d="M1370 540 L1440 606"/>
+</svg>

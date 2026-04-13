@@ -79,8 +79,10 @@ public:
 	int referenceX;
 	int referenceY;
 
-	GluePath m_OptimizedGluePath;  // 儲存優化後的膠水路徑(相機座標mm，要先影像校正)
-	GluePath m_machineGluePath;  // 膠水機械座標
+	GluePath m_OptimizedGluePath;  // 儲存優化後的膠水路徑(要先影像校正)
+	GluePath m_machineGluePath;  // 膠水機械座標(pixel)
+	GluePath m_machineGluePath_mm;  // 膠水機械座標(mm)
+	GluePath m_HMIGluePath_temp;  // HMI 暫存座標(pixel)
 	GluePath m_HMIGluePath;  // HMI 顯示座標
 
 
