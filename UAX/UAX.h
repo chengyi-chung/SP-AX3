@@ -125,7 +125,7 @@ extern "C" UAX_API void GetToolPath_Optimized(cv::Mat& ImgSrc, cv::Point2d Offse
 extern "C" UAX_API void GetToolPath_CurvatureOptimized(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpath, double epsilonFactor = 0.01);
 extern "C" UAX_API void GetToolPath_CurvatureOptimized_Mask(cv::Mat& ImgSrc,
     const cv::Mat& Mask,      // 新增：Mask 輸入
-    cv::Point2d Offset,
+    double offsetPixel,
     ToolPath& toolpath,
     double epsilonFactor,
     bool enableCurvatureOptimization = true);   // ← 新增：是否啟用 Douglas-Peucker 簡化

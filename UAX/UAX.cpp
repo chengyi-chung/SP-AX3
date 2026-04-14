@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include "pch.h"
 #include <iostream>
 #include <string>
@@ -30,7 +30,7 @@
 
 #pragma comment(lib, "iphlpapi.lib")  // Link with iphlpapi.lib
 #pragma comment(lib, "ws2_32.lib")  // Link with ws2_32.lib : Winsock2 Library for Windows Sockets programming 
-//©w¸q  PIP_ADAPTER_ADDRESSES
+// Define PIP_ADAPTER_ADDRESSES
 
 
 using namespace std;
@@ -38,8 +38,8 @@ using namespace cv;
 //using namespace CryptoPP;
 
 
-// ­×¥¿¡G©ú½T«ü©w byte «¬§O¡AÁ×§K¼Ò¸W¨â¥i
-// ¤èªk¤@¡G¨Ï¥Î unsigned char ´À¥N byte
+// Use unsigned char for byte-like data to avoid type conflicts.
+// This keeps the legacy AES-related data declarations simple.
 unsigned char key[16] = { 0x2b, 0x7e, 0x15, 0x16,
 			0x28, 0xae, 0xd2, 0xa6,
 			0xab, 0xf7, 0x15, 0x88,
@@ -58,24 +58,24 @@ float Add(float a, float b)
 
 /////////////////////////////
 
-#include <windows.h> // ¥Î©ó¨ú±o¿Ã¹õ¸ÑªR«×¡]Windows ±M¥Î¡^
+#include <windows.h> // For screen resolution on Windows
 
 void ShowZoomedImage(const std::string& windowName, const cv::Mat& image)
 {
-	// ¨ú±o¿Ã¹õ¸ÑªR«×
+	// Get screen resolution
 	int screenWidth = GetSystemMetrics(SM_CXSCREEN);
 	int screenHeight = GetSystemMetrics(SM_CYSCREEN);
 
-	// ­pºâÁY©ñ¤ñ¨Ò
+	// Compute zoom scale
 	double scaleX = static_cast<double>(screenWidth) / image.cols;
 	double scaleY = static_cast<double>(screenHeight) / image.rows;
-	double scale = min(scaleX, scaleY); // «O«ù¤ñ¨Ò¤£¥¢¯u
+	double scale = min(scaleX, scaleY); // Keep the whole image visible
 
-	// ÁY©ñ¼v¹³
+	// Resize image for display
 	cv::Mat resized;
 	cv::resize(image, resized, cv::Size(), scale, scale, cv::INTER_LINEAR);
 
-	// Åã¥Ü¼v¹³
+	// Show image
 	cv::imshow(windowName, resized);
 
 }
@@ -183,9 +183,9 @@ void GetToolPath_Optimized(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpa
 		throw std::invalid_argument("Input image is empty.");
 	}
 
-	// --- 1. ®Ä¯àÀu¤Æ¡G¾ã¦X«I»k¹Bºâ ---
-	// ¤£­n¥Î for °j°é¦h¦¸©I¥s erode¡Acv::erode ¤º«Ø iterations °Ñ¼Æ¡A
-	// ¨ä¤º³¡¦³¶i¦æ SIMD Àu¤Æ¡A®Ä¯à»·°ª©ó¤â°Ê°j°é¡C
+	// --- 1. åš™è¡è”è•­åš™ç·šåš™è¤‡ï¼šåš™è¸è•­Xåš™ç˜¢åš™ç³Šåš™ç•¿åš™è¸è•­ ---
+	// åš™è¸è•­åš™ç·¯åš™è¸è•­ for åš™ç¯Œåš™è¸è•­håš™è¸è•­åš™ç˜¢åš™ç·¨ erodeåš™ç’€cv::erode åš™è¸è•­åš™è¸è•­ iterations åš™è«¸æ•¸ï¼Œ
+	// åš™è³­å…§åš™è¸è•­åš™è¸è•­åš™ç® åš™è¸è•­ SIMD åš™ç·šåš™è¤‡ï¼Œåš™è¡èƒ½é åš™è¸è•­åš™è¸è•­åš™è¤Šè¿´åš™è¸è•­C
 	cv::Mat processed;
 	int numPixelsToErode = static_cast<int>(Offset.x + Offset.y);
 
@@ -197,8 +197,8 @@ void GetToolPath_Optimized(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpa
 		processed = ImgSrc.clone();
 	}
 
-	// --- 2. ¦â±mÂà´«Àu¤Æ ---
-	// ª½±µ¦b³B²z«áªº¼v¹³¤WÂà´«¡AÁ×§K¦h¾lªº clone
+	// --- 2. åš™è¸è•­måš™è³æ›åš™ç·šåš™è¸è•­ ---
+	// åš™è¸è•­åš™è¸è•­åš™ç®­åš™ç•¿åš™ç·²åš™è³¦çš„åš™ç·åš™è¸è•­åš™ç£•åš™è³æ›åš™ç’€åš™è«–å…åš™ç¯åš™ç· åš™è¸è•­ clone
 	cv::Mat gray;
 	if (processed.channels() == 3) {
 		cv::cvtColor(processed, gray, cv::COLOR_BGR2GRAY);
@@ -207,15 +207,15 @@ void GetToolPath_Optimized(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpa
 		gray = processed;
 	}
 
-	// --- 3. ªùÂe­È»P½ü¹ø´£¨ú ---
+	// --- 3. åš™è¸è•­åš™ç®´åš™è¤“èˆ‡åš™è¸è•­åš™è¸è•­åš™è¸è•­åš™è¸è•­ ---
 	cv::threshold(gray, gray, 128, 255, cv::THRESH_BINARY);
 
 	std::vector<std::vector<cv::Point>> contours;
-	// ¨Ï¥Î CHAIN_APPROX_SIMPLE À£ÁY¤ô¥­¡B««ª½»P¹ï¨¤½u¬q¡A¤j´T´î¤ÖÂI¼Æ
+	// åš™èª•ä¼è•­ CHAIN_APPROX_SIMPLE åš™è¸è•­åš™ç£åš™è¸è•­åš™è¸è•­åš™ç•¿åš™è¸è•­åš™è¸è•­åš™ç‘åš™è¸è§’åš™ç·šåš™ç·¬åš™ç’€åš™ç¯Œåš™ç¢ºåš™è¸è•­åš™è¸è•­Iåš™è¸è•­
 	cv::findContours(gray, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
-	// --- 4. °O¾ĞÅé¹w¥ı°t¸m (Memory Reservation) ---
-	// ³o¬O´£¤É®Ä¯àªºÃöÁä¡G¹w¥ı­pºâÂIªºÁ`¼Æ¡AÁ×§K vector ¦b push_back ®É¤£Â_­«·s¤À°t°O¾ĞÅé
+	// --- 4. åš™çŒåš™è¸è•­åš™è¸è•­wåš™è¸è•­åš™ç·£åš™ç·´ (Memory Reservation) ---
+	// åš™ç·»åš™çŒåš™è¸è•­åš™è¤•æ•ˆèƒ½çš„åš™è¸è•­åš™è¸è•­Gåš™ç·©åš™è¸è•­åš™ç·˜åš™è¸è•­åš™ç˜¢åš™è¸è•­åš™çª¯åš™è¤‡ï¼Œåš™è«–å… vector åš™ç®­ push_back åš™è¤•æ­¹è•­åš™ç¨»åš™è¸è•­åš™ç·¨åš™è¸è•­åš™ç·£åš™çŒåš™è¸è•­åš™è¸è•­
 	size_t totalPoints = 0;
 	for (const auto& c : contours) totalPoints += c.size();
 
@@ -229,8 +229,8 @@ void GetToolPath_Optimized(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpa
 		}
 	}
 
-	// --- 5. µøÄ±¤Æ¡]«D¥Í²£Àô¹Ò«ØÄ³²¾°£¡^ ---
-	// ¶È¦b»İ­n®É¦b­ì¹Ïµe¤@¦¸§Y¥i
+	// --- 5. åš™è¸è•­è¦ºåš™è¤‡ï¼ˆåš™ç˜©åš™è«‡èè•­åš™è¸è•­åš™èª²æ¬è•­è­°åš™è¸è•­åš™è¸è•­åš™ç¨· ---
+	// åš™è¤“åœ¨åš™è±è¦åš™è¤•åœ¨åš™è¸è•­ç‚µeåš™ç‘¾åš™è¸è•­åš™ç£åš™ç® 
 	cv::drawContours(ImgSrc, contours, -1, cv::Scalar(0, 255, 0), 2);
 }
 
@@ -238,7 +238,7 @@ void GetToolPath_CurvatureOptimized(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPat
 {
 	if (ImgSrc.empty()) throw std::invalid_argument("Input image is empty.");
 
-	// 1. ¼v¹³¹w³B²z (¨Ï¥Î iterations Àu¤Æ®Ä¯à)
+	// 1. åš™ç·åš™è¸è•­åš™ç·©åš™ç•¿åš™ç·² (åš™èª•ä¼è•­ iterations åš™ç·šåš™è¤‡æ•ˆè”è•­)
 	cv::Mat processed;
 	int numPixelsToErode = static_cast<int>(Offset.x + Offset.y);
 	if (numPixelsToErode > 0) {
@@ -249,45 +249,45 @@ void GetToolPath_CurvatureOptimized(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPat
 		processed = ImgSrc.clone();
 	}
 
-	// 2. Âà¦Ç¶¥»P¤G­È¤Æ
+	// 2. åš™è¸è•­ï£åš™è¸è•­Påš™ç˜¦åš™è¤“æ­¹è•­
 	cv::Mat gray;
 	if (processed.channels() == 3) cv::cvtColor(processed, gray, cv::COLOR_BGR2GRAY);
 	else gray = processed;
 
 	cv::threshold(gray, gray, 128, 255, cv::THRESH_BINARY);
 
-	// 3. ´£¨úªì©l½ü¹ø (¨Ï¥Î CHAIN_APPROX_TC89_L1 ¶i¦æªì¨BÀ£ÁY)
+	// 3. åš™è¸è•­åš™è¸è•­åš™è¸è•­låš™è¸è•­åš™è¸è•­ (åš™èª•ä¼è•­ CHAIN_APPROX_TC89_L1 åš™ç® åš™è¸è•­åš™ç•¿åš™è¸è•­åš™ç£)
 	std::vector<std::vector<cv::Point>> contours;
 	cv::findContours(gray, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_TC89_L1);
 
 	toolpath.Path.clear();
 	toolpath.Offset = Offset;
 
-	// 4. °ò©ó¦±²v¶i¦æ­°ÂI (Douglas-Peucker Algorithm)
+	// 4. åš™è¸è•­éŸŸæ²våš™ç® åš™è³£é™åš™ç˜¢ (Douglas-Peucker Algorithm)
 	for (const auto& contour : contours)
 	{
 		std::vector<cv::Point> simplifiedContour;
 
-		// ­pºâºë«×ìH­È (epsilon)
-		// ¤è¦¡ A: ®Ú¾Ú½ü¹ø©Pªø°ÊºA½Õ¾ã¡]±ÀÂË¡^¡AepsilonFactor ¶V¤p¡AÂI¼Æ¶V¦h¶Vºë½T
+		// åš™ç·˜åš™è¸è•­åš™è¸è•­åš™ç˜¡åš™è¸è•­ (epsilon)
+		// åš™è³ªå¼ A: åš™èª¹æ“šè¸è•­åš™è¸è•­åš™ç‘åš™è¸è•­åš™è¤Šæ…‹åš™èª¿æ©˜è•­]åš™è¸è•­åš™èª¼ï¼‰åš™ç’€epsilonFactor åš™ç¢¾åš™ç·˜åš™ç’€åš™ç˜¢åš™è¤‡è¶Šåš™ç¯åš™ç¢¾åš™è¸è•­T
 		double arcLen = cv::arcLength(contour, true);
 		double epsilon = epsilonFactor * arcLen;
 
-		// ¤è¦¡ B: ¦pªG»İ­n©T©w¹³¯À»~®t¡A¥iª½±µ³]¬°©T©w­È¡A¨Ò¦p epsilon = 1.0;
+		// åš™è³ªå¼ B: åš™ç·˜åš™ç˜¦åš™è±è¦åš™ç¢ºåš™ç·©åš™è¸è•­åš™è¸è•­åš™ç¾¯åš™ç·£åš™ç’€åš™ç® åš™è¸è•­åš™è¸è•­åš™ç¨½åš™è¸è•­åš™ç¢ºåš™ç·©åš™è¤“ï¼Œåš™èª²å¦‚ epsilon = 1.0;
 
-		// ®Ö¤ß¨ç¼Æ¡G®Ú¾Ú¦±²v/°¾®t­°ÂI
+		// åš™èª°å¿ƒå‰è•­ïš±Gåš™èª¹æ“šä½—è•­åš™ç·/åš™è¸è•­åš™ç·£åš™è¸è•­åš™ç˜¢
 		cv::approxPolyDP(contour, simplifiedContour, epsilon, true);
 
-		// ±NÂ²¤Æ«áªºÂI¦s¤J toolpath
+		// åš™ç‡ç°¡åš™è¤‡å¾Œçš„åš™ç˜¢åš™ç·¨åš™çšš toolpath
 		for (const auto& point : simplifiedContour)
 		{
 			toolpath.Path.emplace_back(static_cast<double>(point.x), static_cast<double>(point.y));
 		}
 	}
 
-	// Ã¸»sµ²ªG¥H¨ÑÅçÃÒ
-	cv::drawContours(ImgSrc, contours, -1, cv::Scalar(0, 0, 255), 1); // ­ì½ü¹ø(¬õ)
-	// Ã¸»s­°ÂI«áªº¸ô®|ÂI¡]ºñ¦â¤p¶êÂI¡^
+	// ç¹ªåš™ç·¨åš™è¸è•­åš™ç˜¦åš™ç˜¡åš™è¸è•­åš™è¸è•­åš™è¸è•­
+	cv::drawContours(ImgSrc, contours, -1, cv::Scalar(0, 0, 255), 1); // åš™è¸è•­åš™è¸è•­åš™?åš™è¸è•­)
+	// ç¹ªåš™ç·¨åš™è¸è•­åš™ç˜¢åš™è³¦çš„åš™è¸è•­åš™ç½µåš™ç˜¢åš™ç¨½åš™è¸è•­åš™ç·˜åš™è¸è•­åš™ç˜¢åš™ç¨·
 	for (const auto& p : toolpath.Path) {
 		cv::circle(ImgSrc, cv::Point(p.x, p.y), 2, cv::Scalar(0, 255, 0), -1);
 	}
@@ -296,7 +296,7 @@ void GetToolPath_CurvatureOptimized(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPat
 }
 
 
-// ====================== ¦@¥Î«e³B²z ======================
+// ====================== åš™ç‘¾åš™è«„å‰åš™ç•¿åš™ç·² ======================
 void PreprocessImage(const cv::Mat& ImgSrc,
 	cv::Mat& gray,
 	cv::Point2d Offset,
@@ -313,13 +313,13 @@ void PreprocessImage(const cv::Mat& ImgSrc,
 		processed = ImgSrc.clone();
 	}
 
-	// 2. Âà¦Ç¶¥
+	// 2. åš™è¸è•­ï£åš™?
 	if (processed.channels() == 3)
 		cv::cvtColor(processed, gray, cv::COLOR_BGR2GRAY);
 	else
 		gray = processed;
 
-	// 3. Mask Âo°£¡]±j¤Æª©¡^
+	// 3. Mask åš™ç·»åš™è¸è•­åš™ç¨½åš™ç¯Œåš™è¤‡è¿è•­åš™ç¨·
 	if (!Mask.empty()) {
 		cv::Mat maskGray;
 		if (Mask.channels() == 3)
@@ -327,10 +327,10 @@ void PreprocessImage(const cv::Mat& ImgSrc,
 		else
 			maskGray = Mask;
 
-		// ±j¨îÂà¼Ğ·Ç¤G­È Mask
+		// åš™ç¯Œåš™è¸è•­åš™è¸è•­éƒ±ï‘Gåš™è¸è•­ Mask
 		cv::threshold(maskGray, maskGray, 1, 255, cv::THRESH_BINARY);
 
-		// ¤Ø¤o¤£¤@­P¦Û°Ê resize
+		// åš™è«å¯¸åš™è¸è•­åš™ç‘¾åš™ç‘åš™è«›å †è•­ resize
 		if (maskGray.size() != gray.size()) {
 			std::cout << "[WARN] Mask size mismatch, resizing..." << std::endl;
 			cv::resize(maskGray, maskGray, gray.size(), 0, 0, cv::INTER_NEAREST);
@@ -342,7 +342,7 @@ void PreprocessImage(const cv::Mat& ImgSrc,
 		std::cout << "[DEBUG] After Mask, non-zero pixels: " << nz << std::endl;
 	}
 
-	// 4. ¤G­È¤Æ¡]§ï¥Î OTSU ¦Û°ÊªùÂe¡A§óÃ­¡^
+	// 4. åš™ç˜¦åš™è¤“åŒ–ï¼ˆåš™è¸è•­åš™?OTSU åš™è«›å‹•è¿è•­åš™ç®´åš™ç’€åš™è¸è•­ç©©åš™ç¨·
 	cv::threshold(gray, gray, 0, 255, cv::THRESH_BINARY | cv::THRESH_OTSU);
 
 	std::cout << "[DEBUG] After threshold, non-zero pixels: " << cv::countNonZero(gray) << std::endl;
@@ -350,20 +350,20 @@ void PreprocessImage(const cv::Mat& ImgSrc,
 
 
 
-// ====================== ¥D¨ç¼Æ 1¡GMask + ¥i¿ï¦±²vÀu¤Æ ======================
+// ====================== åš™ç˜©åš™è¸è•­åš™?1åš™ç˜¦Mask + åš™ç® åš™è¸æ›²åš™ç·åš™ç·šåš™è¸è•­ ======================
 void GetToolPath_CurvatureOptimized_Mask(
 	cv::Mat& ImgSrc,
-	const cv::Mat& Mask,              // Mask ¿é¤J
-	cv::Point2d Offset,
+	const cv::Mat& Mask,              // Mask åš™è¸è•­J
+	double offsetPixel,
 	ToolPath& toolpath,
 	double epsilonFactor,
-	bool enableCurvatureOptimization)   // ¡ö Removed default value (= true)
+	bool enableCurvatureOptimization)   // åš™è¸è•­ Removed default value (= true)
 {
 	if (ImgSrc.empty()) throw std::invalid_argument("Input image is empty.");
 
-	// 1. ¼v¹³¹w³B²z (»G»kÀu¤Æ) - «O¯d­ìÅŞ¿è
+	// 1. Erode the source image by the requested inward offset in pixels
 	cv::Mat processed;
-	int numPixelsToErode = static_cast<int>(Offset.x + Offset.y);
+	int numPixelsToErode = static_cast<int>(std::lround(offsetPixel));
 	if (numPixelsToErode > 0) {
 		cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
 		cv::erode(ImgSrc, processed, kernel, cv::Point(-1, -1), numPixelsToErode);
@@ -372,12 +372,12 @@ void GetToolPath_CurvatureOptimized_Mask(
 		processed = ImgSrc.clone();
 	}
 
-	// 2. Âà¦Ç¶¥
+	// 2. åš™è¸è•­ï£åš™?
 	cv::Mat gray;
 	if (processed.channels() == 3) cv::cvtColor(processed, gray, cv::COLOR_BGR2GRAY);
 	else gray = processed;
 
-	// 3. Mask Âo°£³B²z¡]±j¤Æª©¡A«O¯d­ìÅŞ¿è¡^
+	// 3. Mask åš™ç·»åš™è¸è•­åš™ç•¿åš™ç·²åš™ç¨½åš™ç¯Œåš™è¤‡è¿è•­åš™ç’€åš™çŒåš™ç¯„åš™è¸è•­åš™è±¬é¸è•­^
 	if (!Mask.empty()) {
 		cv::Mat maskGray;
 		if (Mask.channels() == 3)
@@ -396,17 +396,17 @@ void GetToolPath_CurvatureOptimized_Mask(
 		std::cout << "[DEBUG] After Mask, non-zero pixels: " << cv::countNonZero(gray) << std::endl;
 	}
 
-	// 4. ¤G­È¤Æ¡]«O¯d­ì 128 ªùÂe¡^
+	// 4. åš™ç˜¦åš™è¤“åŒ–ï¼ˆåš™çŒåš™ç¯„åš™è¸è•­ 128 åš™è¸è•­åš™ç®´åš™ç¨·
 	cv::threshold(gray, gray, 128, 255, cv::THRESH_BINARY);
 
-	// 5. ´£¨úªì©l½ü¹ø
+	// 5. åš™è¸è•­åš™è¸è•­åš™è¸è•­låš™è¸è•­åš™è¸è•­
 	std::vector<std::vector<cv::Point>> contours;
 	cv::findContours(gray, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_TC89_L1);
 
 	toolpath.Path.clear();
-	toolpath.Offset = Offset;
+	toolpath.Offset = cv::Point2d(offsetPixel, 0.0);
 
-	// 6. ³B²z¨C­Ó½ü¹ø - ®Ú¾Ú enableCurvatureOptimization ¨M©w¬O§_Â²¤Æ
+	// 6. åš™ç•¿åš™ç·²åš™ç˜ åš™è«‰è¸è•­åš™è¸è•­ - åš™èª¹æ©˜è•­ enableCurvatureOptimization åš™çåš™ç·©åš™çŒåš™ç¨»ç°¡åš™è¸è•­
 	for (const auto& contour : contours)
 	{
 		if (contour.size() < 3) continue;
@@ -415,7 +415,7 @@ void GetToolPath_CurvatureOptimized_Mask(
 
 		if (enableCurvatureOptimization)
 		{
-			// ±Ò¥Î¦±²vÀu¤Æ¡GDouglas-Peucker Â²¤Æ
+			// åš™èª²ç”¨ä½—è•­åš™ç·åš™ç·šåš™è¤‡ï¼šDouglas-Peucker ç°¡åš™è¸è•­
 			double arcLen = cv::arcLength(contour, true);
 			double epsilon = epsilonFactor * arcLen;
 
@@ -426,23 +426,23 @@ void GetToolPath_CurvatureOptimized_Mask(
 		}
 		else
 		{
-			// Ãö³¬Â²¤Æ¡Gª½±µ¨Ï¥Î­ì©l½ü¹øÂI
+			// åš™è¸è•­åš™è¸è•­ç°¡åš™è¤‡ï¼šåš™è¸è•­åš™è¸è•­åš™èª•ç”¨å“¨è•­låš™è¸è•­åš™è¸è•­åš™ç˜¢
 			finalContour = contour;
 
 			std::cout << "[INFO] Using original contour (" << contour.size() << " points) - simplification disabled" << std::endl;
 		}
 
-		// Âà¦¨ cv::Point2d ¥[¤J toolpath
+		// åš™è³æˆ cv::Point2d åš™ç¨¼åš™çšš toolpath
 		for (const auto& point : finalContour)
 		{
 			toolpath.Path.emplace_back(static_cast<double>(point.x), static_cast<double>(point.y));
 		}
 	}
 
-	// 7. Ã¸»sµ²ªG¡]®Ú¾Ú¬O§_Â²¤Æ¡AÃC¦â¥i°Ï¤À¡^
-	cv::drawContours(ImgSrc, contours, -1, cv::Scalar(0, 0, 255), 1); // ­ì½ü¹ø (¬õ¦â)
+	// 7. Draw contours and sampled path points for debug display
+	cv::drawContours(ImgSrc, contours, -1, cv::Scalar(0, 0, 255), 1); // contour outline
 
-	cv::Scalar drawColor = enableCurvatureOptimization ? cv::Scalar(0, 255, 0) : cv::Scalar(255, 255, 0); // ºñ=Â²¤Æ / ¶À=­ì©l
+	cv::Scalar drawColor = enableCurvatureOptimization ? cv::Scalar(0, 255, 0) : cv::Scalar(255, 255, 0); // green=simplified, cyan=original
 	for (const auto& p : toolpath.Path) {
 		cv::circle(ImgSrc, cv::Point(static_cast<int>(p.x), static_cast<int>(p.y)), 2, drawColor, -1);
 	}
@@ -450,16 +450,18 @@ void GetToolPath_CurvatureOptimized_Mask(
 	std::cout << "[INFO] GetToolPath_CurvatureOptimized_Mask: Generated " << toolpath.Path.size() << " points "
 		<< (enableCurvatureOptimization ? "(simplified)" : "(original)") << std::endl;
 
-	ShowZoomedImage("Masked & " + std::string(enableCurvatureOptimization ? "Reduced" : "Original") + " Points Result", ImgSrc);
+	cv::Mat displayImg = ImgSrc.clone();
+	cv::flip(displayImg, displayImg, -1);
+	ShowZoomedImage("Masked & " + std::string(enableCurvatureOptimization ? "Reduced" : "Original") + " Points Result", displayImg);
 }
 
 
-// ====================== ¥D¨ç¼Æ 2¡G¹ïºÙ¸ô®|¥Í¦¨¡]¶È«O¯d¥ª¥bÃä¡^ ======================
+// ====================== åš™ç˜©åš™è¸è•­åš™?2åš™ç˜¦åš™è¸è•­æ¤“åš™è¸è•­|åš™è«‡ä½—è•­åš™ç¨½åš™è¤“ä¿åš™ç¯„åš™è¸è•­åš™ç®­åš™è¸è•­^ ======================
 void GetToolPath_SymmetricOnly(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpath, double epsilonFactor)
 {
 	if (ImgSrc.empty()) return;
 
-	// 1. ¼v¹³¹w³B²z (¬Û¦P)
+	// 1. åš™ç·åš™è¸è•­åš™ç·©åš™ç•¿åš™ç·² (åš™è«›åŒ)
 	cv::Mat processed, gray;
 	int numPixelsToErode = static_cast<int>(Offset.x + Offset.y);
 	cv::erode(ImgSrc, processed, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3)), cv::Point(-1, -1), numPixelsToErode);
@@ -479,17 +481,17 @@ void GetToolPath_SymmetricOnly(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& to
 		double epsilon = epsilonFactor * cv::arcLength(contour, true);
 		cv::approxPolyDP(contour, simplified, epsilon, true);
 
-		// --- ­×¥¿«áªº¹ïºÙÅŞ¿è ---
+		// --- åš™è«–ä¼è•­åš™è³¦çš„åš™è¸è•­åš™è¸è•­ç“¡åš™?---
 		std::vector<cv::Point2d> leftArc;
 		cv::Point2d topCP(centerX, 1e9), bottomCP(centerX, -1e9);
 		bool hasCenter = false;
 
-		// ´£¨ú¥ª¥bÃäÂI¡A¨Ã§ä¥X¤¤¶bªº³Ì³»»P³Ì©³ÂI
+		// åš™è¸è•­åš™è¸è•­åš™è¸è•­åš™ç®­åš™è¸è•­åš™ç˜¢åš™ç’€åš™è¡›æ”¹è•­Xåš™è¸è•­åš™ç®­åš™è¸è•­åš™è«’å–‰è•­åš™ç‘åš™è«’æŠ¬è•­åš™ç˜¢
 		for (const auto& p : simplified) {
-			if (p.x <= centerX + 1.0) { // ¥]§t¥ª°¼»P¤¤¤ß½u¤W
+			if (p.x <= centerX + 1.0) { // åš™ç¨½åš™ç·£åš™è¸è•­åš™è¸è•­åš™ç‘åš™è¸è•­åš™è³ ç·šåš™ç£•
 				cv::Point2d p2d(p.x, p.y);
 
-				// °O¿ı¤¤¶b·¥­È
+				// åš™çŒåš™è¸è•­åš™è¸è•­åš™ç®­åš™è¸è•­åš™è¸è•­
 				if (std::abs(p.x - centerX) < 2.0) {
 					hasCenter = true;
 					if (p.y < topCP.y) topCP = cv::Point2d(centerX, p.y);
@@ -502,25 +504,25 @@ void GetToolPath_SymmetricOnly(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& to
 			}
 		}
 
-		// ¨Ì Y ®y¼Ğ±Æ§Ç¥ª°¼ÂI¡A½T«O¸ô®|¬O±q¤W¨ì¤Uªº
+		// åš™è¸è•­ Y åš™ç·™åš™è«‹æ’åºä¼è•­åš™è¸è•­åš™ç˜¢åš™ç’€åš™ç¢ºåš™çŒåš™è¸è•­åš™ç½µåš™çŒåš™ç·¬åš™ç£•åš™è¸è•­Uåš™è¸è•­
 		std::sort(leftArc.begin(), leftArc.end(), [](const cv::Point2d& a, const cv::Point2d& b) {
 			return a.y < b.y;
 			});
 
-		// ²Õ¦X¸ô®|¡G³»ÂI -> ¥ª°¼ -> ©³ÂI -> ¥k°¼Ãè¹³(­Ë§Ç)
+		// åš™èª¿åˆåš™è¸è•­åš™ç½µåš™ç˜¦åš™è¸è•­åš™ç˜¢ -> åš™è¸è•­åš™è¸è•­ -> åš™è¸è•­åš™ç˜¢ -> åš™ç³Šåš™è¸è•­åš™è³ªåƒ(åš™èª¼æ”¹è•­)
 		if (hasCenter) toolpath.Path.push_back(topCP);
 
 		for (const auto& p : leftArc) toolpath.Path.push_back(p);
 
 		if (hasCenter && topCP != bottomCP) toolpath.Path.push_back(bottomCP);
 
-		// Ãè¹³¥k¥bÃä (±q¤U©¹¤W¦^·¹)
+		// åš™è³ªåƒåš™ç³Šåš™ç®­åš™è¸è•­ (åš™ç·¬åš™ç£Šåš™è¸è•­åš™ç£•åš™ç¨·åš™è¸è•­)
 		for (int i = (int)leftArc.size() - 1; i >= 0; --i) {
 			toolpath.Path.push_back(cv::Point2d(2 * centerX - leftArc[i].x, leftArc[i].y));
 		}
 	}
 
-	// 4. Ã¸»sµ²ªG (§ï¥Î½u¬q³s±µ¡AÆ[¹î¶¶§Ç¬O§_¥¿½T)
+	// 4. ç¹ªåš™ç·¨åš™è¸è•­åš™ç˜¦ (åš™è¸è•­å½–uåš™ç·¬åš™ç·¨åš™è¸è•­åš™ç’€åš™ç¨¼åš™è¸é †åš™è¤’æ˜¯åš™ç¨»åš™è¸è•­åš™ç¢º)
 	cv::Mat drawImg = ImgSrc.clone();
 	for (size_t i = 0; i < toolpath.Path.size(); ++i) {
 		cv::circle(drawImg, toolpath.Path[i], 3, cv::Scalar(0, 255, 0), -1);
@@ -534,7 +536,7 @@ void GetToolPath_SymmetricOnly(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& to
 
 
 
-// ­pºâ¦±²v
+// åš™ç·˜åš™è³¤æ›²åš™ç·
 static double ComputeCurvature(
 	const cv::Point2d& p1,
 	const cv::Point2d& p2,
@@ -551,13 +553,13 @@ static double ComputeCurvature(
 	return (4.0 * area) / (len1 * len2 * len3);
 }
 
-// ¦±²v­°ÂI
+// åš™è¸è•­åš™ç·åš™è¸è•­åš™ç˜¢
 static std::vector<cv::Point2d> ReducePointsByCurvature(
 	const std::vector<cv::Point2d>& points,
 	double curvatureThreshold,
 	int minDistancePixels = 1)
 {
-	// ===== ÀË¬d¿é¤J =====
+	// ===== åš™èª¼æŸ¥åš™è¸è•­J =====
 	if (points.size() < 3) return points;
 
 	std::vector<cv::Point2d> reduced;
@@ -571,38 +573,38 @@ static std::vector<cv::Point2d> ReducePointsByCurvature(
 	auto computeCurvature = [](const cv::Point2d& prev,
 		const cv::Point2d& curr,
 		const cv::Point2d& next) {
-			// ¨Ï¥Î¨¤«×ªk­pºâ¦±²v¡]¹ï¾¸ÂI§óÃ­©w¡^
+			// åš™èª•ç”¨å‰è•­åš™è«–æ³•åš™ç·˜åš™è³¤æ›²åš™ç·åš™ç¨½åš™è¸å™ªåš™ç˜¢åš™è¸è•­ç©©åš™ç·©åš™ç¨·
 			cv::Point2d v1 = curr - prev;
 			cv::Point2d v2 = next - curr;
 			double mag1 = std::hypot(v1.x, v1.y);
 			double mag2 = std::hypot(v2.x, v2.y);
 
-			if (mag1 < 1e-8 || mag2 < 1e-8) return 0.0; // °£¹s«OÅ@
+			if (mag1 < 1e-8 || mag2 < 1e-8) return 0.0; // åš™è¸è•­åš™ç·¨åš™çŒåš™ç‘¾
 
 			double dot = v1.x * v2.x + v1.y * v2.y;
 			double cosTheta = dot / (mag1 * mag2);
 			cosTheta = std::clamp(cosTheta, -1.0, 1.0);
 
-			double angle = std::acos(cosTheta); // ©·«×
-			return angle; // ¦±²vªñ¦ü­È¡]©·«×¡^}
+			double angle = std::acos(cosTheta); // åš™è¸è•­åš™è¸è•­
+			return angle; // åš™è¸è•­åš™ç·åš™è¸è•­åš™è¸è•­ïŸ«]åš™è¸è•­åš™è«–ï¼‰}
 		};
 
-	// ­¡¥NÂI¶°
+	// åš™è¸è•­åš™ç‡åš™ç˜¢åš™è¸è•­
 	for (size_t i = 1; i + 1 < points.size(); ++i)
 	{
-		const cv::Point2d& prev = reduced.back();       // ¤W¦¸«O¯dªºÂI
+		const cv::Point2d& prev = reduced.back();       // åš™ç£•åš™è¸è•­åš™çŒåš™ç¯„åš™è¸è•­åš™ç˜¢
 		const cv::Point2d& curr = points[i];
 		const cv::Point2d& next = points[i + 1];
 
 		double dist = getDistance(prev, curr);
 		double curvature = computeCurvature(prev, curr, next);
 
-		// «O¯d±ø¥ó¡G¦±²v°ª©óìH­È ©Î »P¤W¤@«O¯dÂI¶ZÂ÷¶W¹L minDistancePixels
+		// åš™çŒåš™ç¯„åš™è¸è•­åš™è¸è•­Gåš™è¸è•­åš™ç·åš™è¸è•­åš™è¸è•­åš™ç˜¡åš™è¸è•­ åš™è¸è•­ åš™ç‘åš™ç£•åš™ç‘¾åš™çŒåš™ç¯„åš™ç˜¢åš™ç¨¿åš™è¸è•­åš™ç£•åš™ç›¤ minDistancePixels
 		if (curvature >= curvatureThreshold || dist >= minDistancePixels)
 			reduced.push_back(curr);
 	}
 
-	// ½T«O³Ì«á¤@ÂI«O¯d
+	// åš™ç¢ºåš™çŒåš™è«’æ¬è•­@åš™ç˜¢åš™çŒåš™ç¯„
 	if (reduced.back() != points.back())
 		reduced.push_back(points.back());
 
@@ -614,7 +616,7 @@ static std::vector<cv::Point2d> ReducePointsByCurvature(
 
 
 
-// ¥­·Æ¤Æ (²¾°Ê¥­§¡ªk)
+// åš™è¸è•­åš™è¤‡æ­¹è•­ (åš™è¸è•­åš™è¤Šä¼è•­åš™è¸è•­åš™ç³Š)
 static std::vector<cv::Point2d> SmoothPoints(
 	const std::vector<cv::Point2d>& points,
 	int windowSize)
@@ -646,7 +648,7 @@ static std::vector<cv::Point2d> SmoothPoints(
 // 2025 /06/12  BEGIN
 
 
-// KD-Tree ¤À¸s
+// KD-Tree åš™è¸è•­åš™ç·¨
 int ClusterKDTree(const Point2D* input, int inputSize, double radius,
 	Cluster** outputClusters, int* clusterCount) {
 	if (!input || inputSize <= 0 || !outputClusters || !clusterCount) return -1;
@@ -706,16 +708,16 @@ int ClusterKDTree(const Point2D* input, int inputSize, double radius,
 	return 0;
 }
 
-// Savitzky-Golay ¥­·Æ
+// Savitzky-Golay åš™è¸è•­åš™è¸è•­
 int SmoothPath(const Point2D* input, int inputSize, int windowSize, Point2D* output) {
 	if (!input || inputSize <= 0 || windowSize < 3 || !output) return -1;
-	if (windowSize % 2 == 0) windowSize++; // ¥²¶·¬°©_¼Æ
+	if (windowSize % 2 == 0) windowSize++; // åš™è¸è•­åš™è¸è•­åš™è¸è•­åš™ç¨»åš™è¸è•­
 
 	int half = windowSize / 2;
 	std::vector<double> coeff(windowSize);
 	double sum = 0;
 	for (int i = -half; i <= half; ++i) {
-		coeff[i + half] = 1.0; // Â²¤Æª©Åv­«
+		coeff[i + half] = 1.0; // ç°¡åš™è¤‡è¿è•­åš™ç·åš™è¸è•­
 		sum += coeff[i + half];
 	}
 
@@ -733,7 +735,7 @@ int SmoothPath(const Point2D* input, int inputSize, int windowSize, Point2D* out
 	return 0;
 }
 
-// B-spline ÀÀ¦X¡]Â²¤Æª©¡G½u©Ê´¡­È¡^
+// B-spline åš™è¸è•­åš™ç¢¼åš™ç¨½ç°¡åš™è¤‡è¿è•­åš™ç˜¦åš™ç·šåš™è¤Šæ¹›è•­åš™è¤“ï¼‰
 int FitBSpline(const Point2D* input, int inputSize, int degree,
 	Point2D* output, int* outputSize) {
 	if (!input || inputSize < 2 || !output || !outputSize) return -1;
@@ -755,7 +757,7 @@ int FitBSpline(const Point2D* input, int inputSize, int degree,
 	return 0;
 }
 
-// ÄÀ©ñ°O¾ĞÅé
+// åš™è¸è•­åš™è¸è•­Oåš™è¸è•­åš™è¸è•­
 void FreeClusters(Cluster* clusters, int clusterCount) {
 	if (!clusters || clusterCount <= 0) return;
 	for (int i = 0; i < clusterCount; ++i)
@@ -773,7 +775,7 @@ void FreeClusters(Cluster* clusters, int clusterCount) {
 // With mask image to limit the area of tool path
 void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offsetDistance, ToolPath& toolpath)
 {
-    // ======= ¿é¤JÀË¬d ========
+    // ======= åš™è¸è•­Jåš™èª¼æŸ¥ ========
     if (ImgSrc.empty() || Mask.empty())
     {
         throw std::invalid_argument("Input image or mask is empty.");
@@ -783,7 +785,7 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
         throw std::invalid_argument("Image and mask sizes do not match.");
     }
 
-    // ======= ®M¥Î¾B¸n¨ì­ì¼v¹³ ========
+    // ======= åš™çåš™è«„é®åš™ç·¯åš™è¸è•­åš™ç·åš™è¸è•­ ========
     cv::Mat maskedImage;
     if (ImgSrc.channels() == 3)
     {
@@ -796,7 +798,7 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
         maskedImage.setTo(0, Mask == 0);
     }
 
-    // ======= ¨Ì offsetDistance °µ»G»k(ÁY¤p°Ï°ì) ========
+    // ======= åš™è¸è•­ offsetDistance åš™è¸è•­åš™ç˜¦åš™ç³Š(åš™ç£åš™ç·˜åš™èª•å †è•­) ========
     cv::Mat result = maskedImage.clone();
     int numPixelsToErode = static_cast<int>(offsetDistance);
     cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
@@ -806,7 +808,7 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
         cv::erode(result, result, kernel);
     }
 
-    // ======= Âà¦Ç¶¥¥H«á°µ¤G­È¤Æ ========
+    // ======= åš™è¸è•­ï£åš™è¸è•­Håš™è³¦åšåš™ç˜¦åš™è¤“æ­¹è•­ ========
     cv::Mat gray;
     if (result.channels() != 1)
     {
@@ -820,12 +822,12 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
     cv::Mat thresh;
     cv::threshold(gray, thresh, 200, 255, cv::THRESH_BINARY);
 
-    // ======= §ä½ü¹ø ========
+    // ======= åš™è¸è•­åš™è¸è•­åš™?========
     std::vector<std::vector<cv::Point>> contours;
     std::vector<cv::Vec4i> hierarchy;
     cv::findContours(thresh, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
-    // ======= ¹ï½ü¹ø®y¼Ğ°µ¥­·Æ³B²z ========
+    // ======= åš™è¸è•­åš™è¸è•­åš™è¸è•­yåš™è«‹å †è•­åš™è¸è•­åš™è¤‡è™•åš™ç·² ========
     std::vector<std::vector<cv::Point2d>> smoothedContours;
     int numContours = static_cast<int>(contours.size());
 
@@ -874,7 +876,7 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
         smoothedContours.push_back(std::move(smoothedPoints));
     }
 
-    // ======= smoothedContours ¶i¦æ¦±²v­°ÂI ========
+    // ======= smoothedContours åš™ç® åš™è³£æ›²åš™ç·åš™è¸è•­åš™ç˜¢ ========
     double curvatureThreshold = 0.1;
     std::vector<std::vector<cv::Point2d>> finalContours;
     finalContours.reserve(smoothedContours.size());
@@ -883,7 +885,7 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
         finalContours.push_back(ReducePointsByCurvature(contour, curvatureThreshold));
     }
 
-    // ======= ¦s¨ì toolpath µ²ºc¡]¥]§t clusters ½s¸¹¡^ ========
+    // ======= åš™ç·¨åš™è¸è•­ toolpath åš™è¸è•­åš™ç®±åš™ç¨½åš™ç¨½åš™ç·£ clusters åš™ç·¨åš™è¸è•­åš™ç¨· ========
     toolpath.Offset = cv::Point2d(offsetDistance, offsetDistance);
     toolpath.Path.clear();
     toolpath.numClusters.clear();
@@ -894,7 +896,7 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
         for (const auto& point : contour)
         {
             toolpath.Path.push_back(point);
-            toolpath.numClusters.push_back(static_cast<int>(cIdx)); // ¥H½ü¹ø¯Á¤Ş§@¬°¤À¸s¸¹½X
+            toolpath.numClusters.push_back(static_cast<int>(cIdx)); // åš™ç˜¡åš™è¸è•­åš™è¸è•­åš™è¸è•­åš™è±¬ä½œåš™è¸è•­åš™è¸è•­åš™ç·¨åš™è¸è•­åš™ç¢¼
         }
     }
 
@@ -907,7 +909,7 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
     const size_t total = toolpath.Path.size();
     const size_t totalClusters = toolpath.numClusters.size();
 
-    // ¥ı¿é¥XÁ`¼Æ»Pªø«×¬O§_¤@­P
+    // åš™è¸è•­åš™è¸è•­Xåš™çª¯åš™è¤‡èˆ‡åš™è¸è•­åš™è«–æ˜¯åš™ç¨»åš™ç‘¾åš™ç‘
     {
         std::ostringstream head;
         head << "[ToolPath] points=" << total
@@ -916,8 +918,8 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
         OutputDebugStringA(head.str().c_str());
     }
 
-    // ³vµ§¿é¥X©Ò¦³ÂI»P¹ïÀ³ cluster¡]¤À¬qÁ×§K°T®§¤Óªø³QºIÂ_¡^
-    const size_t chunk = 512; // ¨C§å¿é¥X¦æ¼Æ
+    // åš™ç·åš™è¸è•­åš™è¸è•­Xåš™èª²ä½—è•­åš™ç˜¢åš™ç‘åš™è¸è•­åš™è¸è•­ clusteråš™ç¨½åš™è¸è•­åš™ç·¬åš™è«–å…åš™ç¢ºåš™è¸è•­åš™è«‰è¿è•­åš™ç‹åš™ç˜¢åš™ç¨»åš™ç¨·
+    const size_t chunk = 512; // åš™ç˜ åš™è¸è•­åš™ç¢¼åš™è¸è•­åš™?
     for (size_t start = 0; start < total; start += chunk)
     {
         std::ostringstream oss;
@@ -933,7 +935,7 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
 }
 #endif
 
-    // ======= Åã¥Ü¦±²v­°ÂIªº©Ò¦³ÂI¨Ã¥[½u¬q ========
+    // ======= åš™è¸è•­é›ƒåš™è¸è•­våš™è¸è•­åš™ç˜¢åš™è¸è•­åš™èª²ä½—è•­åš™ç˜¢åš™è¡›åŠ åš™ç·šåš™ç·¬ ========
     cv::Mat outputImage = ImgSrc.clone();
     std::vector<std::vector<cv::Point>> contoursToDraw;
 
@@ -978,12 +980,12 @@ void ReduceAndSmoothPoints(const std::vector<cv::Point2d>& points, std::vector<c
 
 
 /*
-//·s¼W ReducePointsByCurvature()
-//­pºâ½ü¹ø¦±²v¡A§R±¼¦±²v§C©óìH­ÈªºÂI¡C
-//·s¼W SmoothPoints()
-//¥Î²¾°Ê¥­§¡ªk¥­·Æ¦±½u¡A¥i´«¦¨ Gaussian ©Î Savitzky¡VGolay¡C
-//ª½±µ¦b½ü¹ø°j°é¤º®M¥Î­°ÂI + ¥­·Æ¤Æ
-//³Ì²×¿é¥Xªº¬OÀu¤Æ«áªº¸ô®|¡C
+//åš™ç·¨åš™ç£• ReducePointsByCurvature()
+//åš™ç·˜åš™è¸è•­åš™è¸è•­åš™è¸è•­åš™è¸è•­våš™ç’€åš™ç£‹åš™è¸è•­åš™è¸è•­åš™ç·åš™ç˜ åš™è¸è•­åš™ç˜¡åš™è¤“è¿è•­åš™ç˜¢åš™ç˜ 
+//åš™ç·¨åš™ç£• SmoothPoints()
+//åš™è«„èè•­åš™è¤Šä¼è•­åš™è¸è•­åš™ç³Šåš™è¸è•­åš™è¤‡ä½—è•­åš™ç·šåš™ç’€åš™ç® åš™è¸è•­åš™è¸è•­ Gaussian åš™è¸è•­ Savitzkyåš™ç¢¾Golayåš™ç˜ 
+//åš™è¸è•­åš™è¸è•­åš™ç®­åš™è¸è•­åš™è¸è•­åš™ç¯Œåš™è³¡å…§åš™çåš™è«„å“¨è•­åš™ç˜¢ + åš™è¸è•­åš™è¤‡æ­¹è•­
+//åš™è«’çµ‚é¸è•­Xåš™è¸è•­åš™çŒåš™ç·šåš™è¤‡å¾Œçš„åš™è¸è•­åš™ç½µåš™ç˜ 
 void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offsetDistance, ToolPath& toolpath)
 {
 	if (ImgSrc.empty() || Mask.empty())
@@ -991,7 +993,7 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
 	if (ImgSrc.size() != Mask.size())
 		throw std::invalid_argument("Image and mask sizes do not match.");
 
-	// ®M¥Î Mask
+	// åš™çåš™è¸è•­ Mask
 	cv::Mat maskedImage;
 	if (ImgSrc.channels() == 3)
 	{
@@ -1004,7 +1006,7 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
 		maskedImage.setTo(0, Mask == 0);
 	}
 
-	// »G»k
+	// åš™ç˜¦åš™ç³Š
 	cv::Mat result = maskedImage.clone();
 	int numPixelsToErode = static_cast<int>(offsetDistance);
 	cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
@@ -1013,7 +1015,7 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
 		cv::erode(result, result, kernel);
 	}
 
-	// ¦Ç¶¥ + ¤G­È¤Æ
+	// åš™è¤’å¡šè•­ + åš™ç˜¦åš™è¤“æ­¹è•­
 	cv::Mat gray;
 	if (result.channels() != 1)
 		cv::cvtColor(result, gray, cv::COLOR_BGR2GRAY);
@@ -1023,36 +1025,36 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
 	cv::Mat thresh;
 	cv::threshold(gray, thresh, 200, 255, cv::THRESH_BINARY);
 
-	// §ä½ü¹ø
+	// åš™è¸è•­åš™è¸è•­åš™?
 	std::vector<std::vector<cv::Point>> contours;
 	std::vector<cv::Vec4i> hierarchy;
 	cv::findContours(thresh, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
-	// ¹ï¨C­Ó½ü¹ø¡G¦±²v­°ÂI + ¥­·Æ¤Æ
+	// åš™è¸è•­Cåš™è«‰è¸è•­åš™è¸è•­åš™ç˜¦åš™è¸è•­åš™ç·åš™è¸è•­åš™ç˜¢ + åš™è¸è•­åš™è¤‡æ­¹è•­
 	std::vector<std::vector<cv::Point2d>> optimizedContours;
 	for (const auto& contour : contours)
 	{
-		// Âà¦¨ double «¬®y¼Ğ
+		// åš™è³æˆ double åš™è¸è•­åš™ç·™åš™è¸è•­
 		std::vector<cv::Point2d> points;
 		for (const auto& p : contour)
 			points.push_back(cv::Point2d(p.x, p.y));
 
-		// ¦±²v­°ÂI
-		auto reduced = ReducePointsByCurvature(points, 0.01); // ìH­È¥i½Õ
+		// åš™è¸è•­åš™ç·åš™è¸è•­åš™ç˜¢
+		auto reduced = ReducePointsByCurvature(points, 0.01); // åš™ç˜¡åš™è¤“å¯åš™è¸è•­
 
-		// ¥­·Æ¤Æ
-		auto smoothed = SmoothPoints(reduced, 5); // µ¡¤f¤j¤p¥i½Õ
+		// åš™è¸è•­åš™è¤‡æ­¹è•­
+		auto smoothed = SmoothPoints(reduced, 5); // åš™è¸è•­åš™ç¯†åš™ç¯Œåš™ç·˜åš™ç® åš™è¸è•­
 
 		optimizedContours.push_back(smoothed);
 	}
 
-	// ¦s¸ô®|
+	// åš™ç·¨åš™è¸è•­åš™ç½µ
 	toolpath.Offset = cv::Point2d(offsetDistance, offsetDistance);
 	for (const auto& contour : optimizedContours)
 		for (const auto& point : contour)
 			toolpath.Path.push_back(point);
 
-	// Ã¸»sµ²ªG
+	// ç¹ªåš™ç·¨åš™è¸è•­åš™ç˜¦
 	cv::Mat outputImage = ImgSrc.clone();
 	std::vector<std::vector<cv::Point>> contoursToDraw;
 	for (const auto& optContour : optimizedContours)
@@ -1365,7 +1367,7 @@ void Encrypt(unsigned char* input, unsigned char* output, unsigned char* key)
 void InitTransformer(float* imagePts, float* worldPts, int count, cv::Mat& affineMatrix)
 {
 	std::vector<cv::Point2f> img, world;
-	// ¦bÀÉ®×¶}ÀY¡]¥ş°ì°Ï°ì¡^«Å§i affineMatrix ÅÜ¼Æ
+	// åš™ç®­åš™è¤•æ¡ˆé–‹åš™ç£åš™ç¨½åš™è¸è•­åš™è¸è•­ç‚¾åš™ç¨·åš™è¤å‘Š affineMatrix åš™è±Œæ½˜è•­
 	//cv::Mat affineMatrix;
 	for (int i = 0; i < count; ++i) {
 		img.emplace_back(imagePts[i * 2], imagePts[i * 2 + 1]);
@@ -1376,7 +1378,7 @@ void InitTransformer(float* imagePts, float* worldPts, int count, cv::Mat& affin
 
 
 
-// «Ø¥ß 3¡Ñ3 ¥é®g¯x°}¡]»ô¦¸ªí¥Ü¡^
+// åš™è«ä¼è•­ 3åš™è¸è•­3 åš™è¸è•­gåš™ç¶åš™ç½·åš™ç¨½åš™è¸è•­åš™è¸è•­åš™è¸è•­åš™è±Œï¼‰
 void InitTransformer(const float* imagePts, const float* worldPts, int count, cv::Mat& affineMatrix)
 {
 	std::vector<cv::Point2f> img, world;
@@ -1388,10 +1390,10 @@ void InitTransformer(const float* imagePts, const float* worldPts, int count, cv
 		world.emplace_back(worldPts[i * 2], worldPts[i * 2 + 1]);
 	}
 
-	cv::Mat affine2x3 = cv::estimateAffine2D(img, world); // 2¡Ñ3
+	cv::Mat affine2x3 = cv::estimateAffine2D(img, world); // 2åš™è¸è•­3
 	if (affine2x3.empty()) return;
 
-	// ÂX®i¦¨ 3¡Ñ3
+	// åš™ç¢¼åš™ç® åš™è¸è•­ 3åš™è¸è•­3
 	affineMatrix = cv::Mat::eye(3, 3, CV_64F);
 	affine2x3.copyTo(affineMatrix(cv::Rect(0, 0, 3, 2)));
 }
@@ -1419,10 +1421,10 @@ bool TransformPixel(float x, float y, float* outX, float* outY, cv::Mat affineMa
 // x, y: the pixel coordinate
 // outX, outY: the real world coordinate
 // cv::Mat & affineMatrix: the affine matrix of the transformation form pixel to world
-// ±N¹³¯ÀÂà¥@¬É®y¼Ğ
+// åš™ç‡åš™è¸è•­åš™è¸è•­åš™è¸è•­@åš™è¤•åº§åš™è¸è•­
 /*
 //Transform image pixel to real world coordinate
-//With 3 points to calculate the affine matrix :  InitTransformer¡BTransformPixel
+//With 3 points to calculate the affine matrix :  InitTransformeråš™ç•¿TransformPixel
 // x_pixel: the x coordinate of the pixel
 // y_pixel: the y coordinate of the pixel
 // &x_mm: the x coordinate of the real world
@@ -1446,12 +1448,12 @@ void PixelToWorld(float x_pixel, float y_pixel, float& x_mm, float& y_mm, cv::Ma
 // x, y: the pixel coordinate
 // outX, outY: the real world coordinate
 // cv::Mat & affineMatrix: the affine matrix of the transformation form pixel to world
-// ±N¹³¯ÀÂà¥@¬É®y¼Ğ
+// åš™ç‡åš™è¸è•­åš™è¸è•­åš™è¸è•­@åš™è¤•åº§åš™è¸è•­
 inline void PixelToWorld(float x_pixel, float y_pixel, float& x_mm, float& y_mm, const cv::Mat& affineMatrix)
 {
 	if (affineMatrix.empty()) return;
 
-	// ¨Ï¥Î»ô¦¸®y¼Ğ°µÂà´«
+	// åš™èª•ç”¨é³´è•­åš™è¸è•­åš™ç·™åš™è«‹å †è•­åš™è³æ›
 	cv::Mat pt = (cv::Mat_<double>(3, 1) << x_pixel, y_pixel, 1.0);
 	cv::Mat result = affineMatrix * pt;
 
@@ -1461,7 +1463,7 @@ inline void PixelToWorld(float x_pixel, float y_pixel, float& x_mm, float& y_mm,
 
 
 
-/*  ¥H¤W InitTransformer¡BTransformPixel ¨Ï¥Î½d¨Ò
+/*  åš™ç˜¡åš™ç£• InitTransformeråš™ç•¿TransformPixel åš™èª•ç”¨ç¯„åš™è¸è•­
 int main()
 {
 	float imagePts[] = {1097,1063, 1373,1063, 1371,945};
@@ -1485,18 +1487,18 @@ int main()
 // Double Word split to Hight Word and Low Word
 // DW2W(int32 dw, int16* hw, int16* lw)
 
-// ¨ç¼Æ¡G±N Double Word ©î¤À¬° High Word ©M Low Word
+// åš™è¸è•­ïš±Gåš™ç‡ Double Word åš™è¸è•­åš™è¸è•­åš™?High Word åš™ç Low Word
 void splitDoubleWord(uint32_t doubleWord, uint16_t& highWord, uint16_t& lowWord)
 {
-	highWord = (doubleWord >> 16) & 0xFFFF; // ´£¨ú°ª 16 ¦ì
-	lowWord = doubleWord & 0xFFFF;          // ´£¨ú§C 16 ¦ì
+	highWord = (doubleWord >> 16) & 0xFFFF; // åš™è¸è•­åš™è¸è•­åš™è¸è•­ 16 åš™è¸è•­
+	lowWord = doubleWord & 0xFFFF;          // åš™è¸è•­åš™è¸è•­åš™ç˜  16 åš™è¸è•­
 }
 
 /*
 uint16_t tab_reg[2];
 uint32_t value = 0x12345678;
-splitDoubleWord(value, tab_reg[0], tab_reg[1]); // ©î¤À¬° High Word ©M Low Word
-modbus_write_registers(ctx, 0, 2, tab_reg);     // ¼g¤J PLC
+splitDoubleWord(value, tab_reg[0], tab_reg[1]); // åš™è¸è•­åš™è¸è•­åš™?High Word åš™ç Low Word
+modbus_write_registers(ctx, 0, 2, tab_reg);     // åš™ç¯‡åš™çšš PLC
 */
 
 
@@ -1736,7 +1738,7 @@ void WriteConfigToFile(const std::string& filename, SystemConfig& SysConfig)
 	file << "CenterX=" << std::fixed << std::setprecision(2) << SysConfig.CenterX << "\n";
 	file << "CenterY=" << std::fixed << std::setprecision(2) << SysConfig.CenterY << "\n";
 
-	// ·s¼W Mask °Ï¬q
+	// åš™ç·¨åš™ç£• Mask åš™èª•æ®µ
 	file << "[Mask]\n";
 	file << "MaskX=" << SysConfig.MaskX << "\n";
 	file << "MaskY=" << SysConfig.MaskY << "\n";
@@ -1824,7 +1826,7 @@ void InitialConfig(const std::string& filename, SystemConfig& SysConfig)
 //void InitialConfigA(const std::string& filename, SystemConfigA& SysConfig)
 void InitialConfigA(const std::string& filename, SystemConfigA& SysConfig)
 {
-	// ³o¸Ì¥i©ñ¹w³]­È¡]«ØÄ³¡^
+	// åš™ç·»åš™è«’å¯åš™è¸è•­wåš™ç¨½åš™è¤“ï¼ˆåš™è¸è•­è­°åš™ç¨·
 
 	SysConfig.IpAddress = "192.168.1.10";
 	SysConfig.Port = 502;
@@ -1850,7 +1852,7 @@ int ReadSystemConfig(const std::string& filename, SystemConfig& SysConfig)
 	std::ifstream file(filename);
 	if (!file.is_open()) {
 		// If file doesn't exist, initialize with default configuration
-		// ³]©w¹w³]ªº mask ­È
+		// åš™ç¨½åš™ç·©åš™ç·©åš™ç¨½åš™è¸è•­ mask åš™è¸è•­
 		SysConfig.MaskX = 0;
 		SysConfig.MaskY = 0;
 		SysConfig.MaskWidth = 0;
@@ -1871,7 +1873,7 @@ int ReadSystemConfig(const std::string& filename, SystemConfig& SysConfig)
 		s = s.substr(start, end - start + 1);
 		};
 
-	// ªì©l¤Æ mask ¹w³]­È
+	// åš™è¸è•­låš™è¸è•­ mask åš™ç·©åš™ç¨½åš™è¸è•­
 	SysConfig.MaskX = 0;
 	SysConfig.MaskY = 0;
 	SysConfig.MaskWidth = 0;
@@ -1935,7 +1937,7 @@ int ReadSystemConfig(const std::string& filename, SystemConfig& SysConfig)
 			else if (key == "CenterY") {
 				SysConfig.CenterY = val.empty() ? 0.0f : std::stof(val);
 			}
-			// ·s¼W mask °Ñ¼ÆÅª¨ú
+			// åš™ç·¨åš™ç£• mask åš™è«¸æ½˜è•­è®€åš™è¸è•­
 			else if (key == "MaskX") {
 				SysConfig.MaskX = val.empty() ? 0 : std::stoi(val);
 			}
@@ -2068,10 +2070,10 @@ int ReadSystemConfig_SP(const std::string& filename, SystemConfigA& SysConfig)
 	return 0;
 }
 
-// §ó·s¨t²Î°t¸m¨ì INI ÀÉ®×
+// åš™è¸è•­såš™ç·£åš™è«„é…åš™ç·´åš™è¸è•­ INI åš™è¤•æ®·è•­
 void UpdateSystemConfig(const std::string& filename, SystemConfig& SysConfig)
 {
-	// ±N const SystemConfig* Âà¬° SystemConfig*¡A¥H²Å¦X WriteConfigToFile ªº°Ñ¼Æ«¬§O
+	// åš™ç‡ const SystemConfig* åš™è³ç‚º SystemConfig*åš™ç’€åš™ç˜¡åš™è¤åˆ WriteConfigToFile åš™è¸è•­åš™è«¸æ•¸æ¬è•­åš™çŒ
 	WriteConfigToFile(filename, SysConfig);
 }
 
@@ -2083,12 +2085,12 @@ std::mutex plc_mutex;
 void SafeModbusRead(/*...*/)
 {
 	std::lock_guard<std::mutex> lock(plc_mutex);
-	// ©I¥s UModbus Åª¨ú¨ç¦¡
+	// åš™ç˜¢åš™ç·¨ UModbus è®€åš™è¸è•­åš™è³œå¼
 }
 
 void SafeModbusWrite(/*...*/) {
 	std::lock_guard<std::mutex> lock(plc_mutex);
-	// ©I¥s UModbus ¼g¤J¨ç¦¡
+	// åš™ç˜¢åš™ç·¨ UModbus åš™ç¯‡åš™çššåš™è³œå¼
 }
 
 int SafeModbusReadRegisters(modbus_t* ctx, int addr, int nb, uint16_t* dest)
@@ -2165,7 +2167,7 @@ void GetMACAddress(unsigned char* macAddress)
 
 
 /**
- * @brief «Ê¸Ë GluePathOptimizer ªº DLL ±µ¤f
+ * @brief åš™è¤Šè³‚è•­ GluePathOptimizer åš™è¸è•­ DLL åš™è¸è•­åš™ç¯†
  */
 void OptimizeGluePath(
 	const std::vector<cv::Point2d>& inputPath,
@@ -2176,13 +2178,13 @@ void OptimizeGluePath(
 	try {
 		if (inputPath.empty()) return;
 
-		// 1. ªì©l¤ÆÀu¤Æ¾¹
+		// 1. åš™è¸è•­låš™è¸è•­åš™ç·šåš™è¤‡æ©˜è•­
 		GluePathOptimizer optimizer(roi);
 
-		// 2. °õ¦æÀu¤ÆÅŞ¿è
+		// 2. åš™è¸è•­åš™è¸è•­åš™ç·šåš™è¸è•­åš™è±¬é¸è•­
 		optimizer.OptimizePath(inputPath, optimizedPath, shoeType);
 
-		// 3. (¿ï¥Î) ¦b Debug ¼Ò¦¡¿é¥Xµ²ªGÂI¼Æ
+		// 3. (åš™è¸è•­åš™? åš™ç®­ Debug åš™èª²ä½—è•­åš™è¸è•­Xåš™è¸è•­åš™ç˜¦åš™ç˜¢åš™è¸è•­
 #ifdef _DEBUG
 		std::string msg = "[UAX_DLL] Optimized Path Points: Left=" +
 			std::to_string(optimizedPath.PathLeft.size()) +
@@ -2194,352 +2196,3 @@ void OptimizeGluePath(
 		std::cerr << "OptimizeGluePath Error: " << e.what() << std::endl;
 	}
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
