@@ -84,6 +84,7 @@ protected:
     CBrush m_ButtonBrush;        // 按鈕背景筆刷
     COLORREF m_ButtonTextColor;  // 按鈕文字顏色
     COLORREF m_ButtonBkColor;    // 按鈕背景顏色
+    CFont m_StatusTimeFont;      // Status bar 時間字型
 
 
 	// 產生的訊息對應函式
@@ -108,6 +109,7 @@ public:
 	afx_msg void OnBnClickedBtnMachine();
 	afx_msg void OnNMRClickTabMain(NMHDR* pNMHDR, LRESULT* pResult);
 	afx_msg void OnTcnSelchangeTabMain(NMHDR* pNMHDR, LRESULT* pResult);
+	afx_msg void OnDrawItem(int nIDCtl, LPDRAWITEMSTRUCT lpDrawItemStruct);
 
 protected:
     afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
@@ -115,10 +117,12 @@ protected:
 public:
     void InitButtonStyle();   // 初始化按鈕樣式
     void ApplyButtonStyle();  // 套用按鈕樣式
+    void UpdateModbusStatusDisplay(bool connected);
 
     // 共用 Modbus 連線物件與互斥鎖
     modbus_t* m_modbusCtx = nullptr;
     std::mutex m_modbusMutex;
+    bool m_modbusConnectAttemptedThisSession = false;
 
     // Modbus 連線重試機制
     bool InitModbusWithRetry(const std::string& ip, int port, int slaveId, int maxRetry, int retryDelayMs);

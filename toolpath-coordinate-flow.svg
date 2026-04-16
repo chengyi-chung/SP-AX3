@@ -1,0 +1,124 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1850" viewBox="0 0 1500 1850">
+  <defs>
+    <style>
+      .title { font: 700 28px "Microsoft JhengHei", "Noto Sans CJK TC", sans-serif; fill: #17324d; }
+      .box { fill: #f7fbff; stroke: #2b5d87; stroke-width: 2; rx: 14; ry: 14; }
+      .box-alt { fill: #fdfaf2; stroke: #9a6a1f; stroke-width: 2; rx: 14; ry: 14; }
+      .box-final { fill: #f4fbf4; stroke: #2f7a43; stroke-width: 2; rx: 14; ry: 14; }
+      .text { font: 18px "Microsoft JhengHei", "Noto Sans CJK TC", sans-serif; fill: #1f2d3d; }
+      .small { font: 16px "Microsoft JhengHei", "Noto Sans CJK TC", sans-serif; fill: #334e68; }
+      .arrow { stroke: #5b7083; stroke-width: 2.5; fill: none; marker-end: url(#arrowhead); }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#5b7083"/>
+    </marker>
+  </defs>
+
+  <text x="750" y="45" text-anchor="middle" class="title">WorkTab::OnBnClickedIdcWorkToolPath() 座標流程圖</text>
+
+  <rect class="box" x="110" y="80" width="520" height="120"/>
+  <text class="text" x="135" y="115">m_mat</text>
+  <text class="small" x="135" y="145">原點: 影像左上角 (0,0)</text>
+  <text class="small" x="135" y="172">單位: pixel</text>
+
+  <rect class="box" x="870" y="80" width="520" height="120"/>
+  <text class="text" x="895" y="115">mask</text>
+  <text class="small" x="895" y="145">原點: 影像左上角 (0,0)</text>
+  <text class="small" x="895" y="172">單位: pixel</text>
+
+  <rect class="box" x="110" y="250" width="520" height="145"/>
+  <text class="text" x="135" y="285">rawOrientationImage = ApplyConfiguredFlip(m_mat, imgFlip)</text>
+  <text class="small" x="135" y="318">原點: 影像左上角 (0,0)</text>
+  <text class="small" x="135" y="345">單位: pixel</text>
+  <text class="small" x="135" y="372">備註: 轉回校正參數使用的原始相機方向</text>
+
+  <rect class="box" x="110" y="445" width="520" height="145"/>
+  <text class="text" x="135" y="480">undistortedRaw = undistortImage(rawOrientationImage)</text>
+  <text class="small" x="135" y="513">原點: 影像左上角 (0,0)</text>
+  <text class="small" x="135" y="540">單位: pixel</text>
+  <text class="small" x="135" y="567">備註: 去畸變後仍是 pixel，不是 mm</text>
+
+  <rect class="box" x="110" y="640" width="520" height="145"/>
+  <text class="text" x="135" y="675">pathSourceImage / imgClone</text>
+  <text class="small" x="135" y="708">原點: 影像左上角 (0,0)</text>
+  <text class="small" x="135" y="735">單位: pixel</text>
+  <text class="small" x="135" y="762">備註: 實際拿來取路徑的影像</text>
+
+  <rect class="box" x="870" y="250" width="520" height="145"/>
+  <text class="text" x="895" y="285">pathMask = ApplyConfiguredFlip(mask, imgFlip)</text>
+  <text class="small" x="895" y="318">原點: 影像左上角 (0,0)</text>
+  <text class="small" x="895" y="345">單位: pixel</text>
+  <text class="small" x="895" y="372">備註: 與 pathSourceImage 對齊</text>
+
+  <rect class="box" x="110" y="835" width="520" height="165"/>
+  <text class="text" x="135" y="870">GetToolPath_CurvatureOptimized_Mask(...)</text>
+  <text class="small" x="135" y="903">輸出: toolPath.Path</text>
+  <text class="small" x="135" y="930">原點: pathSourceImage 左上角 (0,0)</text>
+  <text class="small" x="135" y="957">單位: pixel</text>
+  <text class="small" x="135" y="984">備註: raw path，尚未進入機械/HMI 轉換</text>
+
+  <rect class="box" x="110" y="1050" width="520" height="165"/>
+  <text class="text" x="135" y="1085">ApplyConfiguredFlipToToolPath(...)</text>
+  <text class="small" x="135" y="1118">原點: correctedImage 左上角 (0,0)</text>
+  <text class="small" x="135" y="1145">單位: pixel</text>
+  <text class="small" x="135" y="1172">備註: 只在 usedCalibrationCorrection=true 時執行</text>
+  <text class="small" x="135" y="1199">目的: 把路徑點翻回顯示方向</text>
+
+  <rect class="box-alt" x="110" y="1265" width="520" height="165"/>
+  <text class="text" x="135" y="1300">OptimizeGluePath(...)</text>
+  <text class="small" x="135" y="1333">輸出: finalPath</text>
+  <text class="small" x="135" y="1360">原點: correctedImage 左上角 (0,0)</text>
+  <text class="small" x="135" y="1387">單位: pixel</text>
+  <text class="small" x="135" y="1414">備註: 左右膠路分離與擬合，仍然不是 mm</text>
+
+  <rect class="box-alt" x="110" y="1480" width="520" height="120"/>
+  <text class="text" x="135" y="1515">m_OptimizedGluePath = finalPath</text>
+  <text class="small" x="135" y="1545">原點: correctedImage 左上角 (0,0)</text>
+  <text class="small" x="135" y="1572">單位: pixel</text>
+
+  <rect class="box-final" x="870" y="835" width="520" height="145"/>
+  <text class="text" x="895" y="870">m_machineGluePath</text>
+  <text class="small" x="895" y="903">公式: pt - (referenceX, referenceY)</text>
+  <text class="small" x="895" y="930">原點: 機械原點 = referenceX/referenceY</text>
+  <text class="small" x="895" y="957">單位: pixel</text>
+
+  <rect class="box-final" x="870" y="1030" width="520" height="145"/>
+  <text class="text" x="895" y="1065">m_machineGluePath_mm</text>
+  <text class="small" x="895" y="1098">公式: machine pixel * TransferFactor</text>
+  <text class="small" x="895" y="1125">原點: 機械原點</text>
+  <text class="small" x="895" y="1152">單位: mm</text>
+
+  <rect class="box-final" x="870" y="1225" width="520" height="165"/>
+  <text class="text" x="895" y="1260">m_HMIGluePath_temp</text>
+  <text class="small" x="895" y="1293">公式: machine mm + (400,16)</text>
+  <text class="small" x="895" y="1320">原點: HMI temp 基準點</text>
+  <text class="small" x="895" y="1347">單位: mm-based intermediate</text>
+  <text class="small" x="895" y="1374">備註: 不是原始影像 pixel</text>
+
+  <rect class="box-final" x="870" y="1440" width="520" height="165"/>
+  <text class="text" x="895" y="1475">m_HMIGluePath</text>
+  <text class="small" x="895" y="1508">公式: X=round(temp.X/3), Y=round(temp.Y/5)</text>
+  <text class="small" x="895" y="1535">原點: HMI 顯示原點</text>
+  <text class="small" x="895" y="1562">單位: HMI 顯示座標</text>
+  <text class="small" x="895" y="1589">備註: 最終送往 HMI 的資料</text>
+
+  <path class="arrow" d="M370 200 L370 250"/>
+  <path class="arrow" d="M370 395 L370 445"/>
+  <path class="arrow" d="M370 590 L370 640"/>
+  <path class="arrow" d="M1130 200 L1130 250"/>
+  <path class="arrow" d="M1130 395 L1130 640 L630 640"/>
+  <path class="arrow" d="M370 785 L370 835"/>
+  <path class="arrow" d="M370 1000 L370 1050"/>
+  <path class="arrow" d="M370 1215 L370 1265"/>
+  <path class="arrow" d="M370 1430 L370 1480"/>
+  <path class="arrow" d="M630 1540 L750 1540 L750 905 L870 905"/>
+  <path class="arrow" d="M1130 980 L1130 1030"/>
+  <path class="arrow" d="M1130 1175 L1130 1225"/>
+  <path class="arrow" d="M1130 1390 L1130 1440"/>
+
+  <rect x="110" y="1675" width="1280" height="110" fill="#eef6ff" stroke="#9fbad1" stroke-width="1.5" rx="12" ry="12"/>
+  <text class="text" x="135" y="1712">關鍵結論</text>
+  <text class="small" x="135" y="1740">1. 在 ConvertToMachineCoordinates() 之前，toolPath / finalPath / m_OptimizedGluePath 都還是 pixel。</text>
+  <text class="small" x="135" y="1766">2. 真正轉成 mm 的階段是 m_machineGluePath_mm。</text>
+  <text class="small" x="135" y="1792">3. 最後送往 HMI 的資料是 m_HMIGluePath，而不是 m_OptimizedGluePath。</text>
+</svg>

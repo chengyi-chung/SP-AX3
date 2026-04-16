@@ -97,6 +97,7 @@ BEGIN_MESSAGE_MAP(CSPDlg, CDialogEx)
 	ON_NOTIFY(NM_RCLICK, IDC_TAB_MAIN, &CSPDlg::OnNMRClickTabMain)
 	ON_NOTIFY(TCN_SELCHANGE, IDC_TAB_MAIN, &CSPDlg::OnTcnSelchangeTabMain)
 	ON_WM_CTLCOLOR()
+	ON_WM_DRAWITEM()
 END_MESSAGE_MAP()
 
 
@@ -144,34 +145,47 @@ BOOL CSPDlg::OnInitDialog()
 	GetMacAddress(m_SystemPara.MACKey);
 
 	//define indicators
-	UINT indicators[] = { ID_INDICATOR_TIME, ID_INDICATOR_FILE };
+	UINT indicators[] = { ID_INDICATOR_FILE, ID_INDICATOR_TIME, ID_INDICATOR_MODBUS };
 
 	// Create the status bar
 	if (m_Status_Bar.Create(this))
 	{
-		m_Status_Bar.SetIndicators(indicators, 2);
-		m_Status_Bar.SetPaneInfo(0, ID_INDICATOR_TIME, SBPS_NORMAL, rect.Width() - 100);
-		m_Status_Bar.SetPaneInfo(1, ID_INDICATOR_FILE, SBPS_NORMAL, rect.Width() - 50);
+		m_Status_Bar.SetIndicators(indicators, 3);
+		m_Status_Bar.SetPaneInfo(0, ID_INDICATOR_FILE, SBPS_NORMAL, rect.Width() - 260);
+		m_Status_Bar.SetPaneInfo(1, ID_INDICATOR_TIME, SBPS_OWNERDRAW, 80);
+		m_Status_Bar.SetPaneInfo(2, ID_INDICATOR_MODBUS, SBPS_OWNERDRAW, 160);
 
 		//Add Status Bar Fime Name Data
 		m_Status_Bar.SetPaneText(0,_T("File Name :N/A"));
+		m_Status_Bar.SetPaneText(1, _T("--:--:--"));
+		UpdateModbusStatusDisplay(false);
 
 		// Resize the status bar
 		m_Status_Bar.MoveWindow(rect.left, rect.bottom - 20, rect.Width(), 20);
 	}
+
+    LOGFONT lf = {};
+    NONCLIENTMETRICS ncm = {};
+    ncm.cbSize = sizeof(NONCLIENTMETRICS);
+    if (SystemParametersInfo(SPI_GETNONCLIENTMETRICS, sizeof(NONCLIENTMETRICS), &ncm, 0)) {
+        lf = ncm.lfStatusFont;
+    }
+    else {
+        ::ZeroMemory(&lf, sizeof(LOGFONT));
+        lf.lfHeight = -14;
+        _tcscpy_s(lf.lfFaceName, LF_FACESIZE, _T("Microsoft JhengHei"));
+    }
+    lf.lfWeight = FW_BOLD;
+    m_StatusTimeFont.CreateFontIndirect(&lf);
 	
-	// 嘗試建立 Modbus 連線（自動重試3次，每次間隔1000ms）
-	bool modbusOk = InitModbusWithRetry
-	(
+	// 啟動時只主動嘗試連線一次。
+	// 若本次啟動失敗，之後本次 session 不再自動重試，要等下次重新啟動程式才會再嘗試。
+	InitModbusWithRetry(
 		m_SystemPara.IpAddress,
 		m_SystemPara.Port,
 		m_SystemPara.StationID,
-		3,      // 最大重試次數
-		1000    // 每次重試間隔(ms)
-	);
-	if (!modbusOk) {
-		// 連線失敗，已顯示錯誤訊息，可視情況額外處理
-	}
+		3,
+		1000);
 
     // Set Timer
 	SetTimer(100, 1000, NULL);
@@ -364,6 +378,16 @@ void CSPDlg::OnTimer(UINT_PTR nIDEvent)
 	CDialogEx::OnTimer(nIDEvent);
 }
 
+void CSPDlg::UpdateModbusStatusDisplay(bool connected)
+{
+	if (!m_Status_Bar.m_hWnd) {
+		return;
+	}
+
+	m_Status_Bar.SetPaneText(2, connected ? _T("Modbus: Connected") : _T("Modbus: Not Connected"));
+    m_Status_Bar.Invalidate();
+}
+
 void CSPDlg::OnBnClickedBtnWorking()
 {
 	// TODO: 在此加入控制項告知處理常式程式碼
@@ -434,8 +458,53 @@ void CSPDlg::OnSize(UINT nType, int cx, int cy)
 		CRect rect;
 		GetClientRect(&rect);
 		m_Status_Bar.MoveWindow(rect.left, rect.bottom - 20, rect.Width(), 20);
+		m_Status_Bar.SetPaneInfo(0, ID_INDICATOR_FILE, SBPS_NORMAL, rect.Width() - 260);
+		m_Status_Bar.SetPaneInfo(1, ID_INDICATOR_TIME, SBPS_OWNERDRAW, 80);
+		m_Status_Bar.SetPaneInfo(2, ID_INDICATOR_MODBUS, SBPS_OWNERDRAW, 160);
 	}
 	
+}
+
+void CSPDlg::OnDrawItem(int nIDCtl, LPDRAWITEMSTRUCT lpDrawItemStruct)
+{
+    if (lpDrawItemStruct && lpDrawItemStruct->hwndItem == m_Status_Bar.GetSafeHwnd() &&
+        (lpDrawItemStruct->itemID == 1 || lpDrawItemStruct->itemID == 2)) {
+        CDC dc;
+        dc.Attach(lpDrawItemStruct->hDC);
+
+        CRect rect(lpDrawItemStruct->rcItem);
+        dc.FillSolidRect(&rect, ::GetSysColor(COLOR_3DFACE));
+
+        CString paneText;
+        m_Status_Bar.GetPaneText(lpDrawItemStruct->itemID, paneText);
+
+        CFont* pOldFont = dc.SelectObject(&m_StatusTimeFont);
+        COLORREF textColor = RGB(0, 0, 0);
+        UINT drawFlags = DT_SINGLELINE | DT_VCENTER | DT_CENTER;
+        if (lpDrawItemStruct->itemID == 1) {
+            textColor = RGB(0, 51, 153);
+        }
+        else {
+            textColor = (paneText == _T("Modbus: Connected")) ? RGB(0, 102, 0) : RGB(153, 0, 0);
+            drawFlags = DT_SINGLELINE | DT_VCENTER | DT_LEFT;
+        }
+
+        const COLORREF oldTextColor = dc.SetTextColor(textColor);
+        const int oldBkMode = dc.SetBkMode(TRANSPARENT);
+
+        rect.DeflateRect(4, 0);
+        dc.DrawText(paneText, &rect, drawFlags);
+
+        dc.SetBkMode(oldBkMode);
+        dc.SetTextColor(oldTextColor);
+        if (pOldFont) {
+            dc.SelectObject(pOldFont);
+        }
+        dc.Detach();
+        return;
+    }
+
+    CDialogEx::OnDrawItem(nIDCtl, lpDrawItemStruct);
 }
 
 
@@ -618,6 +687,19 @@ bool CSPDlg::InitModbusWithRetry(const std::string& ip, int port, int slaveId, i
 {
     std::lock_guard<std::mutex> lock(m_modbusMutex);
 
+    if (m_modbusCtx) {
+        UpdateModbusStatusDisplay(true);
+        return true;
+    }
+
+    // 本次程式執行期間只允許自動嘗試連線一次。
+    // 啟動時若已失敗，後續功能不要再持續重連或反覆跳錯誤訊息。
+    if (m_modbusConnectAttemptedThisSession) {
+        UpdateModbusStatusDisplay(false);
+        return false;
+    }
+    m_modbusConnectAttemptedThisSession = true;
+
     // 釋放舊連線
     if (m_modbusCtx) {
         modbus_close(m_modbusCtx);
@@ -633,15 +715,15 @@ bool CSPDlg::InitModbusWithRetry(const std::string& ip, int port, int slaveId, i
     modbus_set_slave(m_modbusCtx, slaveId);
 
     int retry = 0;
+    CString lastError;
     while (retry < maxRetry) {
         if (modbus_connect(m_modbusCtx) != -1) {
             // 連線成功
+            UpdateModbusStatusDisplay(true);
             return true;
         }
-        // 連線失敗，顯示錯誤訊息
-        CString msg;
-        msg.Format(_T("Modbus 連線失敗（第 %d 次）：%S"), retry + 1, modbus_strerror(errno));
-        AfxMessageBox(msg, MB_ICONWARNING);
+        // 連線失敗時只記錄最後一次錯誤，避免每次 retry 都跳出訊息框干擾操作。
+        lastError.Format(_T("Modbus 連線失敗（第 %d 次）：%S"), retry + 1, modbus_strerror(errno));
         std::this_thread::sleep_for(std::chrono::milliseconds(retryDelayMs));
         retry++;
     }
@@ -649,7 +731,15 @@ bool CSPDlg::InitModbusWithRetry(const std::string& ip, int port, int slaveId, i
     // 最終失敗
     modbus_free(m_modbusCtx);
     m_modbusCtx = nullptr;
-    // 將 MB_ICON_ERROR 改為 MessageBox 的標準錯誤圖示 MB_ICONERROR
-    AfxMessageBox(_T("Modbus 連線多次失敗，請檢查網路或 PLC 狀態。"), MB_ICONERROR);
+
+    CString summary;
+    if (!lastError.IsEmpty()) {
+        summary.Format(_T("Modbus 連線多次失敗，請檢查網路或 PLC 狀態。\n%s"), static_cast<LPCTSTR>(lastError));
+    }
+    else {
+        summary = _T("Modbus 連線多次失敗，請檢查網路或 PLC 狀態。");
+    }
+    AfxMessageBox(summary, MB_ICONERROR);
+    UpdateModbusStatusDisplay(false);
     return false;
 }

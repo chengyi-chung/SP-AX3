@@ -196,6 +196,30 @@ void ExportGluePathAsToolCSV(const GluePath& gluePath, const std::string& fileNa
     }
 }
 
+void ExportToolPathAsCSV(const ToolPath& toolPath, const std::string& fileName)
+{
+    std::ofstream out(GetToolDebugExportPath(fileName), std::ios::trunc);
+    if (!out.is_open()) {
+        return;
+    }
+
+    out << "// Auto-generated debug export\n";
+    out << "// Format: RawToolPath(X,Y,Cluster)\n";
+    out << "Index,X,Y,Cluster\n";
+
+    for (size_t i = 0; i < toolPath.Path.size(); ++i) {
+        const int cluster =
+            (i < toolPath.numClusters.size())
+            ? toolPath.numClusters[i]
+            : -1;
+
+        out << i << ","
+            << toolPath.Path[i].x << ","
+            << toolPath.Path[i].y << ","
+            << cluster << "\n";
+    }
+}
+
 class GridLengthInputDialog : public CDialogEx
 {
 public:
@@ -502,7 +526,6 @@ BOOL WorkTab::OnInitDialog()
 	//Save Img按鈕
 	m_Work_SaveImg.SetFaceColor(RGB(200, 228, 255));
 	m_Work_SaveImg.SetTextColor(RGB(0, 0, 0));    //黑色字
-    StartHmiSyncTimer();
 	m_Work_SaveImg.SetFont(&m_fontBoldBig);
 
 	//Calibration按鈕
@@ -2067,8 +2090,8 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
     mask(roiRect) = cv::Scalar(255);
 
     // 6. 提取原始工具路徑前，先做影像校正
-    cv::Mat correctedImage = m_mat;
-    cv::Mat pathSourceImage = m_mat;
+	cv::Mat correctedImage = m_mat;  // 預設為原始影像，如果校正失敗或未校正，則繼續使用原始影像提取路徑
+	cv::Mat pathSourceImage = m_mat; // 用於路徑提取的影像，通常是校正後的影像，但如果校正失敗則回退為原始影像
     cv::Mat pathMask = mask.clone();
     if (!m_vision.isCalibrated()) {
         m_vision.loadCalibrationData(GetCalibrationFilePath());
@@ -2079,11 +2102,13 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
         try {
             // m_mat 在取像後可能已依 imgFlip 翻轉；校正參數通常是以原始相機方向建立。
             // 因此在原始方向做去畸變與路徑提取，最後再把點座標翻回目前顯示座標。
-            cv::Mat rawOrientationImage = ApplyConfiguredFlip(m_mat, imgFlip);
-            cv::Mat undistortedRaw = m_vision.undistortImage(rawOrientationImage);
+			cv::Mat rawOrientationImage = ApplyConfiguredFlip(m_mat, imgFlip); // 把 m_mat 翻回校正參數對應的原始相機方向，這樣去畸變後的影像才會和校正參數對齊。
+			cv::Mat undistortedRaw = m_vision.undistortImage(rawOrientationImage); // 去畸變後的影像仍然是原始相機方向，這樣提取路徑才會和校正參數對齊。
             if (!undistortedRaw.empty()) {
-                correctedImage = ApplyConfiguredFlip(undistortedRaw, imgFlip);
+				correctedImage = ApplyConfiguredFlip(undistortedRaw, imgFlip); // 把去畸變後的影像翻回目前顯示的方向，這樣 correctedImage 就是校正後且符合目前顯示方向的影像，可以直接用來顯示。
                 pathSourceImage = undistortedRaw;
+
+				//ApplyConfiguredFlip() 會對 mask 做同樣的翻轉，確保 pathMask 與 pathSourceImage 在同一個座標系統下對齊。
                 pathMask = ApplyConfiguredFlip(mask, imgFlip);
                 usedCalibrationCorrection = true;
             }
@@ -2096,15 +2121,18 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
     }
 
     // 7. 提取工具路徑 (直接操作成員變數)
-	// correctedImage: 顯示用校正後影像，若無校正資料則回退為原始影像
+	// correctedImage: 顯示用影像，原點為左上角，單位為 pixel
+	// pathSourceImage / imgClone: 實際拿來取路徑的影像，原點為左上角，單位為 pixel
     this->toolPath.Path.clear();
     cv::Mat imgClone = pathSourceImage.clone();
     GetToolPath_CurvatureOptimized_Mask(imgClone, pathMask, offsetPixel, this->toolPath, 0.0008,false);
 
-	//此時 toolPath 中的點座標是基於 pathSourceImage 的，如果校正有翻轉過，則需要把座標翻回來對應到 correctedImage 的顯示座標。
-	//單位仍然是像素，後續優化與繪圖都基於 correctedImage 的座標系統。
+	// 此時 toolPath 中的點原本是基於 pathSourceImage 左上角的 pixel 座標。
+	// 若校正流程有做方向翻轉，則再把點翻回 correctedImage 的顯示方向。
+	// 在進入 OptimizeGluePath(...) 前，toolPath 仍然是影像左上角為原點、單位為 pixel。
 
     if (usedCalibrationCorrection) {
+		// 把 toolPath 中的點座標翻回 pathSourceImage 的顯示方向，這樣後續優化與繪圖就不需要再考慮翻轉了。
         ApplyConfiguredFlipToToolPath(this->toolPath, pathSourceImage.size(), imgFlip);
     }
 
@@ -2125,7 +2153,7 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
     // 注意：OutputPath 建議定義為類別成員，以便後續繪圖或傳送給 PLC
     GluePath finalPath;
 
-	//分割成左、右兩條路徑優化，最後再合併成一條完整路徑
+	// 分割成左、右兩條路徑優化，輸出的 finalPath 仍以影像左上角為原點、單位為 pixel。
     OptimizeGluePath(this->toolPath.Path, roiOpt, finalPath, 2);
 
     // 校正後的 toolPath 已經透過 ApplyConfiguredFlipToToolPath(...)
@@ -2137,19 +2165,23 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
     SortGluePathByAscendingY(finalPath);
 
     // 9. 儲存或顯示結果
-	//m_OptimizedGluePath : 單位為像素，座標系統與 correctedImage 一致
+	// m_OptimizedGluePath：原點為 correctedImage 左上角，單位為 pixel
     this->m_OptimizedGluePath = finalPath; // 假設你有一個成員變數儲存最終結果
 
  
 
 #ifdef _DEBUG
     //刪除CSV檔
+     DeleteFile(_T("tool_raw_path.csv"));
+     DeleteFile(_T("tool_final_glue_path.csv"));
      DeleteFile(_T("tool_optimized_glue_path.csv"));
      DeleteFile(_T("tool_machine_glue_path.csv"));
 	 DeleteFile(_T("tool_machine_glue_path_mm.csv"));
 	 DeleteFile(_T("tool_HMIGluePath_temp.csv"));
 	 DeleteFile(_T("tool_hmi_glue_path.csv"));
 
+	 ExportToolPathAsCSV(this->toolPath, "tool_raw_path.csv");  // 原始工具路徑：原點為影像左上角，單位為 pixel
+    ExportGluePathAsToolCSV(finalPath, "tool_final_glue_path.csv");
     ExportGluePathAsToolCSV(this->m_OptimizedGluePath, "tool_optimized_glue_path.csv");
     ExportGluePathAsToolCSV(this->m_machineGluePath, "tool_machine_glue_path.csv");
     ExportGluePathAsToolCSV(this->m_machineGluePath_mm, "tool_machine_glue_path_mm.csv");
@@ -3143,10 +3175,11 @@ void WorkTab::OnBnClickedCheckWorkRoi()
 }
 
 // 完整座標轉換流程
-// 1. m_OptimizedGluePath(pixel) 以 referenceX/referenceY 為機械原點，轉成 m_machineGluePath(pixel)
-// 2. m_machineGluePath(pixel) 乘上 TransferFactor(mm/pixel)，轉成 m_machineGluePath_mm(mm)
-// 3. m_machineGluePath_mm 的 (0,0) 映射到 HMI 的 m_HMIGluePath_temp(400,16)
-// 4. m_HMIGluePath_temp 再依 HMI 比例 /3、/5 縮放並取整，得到 m_HMIGluePath
+// 1. m_OptimizedGluePath：原點為影像左上角，單位為 pixel
+// 2. m_machineGluePath：以 referenceX/referenceY 為機械原點，單位為 pixel
+// 3. m_machineGluePath_mm：以機械原點為基準，單位為 mm
+// 4. m_HMIGluePath_temp：將 machine mm 映射到 HMI temp(400,16) 的中間座標
+// 5. m_HMIGluePath：再依 HMI 比例 /3、/5 縮放並取整後的最終顯示座標
 void WorkTab::ConvertToMachineCoordinates()
 {
     CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());

@@ -183,9 +183,8 @@ void GetToolPath_Optimized(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpa
 		throw std::invalid_argument("Input image is empty.");
 	}
 
-	// --- 1. 嚙衝荔蕭嚙線嚙複：嚙踝蕭X嚙瘢嚙糊嚙畿嚙踝蕭 ---
-	// 嚙踝蕭嚙緯嚙踝蕭 for 嚙篌嚙踝蕭h嚙踝蕭嚙瘢嚙編 erode嚙璀cv::erode 嚙踝蕭嚙踝蕭 iterations 嚙諸數，
-	// 嚙賭內嚙踝蕭嚙踝蕭嚙箠嚙踝蕭 SIMD 嚙線嚙複，嚙衝能遠嚙踝蕭嚙踝蕭嚙褊迴嚙踝蕭C
+	// 1. Preprocess by eroding the source image inward.
+	// The erosion count is derived from Offset.x + Offset.y in pixel units.
 	cv::Mat processed;
 	int numPixelsToErode = static_cast<int>(Offset.x + Offset.y);
 
@@ -197,8 +196,7 @@ void GetToolPath_Optimized(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpa
 		processed = ImgSrc.clone();
 	}
 
-	// --- 2. 嚙踝蕭m嚙賞換嚙線嚙踝蕭 ---
-	// 嚙踝蕭嚙踝蕭嚙箭嚙畿嚙緲嚙賦的嚙緞嚙踝蕭嚙磕嚙賞換嚙璀嚙論免嚙篁嚙締嚙踝蕭 clone
+	// 2. Convert to grayscale if needed.
 	cv::Mat gray;
 	if (processed.channels() == 3) {
 		cv::cvtColor(processed, gray, cv::COLOR_BGR2GRAY);
@@ -207,15 +205,13 @@ void GetToolPath_Optimized(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpa
 		gray = processed;
 	}
 
-	// --- 3. 嚙踝蕭嚙箴嚙褓與嚙踝蕭嚙踝蕭嚙踝蕭嚙踝蕭 ---
+	// 3. Threshold and extract outer contours.
 	cv::threshold(gray, gray, 128, 255, cv::THRESH_BINARY);
 
 	std::vector<std::vector<cv::Point>> contours;
-	// 嚙誕伐蕭 CHAIN_APPROX_SIMPLE 嚙踝蕭嚙磐嚙踝蕭嚙踝蕭嚙畿嚙踝蕭嚙踝蕭嚙瞑嚙踝角嚙線嚙緬嚙璀嚙篌嚙確嚙踝蕭嚙踝蕭I嚙踝蕭
 	cv::findContours(gray, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
-	// --- 4. 嚙瞌嚙踝蕭嚙踝蕭w嚙踝蕭嚙緣嚙練 (Memory Reservation) ---
-	// 嚙緻嚙瞌嚙踝蕭嚙褕效能的嚙踝蕭嚙踝蕭G嚙緩嚙踝蕭嚙緘嚙踝蕭嚙瘢嚙踝蕭嚙窯嚙複，嚙論免 vector 嚙箭 push_back 嚙褕歹蕭嚙稻嚙踝蕭嚙編嚙踝蕭嚙緣嚙瞌嚙踝蕭嚙踝蕭
+	// 4. Reserve memory before flattening all contour points into toolpath.Path.
 	size_t totalPoints = 0;
 	for (const auto& c : contours) totalPoints += c.size();
 
@@ -229,8 +225,7 @@ void GetToolPath_Optimized(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpa
 		}
 	}
 
-	// --- 5. 嚙踝蕭覺嚙複（嚙瘩嚙談莎蕭嚙踝蕭嚙課恬蕭議嚙踝蕭嚙踝蕭嚙稷 ---
-	// 嚙褓在嚙豎要嚙褕在嚙踝蕭炵e嚙瑾嚙踝蕭嚙磐嚙箠
+	// 5. Draw contour result back to the source image for display/debug.
 	cv::drawContours(ImgSrc, contours, -1, cv::Scalar(0, 255, 0), 2);
 }
 
@@ -238,7 +233,7 @@ void GetToolPath_CurvatureOptimized(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPat
 {
 	if (ImgSrc.empty()) throw std::invalid_argument("Input image is empty.");
 
-	// 1. 嚙緞嚙踝蕭嚙緩嚙畿嚙緲 (嚙誕伐蕭 iterations 嚙線嚙複效荔蕭)
+	// 1. Erode inward according to the requested pixel offset.
 	cv::Mat processed;
 	int numPixelsToErode = static_cast<int>(Offset.x + Offset.y);
 	if (numPixelsToErode > 0) {
@@ -249,45 +244,40 @@ void GetToolPath_CurvatureOptimized(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPat
 		processed = ImgSrc.clone();
 	}
 
-	// 2. 嚙踝蕭嚙踝蕭P嚙瘦嚙褓歹蕭
+	// 2. Convert to grayscale and binarize.
 	cv::Mat gray;
 	if (processed.channels() == 3) cv::cvtColor(processed, gray, cv::COLOR_BGR2GRAY);
 	else gray = processed;
 
 	cv::threshold(gray, gray, 128, 255, cv::THRESH_BINARY);
 
-	// 3. 嚙踝蕭嚙踝蕭嚙踝蕭l嚙踝蕭嚙踝蕭 (嚙誕伐蕭 CHAIN_APPROX_TC89_L1 嚙箠嚙踝蕭嚙畿嚙踝蕭嚙磐)
+	// 3. Extract contours using TC89_L1 to preserve shape with fewer points.
 	std::vector<std::vector<cv::Point>> contours;
 	cv::findContours(gray, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_TC89_L1);
 
 	toolpath.Path.clear();
 	toolpath.Offset = Offset;
 
-	// 4. 嚙踝蕭韟捲v嚙箠嚙賣降嚙瘢 (Douglas-Peucker Algorithm)
+	// 4. Reduce contour points with Douglas-Peucker.
 	for (const auto& contour : contours)
 	{
 		std::vector<cv::Point> simplifiedContour;
 
-		// 嚙緘嚙踝蕭嚙踝蕭嚙瘡嚙踝蕭 (epsilon)
-		// 嚙質式 A: 嚙誹據踝蕭嚙踝蕭嚙瞑嚙踝蕭嚙褊態嚙調橘蕭]嚙踝蕭嚙誼）嚙璀epsilonFactor 嚙碾嚙緘嚙璀嚙瘢嚙複越嚙篁嚙碾嚙踝蕭T
+		// epsilon is proportional to contour arc length.
 		double arcLen = cv::arcLength(contour, true);
 		double epsilon = epsilonFactor * arcLen;
 
-		// 嚙質式 B: 嚙緘嚙瘦嚙豎要嚙確嚙緩嚙踝蕭嚙踝蕭嚙羯嚙緣嚙璀嚙箠嚙踝蕭嚙踝蕭嚙稽嚙踝蕭嚙確嚙緩嚙褓，嚙課如 epsilon = 1.0;
-
-		// 嚙誰心剁蕭G嚙誹據佗蕭嚙緞/嚙踝蕭嚙緣嚙踝蕭嚙瘢
 		cv::approxPolyDP(contour, simplifiedContour, epsilon, true);
 
-		// 嚙瞇簡嚙複後的嚙瘢嚙編嚙皚 toolpath
+		// Append simplified points to toolpath.
 		for (const auto& point : simplifiedContour)
 		{
 			toolpath.Path.emplace_back(static_cast<double>(point.x), static_cast<double>(point.y));
 		}
 	}
 
-	// 繪嚙編嚙踝蕭嚙瘦嚙瘡嚙踝蕭嚙踝蕭嚙踝蕭
-	cv::drawContours(ImgSrc, contours, -1, cv::Scalar(0, 0, 255), 1); // 嚙踝蕭嚙踝蕭嚙?嚙踝蕭)
-	// 繪嚙編嚙踝蕭嚙瘢嚙賦的嚙踝蕭嚙罵嚙瘢嚙稽嚙踝蕭嚙緘嚙踝蕭嚙瘢嚙稷
+	// Draw original contours and reduced points for debug display.
+	cv::drawContours(ImgSrc, contours, -1, cv::Scalar(0, 0, 255), 1);
 	for (const auto& p : toolpath.Path) {
 		cv::circle(ImgSrc, cv::Point(p.x, p.y), 2, cv::Scalar(0, 255, 0), -1);
 	}
@@ -296,7 +286,7 @@ void GetToolPath_CurvatureOptimized(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPat
 }
 
 
-// ====================== 嚙瑾嚙諄前嚙畿嚙緲 ======================
+// ====================== Shared Preprocess Helper ======================
 void PreprocessImage(const cv::Mat& ImgSrc,
 	cv::Mat& gray,
 	cv::Point2d Offset,
@@ -313,13 +303,13 @@ void PreprocessImage(const cv::Mat& ImgSrc,
 		processed = ImgSrc.clone();
 	}
 
-	// 2. 嚙踝蕭嚙?
+	// 2. Convert to grayscale.
 	if (processed.channels() == 3)
 		cv::cvtColor(processed, gray, cv::COLOR_BGR2GRAY);
 	else
 		gray = processed;
 
-	// 3. Mask 嚙緻嚙踝蕭嚙稽嚙篌嚙複迎蕭嚙稷
+	// 3. Apply binary mask if provided.
 	if (!Mask.empty()) {
 		cv::Mat maskGray;
 		if (Mask.channels() == 3)
@@ -327,10 +317,10 @@ void PreprocessImage(const cv::Mat& ImgSrc,
 		else
 			maskGray = Mask;
 
-		// 嚙篌嚙踝蕭嚙踝蕭郱G嚙踝蕭 Mask
+		// Ensure mask is binary.
 		cv::threshold(maskGray, maskGray, 1, 255, cv::THRESH_BINARY);
 
-		// 嚙諍寸嚙踝蕭嚙瑾嚙瞑嚙諛堆蕭 resize
+		// Resize mask if its size does not match the source image.
 		if (maskGray.size() != gray.size()) {
 			std::cout << "[WARN] Mask size mismatch, resizing..." << std::endl;
 			cv::resize(maskGray, maskGray, gray.size(), 0, 0, cv::INTER_NEAREST);
@@ -342,7 +332,7 @@ void PreprocessImage(const cv::Mat& ImgSrc,
 		std::cout << "[DEBUG] After Mask, non-zero pixels: " << nz << std::endl;
 	}
 
-	// 4. 嚙瘦嚙褓化（嚙踝蕭嚙?OTSU 嚙諛動迎蕭嚙箴嚙璀嚙踝蕭穩嚙稷
+	// 4. Binarize with OTSU for stable thresholding.
 	cv::threshold(gray, gray, 0, 255, cv::THRESH_BINARY | cv::THRESH_OTSU);
 
 	std::cout << "[DEBUG] After threshold, non-zero pixels: " << cv::countNonZero(gray) << std::endl;
@@ -350,14 +340,14 @@ void PreprocessImage(const cv::Mat& ImgSrc,
 
 
 
-// ====================== 嚙瘩嚙踝蕭嚙?1嚙瘦Mask + 嚙箠嚙踝曲嚙緞嚙線嚙踝蕭 ======================
+// ====================== Mode 1: Mask + Curvature Optimized Path ======================
 void GetToolPath_CurvatureOptimized_Mask(
 	cv::Mat& ImgSrc,
-	const cv::Mat& Mask,              // Mask 嚙踝蕭J
+	const cv::Mat& Mask,              // Input mask
 	double offsetPixel,
 	ToolPath& toolpath,
 	double epsilonFactor,
-	bool enableCurvatureOptimization)   // 嚙踝蕭 Removed default value (= true)
+	bool enableCurvatureOptimization)
 {
 	if (ImgSrc.empty()) throw std::invalid_argument("Input image is empty.");
 
@@ -372,12 +362,12 @@ void GetToolPath_CurvatureOptimized_Mask(
 		processed = ImgSrc.clone();
 	}
 
-	// 2. 嚙踝蕭嚙?
+	// 2. Convert to grayscale.
 	cv::Mat gray;
 	if (processed.channels() == 3) cv::cvtColor(processed, gray, cv::COLOR_BGR2GRAY);
 	else gray = processed;
 
-	// 3. Mask 嚙緻嚙踝蕭嚙畿嚙緲嚙稽嚙篌嚙複迎蕭嚙璀嚙瞌嚙範嚙踝蕭嚙豬選蕭^
+	// 3. Apply binary mask before extracting contours.
 	if (!Mask.empty()) {
 		cv::Mat maskGray;
 		if (Mask.channels() == 3)
@@ -396,17 +386,17 @@ void GetToolPath_CurvatureOptimized_Mask(
 		std::cout << "[DEBUG] After Mask, non-zero pixels: " << cv::countNonZero(gray) << std::endl;
 	}
 
-	// 4. 嚙瘦嚙褓化（嚙瞌嚙範嚙踝蕭 128 嚙踝蕭嚙箴嚙稷
+	// 4. Binarize with a fixed threshold.
 	cv::threshold(gray, gray, 128, 255, cv::THRESH_BINARY);
 
-	// 5. 嚙踝蕭嚙踝蕭嚙踝蕭l嚙踝蕭嚙踝蕭
+	// 5. Extract outer contours.
 	std::vector<std::vector<cv::Point>> contours;
 	cv::findContours(gray, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_TC89_L1);
 
 	toolpath.Path.clear();
 	toolpath.Offset = cv::Point2d(offsetPixel, 0.0);
 
-	// 6. 嚙畿嚙緲嚙瘠嚙諉踝蕭嚙踝蕭 - 嚙誹橘蕭 enableCurvatureOptimization 嚙瞎嚙緩嚙瞌嚙稻簡嚙踝蕭
+	// 6. Either simplify contours or keep original contour points.
 	for (const auto& contour : contours)
 	{
 		if (contour.size() < 3) continue;
@@ -415,7 +405,7 @@ void GetToolPath_CurvatureOptimized_Mask(
 
 		if (enableCurvatureOptimization)
 		{
-			// 嚙課用佗蕭嚙緞嚙線嚙複：Douglas-Peucker 簡嚙踝蕭
+			// Douglas-Peucker simplification.
 			double arcLen = cv::arcLength(contour, true);
 			double epsilon = epsilonFactor * arcLen;
 
@@ -426,13 +416,13 @@ void GetToolPath_CurvatureOptimized_Mask(
 		}
 		else
 		{
-			// 嚙踝蕭嚙踝蕭簡嚙複：嚙踝蕭嚙踝蕭嚙誕用哨蕭l嚙踝蕭嚙踝蕭嚙瘢
+			// Keep original contour points without simplification.
 			finalContour = contour;
 
 			std::cout << "[INFO] Using original contour (" << contour.size() << " points) - simplification disabled" << std::endl;
 		}
 
-		// 嚙賞成 cv::Point2d 嚙稼嚙皚 toolpath
+		// Convert contour points to cv::Point2d and append to toolpath.
 		for (const auto& point : finalContour)
 		{
 			toolpath.Path.emplace_back(static_cast<double>(point.x), static_cast<double>(point.y));
@@ -456,12 +446,12 @@ void GetToolPath_CurvatureOptimized_Mask(
 }
 
 
-// ====================== 嚙瘩嚙踝蕭嚙?2嚙瘦嚙踝蕭椓嚙踝蕭|嚙談佗蕭嚙稽嚙褓保嚙範嚙踝蕭嚙箭嚙踝蕭^ ======================
+// ====================== Mode 2: Symmetric Path Generation ======================
 void GetToolPath_SymmetricOnly(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpath, double epsilonFactor)
 {
 	if (ImgSrc.empty()) return;
 
-	// 1. 嚙緞嚙踝蕭嚙緩嚙畿嚙緲 (嚙諛同)
+	// 1. Erode inward and threshold the image.
 	cv::Mat processed, gray;
 	int numPixelsToErode = static_cast<int>(Offset.x + Offset.y);
 	cv::erode(ImgSrc, processed, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3)), cv::Point(-1, -1), numPixelsToErode);
@@ -481,17 +471,17 @@ void GetToolPath_SymmetricOnly(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& to
 		double epsilon = epsilonFactor * cv::arcLength(contour, true);
 		cv::approxPolyDP(contour, simplified, epsilon, true);
 
-		// --- 嚙論伐蕭嚙賦的嚙踝蕭嚙踝蕭瓡嚙?---
+		// Collect left-side arc points and center-line control points.
 		std::vector<cv::Point2d> leftArc;
 		cv::Point2d topCP(centerX, 1e9), bottomCP(centerX, -1e9);
 		bool hasCenter = false;
 
-		// 嚙踝蕭嚙踝蕭嚙踝蕭嚙箭嚙踝蕭嚙瘢嚙璀嚙衛改蕭X嚙踝蕭嚙箭嚙踝蕭嚙諒喉蕭嚙瞑嚙諒抬蕭嚙瘢
+		// Scan simplified contour points around the symmetry center line.
 		for (const auto& p : simplified) {
-			if (p.x <= centerX + 1.0) { // 嚙稽嚙緣嚙踝蕭嚙踝蕭嚙瞑嚙踝蕭嚙賠線嚙磕
+			if (p.x <= centerX + 1.0) { // include center line points
 				cv::Point2d p2d(p.x, p.y);
 
-				// 嚙瞌嚙踝蕭嚙踝蕭嚙箭嚙踝蕭嚙踝蕭
+				// Track top/bottom center points near the middle line.
 				if (std::abs(p.x - centerX) < 2.0) {
 					hasCenter = true;
 					if (p.y < topCP.y) topCP = cv::Point2d(centerX, p.y);
@@ -504,25 +494,25 @@ void GetToolPath_SymmetricOnly(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& to
 			}
 		}
 
-		// 嚙踝蕭 Y 嚙緙嚙請排序伐蕭嚙踝蕭嚙瘢嚙璀嚙確嚙瞌嚙踝蕭嚙罵嚙瞌嚙緬嚙磕嚙踝蕭U嚙踝蕭
+		// Sort by Y so the path runs from top to bottom.
 		std::sort(leftArc.begin(), leftArc.end(), [](const cv::Point2d& a, const cv::Point2d& b) {
 			return a.y < b.y;
 			});
 
-		// 嚙調合嚙踝蕭嚙罵嚙瘦嚙踝蕭嚙瘢 -> 嚙踝蕭嚙踝蕭 -> 嚙踝蕭嚙瘢 -> 嚙糊嚙踝蕭嚙質像(嚙誼改蕭)
+		// Compose path: top center -> left arc -> bottom center -> mirrored right arc.
 		if (hasCenter) toolpath.Path.push_back(topCP);
 
 		for (const auto& p : leftArc) toolpath.Path.push_back(p);
 
 		if (hasCenter && topCP != bottomCP) toolpath.Path.push_back(bottomCP);
 
-		// 嚙質像嚙糊嚙箭嚙踝蕭 (嚙緬嚙磊嚙踝蕭嚙磕嚙稷嚙踝蕭)
+		// Mirror the left arc to generate the right side.
 		for (int i = (int)leftArc.size() - 1; i >= 0; --i) {
 			toolpath.Path.push_back(cv::Point2d(2 * centerX - leftArc[i].x, leftArc[i].y));
 		}
 	}
 
-	// 4. 繪嚙編嚙踝蕭嚙瘦 (嚙踝蕭彖u嚙緬嚙編嚙踝蕭嚙璀嚙稼嚙踐順嚙褒是嚙稻嚙踝蕭嚙確)
+	// 4. Draw the generated symmetric path for debug display.
 	cv::Mat drawImg = ImgSrc.clone();
 	for (size_t i = 0; i < toolpath.Path.size(); ++i) {
 		cv::circle(drawImg, toolpath.Path[i], 3, cv::Scalar(0, 255, 0), -1);
@@ -536,7 +526,7 @@ void GetToolPath_SymmetricOnly(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& to
 
 
 
-// 嚙緘嚙賤曲嚙緞
+// Compute curvature from three adjacent points.
 static double ComputeCurvature(
 	const cv::Point2d& p1,
 	const cv::Point2d& p2,
@@ -553,13 +543,13 @@ static double ComputeCurvature(
 	return (4.0 * area) / (len1 * len2 * len3);
 }
 
-// 嚙踝蕭嚙緞嚙踝蕭嚙瘢
+// Reduce points based on local turning angle / curvature.
 static std::vector<cv::Point2d> ReducePointsByCurvature(
 	const std::vector<cv::Point2d>& points,
 	double curvatureThreshold,
 	int minDistancePixels = 1)
 {
-	// ===== 嚙誼查嚙踝蕭J =====
+	// Basic guard.
 	if (points.size() < 3) return points;
 
 	std::vector<cv::Point2d> reduced;
@@ -573,38 +563,38 @@ static std::vector<cv::Point2d> ReducePointsByCurvature(
 	auto computeCurvature = [](const cv::Point2d& prev,
 		const cv::Point2d& curr,
 		const cv::Point2d& next) {
-			// 嚙誕用剁蕭嚙論法嚙緘嚙賤曲嚙緞嚙稽嚙踝噪嚙瘢嚙踝蕭穩嚙緩嚙稷
+			// Use turning angle as a simple curvature measure.
 			cv::Point2d v1 = curr - prev;
 			cv::Point2d v2 = next - curr;
 			double mag1 = std::hypot(v1.x, v1.y);
 			double mag2 = std::hypot(v2.x, v2.y);
 
-			if (mag1 < 1e-8 || mag2 < 1e-8) return 0.0; // 嚙踝蕭嚙編嚙瞌嚙瑾
+			if (mag1 < 1e-8 || mag2 < 1e-8) return 0.0; // avoid zero-length segments
 
 			double dot = v1.x * v2.x + v1.y * v2.y;
 			double cosTheta = dot / (mag1 * mag2);
 			cosTheta = std::clamp(cosTheta, -1.0, 1.0);
 
-			double angle = std::acos(cosTheta); // 嚙踝蕭嚙踝蕭
-			return angle; // 嚙踝蕭嚙緞嚙踝蕭嚙踝蕭]嚙踝蕭嚙論）}
+			double angle = std::acos(cosTheta); // radians
+			return angle;
 		};
 
-	// 嚙踝蕭嚙瞇嚙瘢嚙踝蕭
+	// Keep points if curvature is large enough or spacing exceeds the minimum distance.
 	for (size_t i = 1; i + 1 < points.size(); ++i)
 	{
-		const cv::Point2d& prev = reduced.back();       // 嚙磕嚙踝蕭嚙瞌嚙範嚙踝蕭嚙瘢
+		const cv::Point2d& prev = reduced.back();
 		const cv::Point2d& curr = points[i];
 		const cv::Point2d& next = points[i + 1];
 
 		double dist = getDistance(prev, curr);
 		double curvature = computeCurvature(prev, curr, next);
 
-		// 嚙瞌嚙範嚙踝蕭嚙踝蕭G嚙踝蕭嚙緞嚙踝蕭嚙踝蕭嚙瘡嚙踝蕭 嚙踝蕭 嚙瞑嚙磕嚙瑾嚙瞌嚙範嚙瘢嚙稿嚙踝蕭嚙磕嚙盤 minDistancePixels
+		// Preserve corners or points that are far enough away from the last accepted point.
 		if (curvature >= curvatureThreshold || dist >= minDistancePixels)
 			reduced.push_back(curr);
 	}
 
-	// 嚙確嚙瞌嚙諒恬蕭@嚙瘢嚙瞌嚙範
+	// Always keep the last point.
 	if (reduced.back() != points.back())
 		reduced.push_back(points.back());
 
@@ -616,7 +606,7 @@ static std::vector<cv::Point2d> ReducePointsByCurvature(
 
 
 
-// 嚙踝蕭嚙複歹蕭 (嚙踝蕭嚙褊伐蕭嚙踝蕭嚙糊)
+// Simple moving-average smoothing.
 static std::vector<cv::Point2d> SmoothPoints(
 	const std::vector<cv::Point2d>& points,
 	int windowSize)
@@ -648,7 +638,7 @@ static std::vector<cv::Point2d> SmoothPoints(
 // 2025 /06/12  BEGIN
 
 
-// KD-Tree 嚙踝蕭嚙編
+// Cluster points with KD-tree radius search.
 int ClusterKDTree(const Point2D* input, int inputSize, double radius,
 	Cluster** outputClusters, int* clusterCount) {
 	if (!input || inputSize <= 0 || !outputClusters || !clusterCount) return -1;
@@ -708,16 +698,16 @@ int ClusterKDTree(const Point2D* input, int inputSize, double radius,
 	return 0;
 }
 
-// Savitzky-Golay 嚙踝蕭嚙踝蕭
+// Simple smoothing helper (current implementation uses uniform weights).
 int SmoothPath(const Point2D* input, int inputSize, int windowSize, Point2D* output) {
 	if (!input || inputSize <= 0 || windowSize < 3 || !output) return -1;
-	if (windowSize % 2 == 0) windowSize++; // 嚙踝蕭嚙踝蕭嚙踝蕭嚙稻嚙踝蕭
+	if (windowSize % 2 == 0) windowSize++; // enforce odd window size
 
 	int half = windowSize / 2;
 	std::vector<double> coeff(windowSize);
 	double sum = 0;
 	for (int i = -half; i <= half; ++i) {
-		coeff[i + half] = 1.0; // 簡嚙複迎蕭嚙緞嚙踝蕭
+		coeff[i + half] = 1.0; // uniform weight
 		sum += coeff[i + half];
 	}
 
@@ -735,7 +725,7 @@ int SmoothPath(const Point2D* input, int inputSize, int windowSize, Point2D* out
 	return 0;
 }
 
-// B-spline 嚙踝蕭嚙碼嚙稽簡嚙複迎蕭嚙瘦嚙線嚙褊湛蕭嚙褓）
+// Lightweight B-spline-like interpolation placeholder.
 int FitBSpline(const Point2D* input, int inputSize, int degree,
 	Point2D* output, int* outputSize) {
 	if (!input || inputSize < 2 || !output || !outputSize) return -1;
@@ -757,7 +747,7 @@ int FitBSpline(const Point2D* input, int inputSize, int degree,
 	return 0;
 }
 
-// 嚙踝蕭嚙踝蕭O嚙踝蕭嚙踝蕭
+// Release cluster memory allocated by ClusterKDTree.
 void FreeClusters(Cluster* clusters, int clusterCount) {
 	if (!clusters || clusterCount <= 0) return;
 	for (int i = 0; i < clusterCount; ++i)
@@ -775,7 +765,7 @@ void FreeClusters(Cluster* clusters, int clusterCount) {
 // With mask image to limit the area of tool path
 void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offsetDistance, ToolPath& toolpath)
 {
-    // ======= 嚙踝蕭J嚙誼查 ========
+    // Validate input image and mask.
     if (ImgSrc.empty() || Mask.empty())
     {
         throw std::invalid_argument("Input image or mask is empty.");
@@ -785,7 +775,7 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
         throw std::invalid_argument("Image and mask sizes do not match.");
     }
 
-    // ======= 嚙瞎嚙諄遮嚙緯嚙踝蕭嚙緞嚙踝蕭 ========
+    // Apply mask to limit the effective image area.
     cv::Mat maskedImage;
     if (ImgSrc.channels() == 3)
     {
@@ -798,7 +788,7 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
         maskedImage.setTo(0, Mask == 0);
     }
 
-    // ======= 嚙踝蕭 offsetDistance 嚙踝蕭嚙瘦嚙糊(嚙磐嚙緘嚙誕堆蕭) ========
+    // Erode inward by the requested offset distance in pixels.
     cv::Mat result = maskedImage.clone();
     int numPixelsToErode = static_cast<int>(offsetDistance);
     cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
@@ -808,7 +798,7 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
         cv::erode(result, result, kernel);
     }
 
-    // ======= 嚙踝蕭嚙踝蕭H嚙賦做嚙瘦嚙褓歹蕭 ========
+    // Convert to grayscale and binarize.
     cv::Mat gray;
     if (result.channels() != 1)
     {
@@ -822,12 +812,12 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
     cv::Mat thresh;
     cv::threshold(gray, thresh, 200, 255, cv::THRESH_BINARY);
 
-    // ======= 嚙踝蕭嚙踝蕭嚙?========
+    // Find contours from the thresholded result.
     std::vector<std::vector<cv::Point>> contours;
     std::vector<cv::Vec4i> hierarchy;
     cv::findContours(thresh, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
-    // ======= 嚙踝蕭嚙踝蕭嚙踝蕭y嚙請堆蕭嚙踝蕭嚙複處嚙緲 ========
+    // Smooth each contour before curvature-based point reduction.
     std::vector<std::vector<cv::Point2d>> smoothedContours;
     int numContours = static_cast<int>(contours.size());
 
@@ -876,7 +866,7 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
         smoothedContours.push_back(std::move(smoothedPoints));
     }
 
-    // ======= smoothedContours 嚙箠嚙賣曲嚙緞嚙踝蕭嚙瘢 ========
+    // Reduce points after smoothing.
     double curvatureThreshold = 0.1;
     std::vector<std::vector<cv::Point2d>> finalContours;
     finalContours.reserve(smoothedContours.size());
@@ -885,7 +875,7 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
         finalContours.push_back(ReducePointsByCurvature(contour, curvatureThreshold));
     }
 
-    // ======= 嚙編嚙踝蕭 toolpath 嚙踝蕭嚙箱嚙稽嚙稽嚙緣 clusters 嚙編嚙踝蕭嚙稷 ========
+    // Flatten contours into toolpath and record cluster indices.
     toolpath.Offset = cv::Point2d(offsetDistance, offsetDistance);
     toolpath.Path.clear();
     toolpath.numClusters.clear();
@@ -896,7 +886,7 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
         for (const auto& point : contour)
         {
             toolpath.Path.push_back(point);
-            toolpath.numClusters.push_back(static_cast<int>(cIdx)); // 嚙瘡嚙踝蕭嚙踝蕭嚙踝蕭嚙豬作嚙踝蕭嚙踝蕭嚙編嚙踝蕭嚙碼
+            toolpath.numClusters.push_back(static_cast<int>(cIdx)); // contour index for each point
         }
     }
 
@@ -909,7 +899,7 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
     const size_t total = toolpath.Path.size();
     const size_t totalClusters = toolpath.numClusters.size();
 
-    // 嚙踝蕭嚙踝蕭X嚙窯嚙複與嚙踝蕭嚙論是嚙稻嚙瑾嚙瞑
+    // Verify point count matches cluster count.
     {
         std::ostringstream head;
         head << "[ToolPath] points=" << total
@@ -918,8 +908,8 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
         OutputDebugStringA(head.str().c_str());
     }
 
-    // 嚙緞嚙踝蕭嚙踝蕭X嚙課佗蕭嚙瘢嚙瞑嚙踝蕭嚙踝蕭 cluster嚙稽嚙踝蕭嚙緬嚙論免嚙確嚙踝蕭嚙諉迎蕭嚙瞋嚙瘢嚙稻嚙稷
-    const size_t chunk = 512; // 嚙瘠嚙踝蕭嚙碼嚙踝蕭嚙?
+    // Dump points in chunks so large paths do not flood one debug string at once.
+    const size_t chunk = 512;
     for (size_t start = 0; start < total; start += chunk)
     {
         std::ostringstream oss;
@@ -935,7 +925,7 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
 }
 #endif
 
-    // ======= 嚙踝蕭雃嚙踝蕭v嚙踝蕭嚙瘢嚙踝蕭嚙課佗蕭嚙瘢嚙衛加嚙線嚙緬 ========
+    // Draw reduced points and connecting segments for debug display.
     cv::Mat outputImage = ImgSrc.clone();
     std::vector<std::vector<cv::Point>> contoursToDraw;
 
@@ -980,12 +970,8 @@ void ReduceAndSmoothPoints(const std::vector<cv::Point2d>& points, std::vector<c
 
 
 /*
-//嚙編嚙磕 ReducePointsByCurvature()
-//嚙緘嚙踝蕭嚙踝蕭嚙踝蕭嚙踝蕭v嚙璀嚙磋嚙踝蕭嚙踝蕭嚙緞嚙瘠嚙踝蕭嚙瘡嚙褓迎蕭嚙瘢嚙瘠
-//嚙編嚙磕 SmoothPoints()
-//嚙諄莎蕭嚙褊伐蕭嚙踝蕭嚙糊嚙踝蕭嚙複佗蕭嚙線嚙璀嚙箠嚙踝蕭嚙踝蕭 Gaussian 嚙踝蕭 Savitzky嚙碾Golay嚙瘠
-//嚙踝蕭嚙踝蕭嚙箭嚙踝蕭嚙踝蕭嚙篌嚙賡內嚙瞎嚙諄哨蕭嚙瘢 + 嚙踝蕭嚙複歹蕭
-//嚙諒終選蕭X嚙踝蕭嚙瞌嚙線嚙複後的嚙踝蕭嚙罵嚙瘠
+// Legacy experimental version of GetToolPathWithMask().
+// Kept for reference only.
 void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offsetDistance, ToolPath& toolpath)
 {
 	if (ImgSrc.empty() || Mask.empty())
@@ -993,7 +979,7 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
 	if (ImgSrc.size() != Mask.size())
 		throw std::invalid_argument("Image and mask sizes do not match.");
 
-	// 嚙瞎嚙踝蕭 Mask
+	// Apply mask
 	cv::Mat maskedImage;
 	if (ImgSrc.channels() == 3)
 	{
@@ -1006,7 +992,7 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
 		maskedImage.setTo(0, Mask == 0);
 	}
 
-	// 嚙瘦嚙糊
+	// Erode
 	cv::Mat result = maskedImage.clone();
 	int numPixelsToErode = static_cast<int>(offsetDistance);
 	cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
@@ -1015,7 +1001,7 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
 		cv::erode(result, result, kernel);
 	}
 
-	// 嚙褒塚蕭 + 嚙瘦嚙褓歹蕭
+	// Convert to grayscale and threshold
 	cv::Mat gray;
 	if (result.channels() != 1)
 		cv::cvtColor(result, gray, cv::COLOR_BGR2GRAY);
@@ -1025,36 +1011,36 @@ void GetToolPathWithMask(const cv::Mat& ImgSrc, const cv::Mat& Mask, double offs
 	cv::Mat thresh;
 	cv::threshold(gray, thresh, 200, 255, cv::THRESH_BINARY);
 
-	// 嚙踝蕭嚙踝蕭嚙?
+	// Find contours
 	std::vector<std::vector<cv::Point>> contours;
 	std::vector<cv::Vec4i> hierarchy;
 	cv::findContours(thresh, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
-	// 嚙踝蕭C嚙諉踝蕭嚙踝蕭嚙瘦嚙踝蕭嚙緞嚙踝蕭嚙瘢 + 嚙踝蕭嚙複歹蕭
+	// Reduce and smooth each contour
 	std::vector<std::vector<cv::Point2d>> optimizedContours;
 	for (const auto& contour : contours)
 	{
-		// 嚙賞成 double 嚙踝蕭嚙緙嚙踝蕭
+		// Convert to double precision points
 		std::vector<cv::Point2d> points;
 		for (const auto& p : contour)
 			points.push_back(cv::Point2d(p.x, p.y));
 
-		// 嚙踝蕭嚙緞嚙踝蕭嚙瘢
-		auto reduced = ReducePointsByCurvature(points, 0.01); // 嚙瘡嚙褓可嚙踝蕭
+		// Reduce points
+		auto reduced = ReducePointsByCurvature(points, 0.01);
 
-		// 嚙踝蕭嚙複歹蕭
-		auto smoothed = SmoothPoints(reduced, 5); // 嚙踝蕭嚙篆嚙篌嚙緘嚙箠嚙踝蕭
+		// Smooth points
+		auto smoothed = SmoothPoints(reduced, 5);
 
 		optimizedContours.push_back(smoothed);
 	}
 
-	// 嚙編嚙踝蕭嚙罵
+	// Build output toolpath
 	toolpath.Offset = cv::Point2d(offsetDistance, offsetDistance);
 	for (const auto& contour : optimizedContours)
 		for (const auto& point : contour)
 			toolpath.Path.push_back(point);
 
-	// 繪嚙編嚙踝蕭嚙瘦
+	// Draw debug result
 	cv::Mat outputImage = ImgSrc.clone();
 	std::vector<std::vector<cv::Point>> contoursToDraw;
 	for (const auto& optContour : optimizedContours)
@@ -1367,8 +1353,7 @@ void Encrypt(unsigned char* input, unsigned char* output, unsigned char* key)
 void InitTransformer(float* imagePts, float* worldPts, int count, cv::Mat& affineMatrix)
 {
 	std::vector<cv::Point2f> img, world;
-	// 嚙箭嚙褕案開嚙磐嚙稽嚙踝蕭嚙踝蕭炾嚙稷嚙褐告 affineMatrix 嚙豌潘蕭
-	//cv::Mat affineMatrix;
+	// Build corresponding pixel/world point sets, then estimate affine transform.
 	for (int i = 0; i < count; ++i) {
 		img.emplace_back(imagePts[i * 2], imagePts[i * 2 + 1]);
 		world.emplace_back(worldPts[i * 2], worldPts[i * 2 + 1]);
@@ -1378,7 +1363,7 @@ void InitTransformer(float* imagePts, float* worldPts, int count, cv::Mat& affin
 
 
 
-// 嚙諍伐蕭 3嚙踝蕭3 嚙踝蕭g嚙綞嚙罷嚙稽嚙踝蕭嚙踝蕭嚙踝蕭嚙豌）
+// Build a 3x3 homogeneous affine matrix from the estimated 2x3 transform.
 void InitTransformer(const float* imagePts, const float* worldPts, int count, cv::Mat& affineMatrix)
 {
 	std::vector<cv::Point2f> img, world;
@@ -1390,10 +1375,10 @@ void InitTransformer(const float* imagePts, const float* worldPts, int count, cv
 		world.emplace_back(worldPts[i * 2], worldPts[i * 2 + 1]);
 	}
 
-	cv::Mat affine2x3 = cv::estimateAffine2D(img, world); // 2嚙踝蕭3
+	cv::Mat affine2x3 = cv::estimateAffine2D(img, world); // 2x3 affine matrix
 	if (affine2x3.empty()) return;
 
-	// 嚙碼嚙箠嚙踝蕭 3嚙踝蕭3
+	// Expand to 3x3 homogeneous form for convenient matrix multiplication.
 	affineMatrix = cv::Mat::eye(3, 3, CV_64F);
 	affine2x3.copyTo(affineMatrix(cv::Rect(0, 0, 3, 2)));
 }
@@ -1421,10 +1406,9 @@ bool TransformPixel(float x, float y, float* outX, float* outY, cv::Mat affineMa
 // x, y: the pixel coordinate
 // outX, outY: the real world coordinate
 // cv::Mat & affineMatrix: the affine matrix of the transformation form pixel to world
-// 嚙瞇嚙踝蕭嚙踝蕭嚙踝蕭@嚙褕座嚙踝蕭
 /*
 //Transform image pixel to real world coordinate
-//With 3 points to calculate the affine matrix :  InitTransformer嚙畿TransformPixel
+// With 3 points to calculate the affine matrix: InitTransformer + PixelToWorld
 // x_pixel: the x coordinate of the pixel
 // y_pixel: the y coordinate of the pixel
 // &x_mm: the x coordinate of the real world
@@ -1448,12 +1432,12 @@ void PixelToWorld(float x_pixel, float y_pixel, float& x_mm, float& y_mm, cv::Ma
 // x, y: the pixel coordinate
 // outX, outY: the real world coordinate
 // cv::Mat & affineMatrix: the affine matrix of the transformation form pixel to world
-// 嚙瞇嚙踝蕭嚙踝蕭嚙踝蕭@嚙褕座嚙踝蕭
+// Convert one image pixel coordinate to world/mm coordinate.
 inline void PixelToWorld(float x_pixel, float y_pixel, float& x_mm, float& y_mm, const cv::Mat& affineMatrix)
 {
 	if (affineMatrix.empty()) return;
 
-	// 嚙誕用鳴蕭嚙踝蕭嚙緙嚙請堆蕭嚙賞換
+	// Homogeneous coordinate transform.
 	cv::Mat pt = (cv::Mat_<double>(3, 1) << x_pixel, y_pixel, 1.0);
 	cv::Mat result = affineMatrix * pt;
 
@@ -1463,7 +1447,7 @@ inline void PixelToWorld(float x_pixel, float y_pixel, float& x_mm, float& y_mm,
 
 
 
-/*  嚙瘡嚙磕 InitTransformer嚙畿TransformPixel 嚙誕用範嚙踝蕭
+/*  Example usage of InitTransformer / PixelToWorld
 int main()
 {
 	float imagePts[] = {1097,1063, 1373,1063, 1371,945};
@@ -1487,18 +1471,18 @@ int main()
 // Double Word split to Hight Word and Low Word
 // DW2W(int32 dw, int16* hw, int16* lw)
 
-// 嚙踝蕭G嚙瞇 Double Word 嚙踝蕭嚙踝蕭嚙?High Word 嚙瞎 Low Word
+// Split a 32-bit value into high word and low word.
 void splitDoubleWord(uint32_t doubleWord, uint16_t& highWord, uint16_t& lowWord)
 {
-	highWord = (doubleWord >> 16) & 0xFFFF; // 嚙踝蕭嚙踝蕭嚙踝蕭 16 嚙踝蕭
-	lowWord = doubleWord & 0xFFFF;          // 嚙踝蕭嚙踝蕭嚙瘠 16 嚙踝蕭
+	highWord = (doubleWord >> 16) & 0xFFFF; // upper 16 bits
+	lowWord = doubleWord & 0xFFFF;          // lower 16 bits
 }
 
 /*
 uint16_t tab_reg[2];
 uint32_t value = 0x12345678;
-splitDoubleWord(value, tab_reg[0], tab_reg[1]); // 嚙踝蕭嚙踝蕭嚙?High Word 嚙瞎 Low Word
-modbus_write_registers(ctx, 0, 2, tab_reg);     // 嚙篇嚙皚 PLC
+splitDoubleWord(value, tab_reg[0], tab_reg[1]); // high word / low word
+modbus_write_registers(ctx, 0, 2, tab_reg);     // write to PLC
 */
 
 
@@ -1738,7 +1722,7 @@ void WriteConfigToFile(const std::string& filename, SystemConfig& SysConfig)
 	file << "CenterX=" << std::fixed << std::setprecision(2) << SysConfig.CenterX << "\n";
 	file << "CenterY=" << std::fixed << std::setprecision(2) << SysConfig.CenterY << "\n";
 
-	// 嚙編嚙磕 Mask 嚙誕段
+	// Write mask section
 	file << "[Mask]\n";
 	file << "MaskX=" << SysConfig.MaskX << "\n";
 	file << "MaskY=" << SysConfig.MaskY << "\n";
@@ -1826,7 +1810,7 @@ void InitialConfig(const std::string& filename, SystemConfig& SysConfig)
 //void InitialConfigA(const std::string& filename, SystemConfigA& SysConfig)
 void InitialConfigA(const std::string& filename, SystemConfigA& SysConfig)
 {
-	// 嚙緻嚙諒可嚙踝蕭w嚙稽嚙褓（嚙踝蕭議嚙稷
+	// Fill default values for a new configuration file.
 
 	SysConfig.IpAddress = "192.168.1.10";
 	SysConfig.Port = 502;
@@ -1852,7 +1836,7 @@ int ReadSystemConfig(const std::string& filename, SystemConfig& SysConfig)
 	std::ifstream file(filename);
 	if (!file.is_open()) {
 		// If file doesn't exist, initialize with default configuration
-		// 嚙稽嚙緩嚙緩嚙稽嚙踝蕭 mask 嚙踝蕭
+		// Initialize default mask values.
 		SysConfig.MaskX = 0;
 		SysConfig.MaskY = 0;
 		SysConfig.MaskWidth = 0;
@@ -1873,7 +1857,7 @@ int ReadSystemConfig(const std::string& filename, SystemConfig& SysConfig)
 		s = s.substr(start, end - start + 1);
 		};
 
-	// 嚙踝蕭l嚙踝蕭 mask 嚙緩嚙稽嚙踝蕭
+	// Reset mask values before parsing the file.
 	SysConfig.MaskX = 0;
 	SysConfig.MaskY = 0;
 	SysConfig.MaskWidth = 0;
@@ -1937,7 +1921,7 @@ int ReadSystemConfig(const std::string& filename, SystemConfig& SysConfig)
 			else if (key == "CenterY") {
 				SysConfig.CenterY = val.empty() ? 0.0f : std::stof(val);
 			}
-			// 嚙編嚙磕 mask 嚙諸潘蕭讀嚙踝蕭
+			// Read mask parameters.
 			else if (key == "MaskX") {
 				SysConfig.MaskX = val.empty() ? 0 : std::stoi(val);
 			}
@@ -2070,10 +2054,10 @@ int ReadSystemConfig_SP(const std::string& filename, SystemConfigA& SysConfig)
 	return 0;
 }
 
-// 嚙踝蕭s嚙緣嚙諄配嚙練嚙踝蕭 INI 嚙褕殷蕭
+// Update configuration file contents on disk.
 void UpdateSystemConfig(const std::string& filename, SystemConfig& SysConfig)
 {
-	// 嚙瞇 const SystemConfig* 嚙賞為 SystemConfig*嚙璀嚙瘡嚙褐合 WriteConfigToFile 嚙踝蕭嚙諸數恬蕭嚙瞌
+	// Reuse the common writer to persist the latest settings.
 	WriteConfigToFile(filename, SysConfig);
 }
 
@@ -2085,12 +2069,12 @@ std::mutex plc_mutex;
 void SafeModbusRead(/*...*/)
 {
 	std::lock_guard<std::mutex> lock(plc_mutex);
-	// 嚙瘢嚙編 UModbus 讀嚙踝蕭嚙賜式
+	// Placeholder for thread-safe UModbus read wrapper.
 }
 
 void SafeModbusWrite(/*...*/) {
 	std::lock_guard<std::mutex> lock(plc_mutex);
-	// 嚙瘢嚙編 UModbus 嚙篇嚙皚嚙賜式
+	// Placeholder for thread-safe UModbus write wrapper.
 }
 
 int SafeModbusReadRegisters(modbus_t* ctx, int addr, int nb, uint16_t* dest)
@@ -2167,7 +2151,7 @@ void GetMACAddress(unsigned char* macAddress)
 
 
 /**
- * @brief 嚙褊賂蕭 GluePathOptimizer 嚙踝蕭 DLL 嚙踝蕭嚙篆
+ * @brief GluePathOptimizer DLL wrapper entry.
  */
 void OptimizeGluePath(
 	const std::vector<cv::Point2d>& inputPath,
@@ -2178,13 +2162,13 @@ void OptimizeGluePath(
 	try {
 		if (inputPath.empty()) return;
 
-		// 1. 嚙踝蕭l嚙踝蕭嚙線嚙複橘蕭
+		// 1. Create optimizer with ROI/mask information.
 		GluePathOptimizer optimizer(roi);
 
-		// 2. 嚙踝蕭嚙踝蕭嚙線嚙踝蕭嚙豬選蕭
+		// 2. Run path optimization.
 		optimizer.OptimizePath(inputPath, optimizedPath, shoeType);
 
-		// 3. (嚙踝蕭嚙? 嚙箭 Debug 嚙課佗蕭嚙踝蕭X嚙踝蕭嚙瘦嚙瘢嚙踝蕭
+		// 3. Optional debug output
 #ifdef _DEBUG
 		std::string msg = "[UAX_DLL] Optimized Path Points: Left=" +
 			std::to_string(optimizedPath.PathLeft.size()) +

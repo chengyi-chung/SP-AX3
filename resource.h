@@ -1,6 +1,6 @@
 //{{NO_DEPENDENCIES}}
-// Microsoft Visual C++ ²£¥Íªº Include ÀÉ®×¡C
-// ¥Ñ SP-AX.rc ¨Ï¥Î
+// Microsoft Visual C++ ï¿½ï¿½ï¿½Íªï¿½ Include ï¿½É®×¡C
+// ï¿½ï¿½ SP-AX.rc ï¿½Ï¥ï¿½
 //
 #define IDM_ABOUTBOX                    0x0010
 #define IDD_ABOUTBOX                    100
@@ -106,6 +106,7 @@
 #define IDC_MFCBTN_EXAMPLE              11010
 #define ID_INDICATOR_TIME               59142
 #define ID_INDICATOR_FILE               59143
+#define ID_INDICATOR_MODBUS             59144
 
 // Next default values for new objects
 // 
@@ -117,3 +118,4 @@
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
+
