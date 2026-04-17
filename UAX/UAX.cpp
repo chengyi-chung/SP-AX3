@@ -440,9 +440,9 @@ void GetToolPath_CurvatureOptimized_Mask(
 	std::cout << "[INFO] GetToolPath_CurvatureOptimized_Mask: Generated " << toolpath.Path.size() << " points "
 		<< (enableCurvatureOptimization ? "(simplified)" : "(original)") << std::endl;
 
-	cv::Mat displayImg = ImgSrc.clone();
-	cv::flip(displayImg, displayImg, -1);
-	ShowZoomedImage("Masked & " + std::string(enableCurvatureOptimization ? "Reduced" : "Original") + " Points Result", displayImg);
+	cv::Mat image = ImgSrc.clone();
+	cv::flip(image, image, -1);
+	ShowZoomedImage("Masked & " + std::string(enableCurvatureOptimization ? "Reduced" : "Original") + " Points Result", image);
 }
 
 

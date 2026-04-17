@@ -82,8 +82,8 @@ public:
 	GluePath m_OptimizedGluePath;  // 優化後膠路，原點為影像左上角，單位為 pixel
 	GluePath m_machineGluePath;  // 以 referenceX/referenceY 為機械原點的膠路，單位為 pixel
 	GluePath m_machineGluePath_mm;  // 以機械原點為基準的膠路，單位為 mm
-	GluePath m_HMIGluePath_temp;  // HMI 映射前的中間座標，原點對應 HMI temp(400,16)，單位為 mm-based intermediate value
-	GluePath m_HMIGluePath;  // 最終送往 HMI 的顯示座標，已依 HMI 比例縮放
+	GluePath m_HMIGluePath_temp;  // HMI 暫存座標，定義為 machine mm * 10
+	GluePath m_HMIGluePath;  // 最終送往 HMI 的顯示座標，為 HMI temp 直接取整數後的結果
 
 
 

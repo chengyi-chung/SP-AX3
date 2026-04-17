@@ -76,6 +76,17 @@ cv::Mat ApplyConfiguredFlip(const cv::Mat& image, int flipCode)
     return image.clone();
 }
 
+// Apply the same flip transformation to a point, given the image size and flip code
+// flipCode: 0 = vertical, 1 = horizontal, -1 = both
+// The point is expected to be in pixel coordinates relative to the original image
+// The flipped point will be returned in the same coordinate system (relative to the original image)
+// If the image size is invalid, the original point will be returned unchanged
+// Note: This function does not handle rotation, only flipping. Rotation would require a different transformation.
+// Example usage:
+// cv::Point2d originalPt(100, 50);
+// cv::Size imageSize(200, 100);
+// int flipCode = 1; // horizontal flip
+// cv::Point2d flippedPt = ApplyConfiguredFlipToPoint(originalPt, imageSize, flipCode);
 cv::Point2d ApplyConfiguredFlipToPoint(const cv::Point2d& pt, const cv::Size& imageSize, int flipCode)
 {
     if (imageSize.width <= 0 || imageSize.height <= 0) {
@@ -175,7 +186,7 @@ void SortGluePathByAscendingY(GluePath& gluePath)
     }
 }
 
-void ExportGluePathAsToolCSV(const GluePath& gluePath, const std::string& fileName)
+void ExportGluePathAsToolCSV(const GluePath& gluePath, const std::string& fileName, const char* unit = "")
 {
     const size_t count = (std::min)(gluePath.PathRight.size(), gluePath.PathLeft.size());
     std::ofstream out(GetToolDebugExportPath(fileName), std::ios::trunc);
@@ -185,6 +196,9 @@ void ExportGluePathAsToolCSV(const GluePath& gluePath, const std::string& fileNa
 
     out << "// Auto-generated debug export\n";
     out << "// Format: Tool(X1,Y,X2)\n";
+    if (unit && unit[0] != '\0') {
+        out << "// Unit: " << unit << "\n";
+    }
     out << "Index,X1,Y,X2\n";
     out << std::fixed << std::setprecision(3);
 
@@ -2168,7 +2182,10 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
 	// m_OptimizedGluePath：原點為 correctedImage 左上角，單位為 pixel
     this->m_OptimizedGluePath = finalPath; // 假設你有一個成員變數儲存最終結果
 
- 
+
+    // 10. 重建顯示/輸出用座標
+    // 依序產生：
+    ConvertToMachineCoordinates();
 
 #ifdef _DEBUG
     //刪除CSV檔
@@ -2178,15 +2195,15 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
      DeleteFile(_T("tool_machine_glue_path.csv"));
 	 DeleteFile(_T("tool_machine_glue_path_mm.csv"));
 	 DeleteFile(_T("tool_HMIGluePath_temp.csv"));
-	 DeleteFile(_T("tool_hmi_glue_path.csv"));
+	 DeleteFile(_T("tool_HMIGluePath.csv"));
 
 	 ExportToolPathAsCSV(this->toolPath, "tool_raw_path.csv");  // 原始工具路徑：原點為影像左上角，單位為 pixel
-    ExportGluePathAsToolCSV(finalPath, "tool_final_glue_path.csv");
-    ExportGluePathAsToolCSV(this->m_OptimizedGluePath, "tool_optimized_glue_path.csv");
-    ExportGluePathAsToolCSV(this->m_machineGluePath, "tool_machine_glue_path.csv");
-    ExportGluePathAsToolCSV(this->m_machineGluePath_mm, "tool_machine_glue_path_mm.csv");
-    ExportGluePathAsToolCSV(this->m_HMIGluePath_temp, "tool_HMIGluePath_temp.csv");
-    ExportGluePathAsToolCSV(this->m_HMIGluePath, "tool_hmi_glue_path.csv");
+    ExportGluePathAsToolCSV(finalPath, "tool_final_glue_path.csv", "pixel");
+    ExportGluePathAsToolCSV(this->m_OptimizedGluePath, "tool_optimized_glue_path.csv", "pixel");
+    ExportGluePathAsToolCSV(this->m_machineGluePath, "tool_machine_glue_path.csv", "pixel");
+    ExportGluePathAsToolCSV(this->m_machineGluePath_mm, "tool_machine_glue_path_mm.csv", "mm");
+    ExportGluePathAsToolCSV(this->m_HMIGluePath_temp, "tool_HMIGluePath_temp.csv", "mm x10");
+    ExportGluePathAsToolCSV(this->m_HMIGluePath, "tool_HMIGluePath.csv", "integer display coordinate");
 
     // 僅 Debug 模式顯示 OpenCV 視窗，方便開發階段檢查路徑正確性。
     // 此視窗只用來比對「計算出的路徑」和「取路徑時使用的影像(imgClone)」之相對位置，
@@ -2238,11 +2255,6 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
     cv::waitKey(0);
 #endif
 
-    // 10. 重建顯示/輸出用座標
- // 依序產生：
- // m_OptimizedGluePath(pixel) -> m_machineGluePath(pixel) ->
- // m_machineGluePath_mm(mm) -> m_HMIGluePath_temp(pixel) -> m_HMIGluePath
-    ConvertToMachineCoordinates();
 
     // 觸發重繪或更新 UI
     Invalidate(FALSE);
@@ -2392,12 +2404,13 @@ void WorkTab::OnBnClickedIdcWorkGo()
     // 7. 資料轉換：將最終要送給 HMI 的路徑資料轉成寄存器格式。
     //    右側路徑 -> X1 / Y
     //    左側路徑 -> X2
+    //    依 HMI Data 定義，X2 軸送出前強制轉為正值。
     //    這裡使用的資料來源是 m_HMIGluePath.PathRight / m_HMIGluePath.PathLeft。
     for (size_t i = 0; i < pointCount; ++i) 
     {
         x1Regs[i] = toReg(m_HMIGluePath.PathRight[i].x);
         yRegs[i] = toReg(m_HMIGluePath.PathRight[i].y);
-        x2Regs[i] = toReg(m_HMIGluePath.PathLeft[i].x);
+        x2Regs[i] = toReg(std::abs(m_HMIGluePath.PathLeft[i].x));
     }
 
     // 8. Modbus 連線檢查與自動重連邏輯
@@ -3176,10 +3189,10 @@ void WorkTab::OnBnClickedCheckWorkRoi()
 
 // 完整座標轉換流程
 // 1. m_OptimizedGluePath：原點為影像左上角，單位為 pixel
-// 2. m_machineGluePath：以 referenceX/referenceY 為機械原點，單位為 pixel
-// 3. m_machineGluePath_mm：以機械原點為基準，單位為 mm
-// 4. m_HMIGluePath_temp：將 machine mm 映射到 HMI temp(400,16) 的中間座標
-// 5. m_HMIGluePath：再依 HMI 比例 /3、/5 縮放並取整後的最終顯示座標
+// 2. m_machineGluePath：以 referenceX/referenceY 為機械原點重構座標，X 向右為正、Y 向下為正，單位為 pixel
+// 3. m_machineGluePath_mm：將 machine pixel 乘上 TransferFactor(mm/pixel)，單位為 mm
+// 4. m_HMIGluePath_temp：將 machine mm 乘上 10，單位為 mm x10
+// 5. m_HMIGluePath：將 HMI temp 直接取整數後得到最終 HMI 顯示座標
 void WorkTab::ConvertToMachineCoordinates()
 {
     CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
@@ -3201,18 +3214,12 @@ void WorkTab::ConvertToMachineCoordinates()
         ? static_cast<double>(pParentWnd->m_SystemPara.TransferFactor)
         : 1.0;
 
-    // HMI 原點與顯示縮放常數：
-    // m_machineGluePath_mm(0,0) -> m_HMIGluePath_temp(400,16)
-    // 再經過 /3、/5 縮放後得到最終 HMI 顯示點。
-	constexpr double HMI_ORIGIN_X = 400.0;
-	constexpr double HMI_ORIGIN_Y = 16.0;
-    constexpr double HMI_SCALE_X = 3.0;
-    constexpr double HMI_SCALE_Y = 5.0;
+    constexpr double HMI_TEMP_SCALE = 10.0;
 
     // 右側膠路：
-    // optimized pixel -> machine pixel -> machine mm -> HMI temp -> HMI display
+    // optimized pixel -> machine pixel(X右正、Y下正) -> machine mm -> HMI temp(mm x10) -> HMI display(integer)
     for (const auto& pt : m_OptimizedGluePath.PathRight) {
-        // 1. 以 referenceX/referenceY 當作機械原點，將影像座標平移到機械座標(pixel)。
+        // 1. 以 referenceX/referenceY 當作機械原點，X 向右為正、Y 向下為正，只重構座標值。
         cv::Point2d machinePt;
         machinePt.x = pt.x - referenceX;
         machinePt.y = pt.y - referenceY;
@@ -3224,22 +3231,22 @@ void WorkTab::ConvertToMachineCoordinates()
         machinePtMm.y = machinePt.y * transferFactor;
         m_machineGluePath_mm.PathRight.push_back(machinePtMm);
 
-        // 3. 將機械 mm 座標映射到 HMI 暫存座標原點(400,16)。
+        // 3. 將機械 mm 座標乘上 10，得到 HMI 暫存座標。
         cv::Point2d hmiTemp;
-        hmiTemp.x = machinePtMm.x + HMI_ORIGIN_X;
-        hmiTemp.y = machinePtMm.y + HMI_ORIGIN_Y;
+        hmiTemp.x = machinePtMm.x * HMI_TEMP_SCALE;
+        hmiTemp.y = machinePtMm.y * HMI_TEMP_SCALE;
         m_HMIGluePath_temp.PathRight.push_back(hmiTemp);
 
-        // 4. 依 HMI 顯示比例縮放，並取整數後輸出給最終顯示路徑。
+        // 4. 直接取整數，得到最終 HMI 顯示座標。
         cv::Point2d hmiPt;
-        hmiPt.x = std::lround(hmiTemp.x / HMI_SCALE_X);
-        hmiPt.y = std::lround(hmiTemp.y / HMI_SCALE_Y);
+        hmiPt.x = std::lround(hmiTemp.x);
+        hmiPt.y = std::lround(hmiTemp.y);
         m_HMIGluePath.PathRight.push_back(hmiPt);
     }
 
     // 左側膠路與右側使用完全相同的轉換流程。
     for (const auto& pt : m_OptimizedGluePath.PathLeft) {
-        // 1. optimized pixel -> machine pixel
+        // 1. optimized pixel -> machine pixel (X右正、Y下正)
         cv::Point2d machinePt;
         machinePt.x = pt.x - referenceX;
         machinePt.y = pt.y - referenceY;
@@ -3251,16 +3258,16 @@ void WorkTab::ConvertToMachineCoordinates()
         machinePtMm.y = machinePt.y * transferFactor;
         m_machineGluePath_mm.PathLeft.push_back(machinePtMm);
 
-        // 3. machine mm -> HMI temp
+        // 3. machine mm -> HMI temp(mm x10)
         cv::Point2d hmiTemp;
-        hmiTemp.x = machinePtMm.x + HMI_ORIGIN_X;
-        hmiTemp.y = machinePtMm.y + HMI_ORIGIN_Y;
+        hmiTemp.x = machinePtMm.x * HMI_TEMP_SCALE;
+        hmiTemp.y = machinePtMm.y * HMI_TEMP_SCALE;
         m_HMIGluePath_temp.PathLeft.push_back(hmiTemp);
 
-        // 4. HMI temp -> HMI display
+        // 4. HMI temp -> HMI display(integer)
         cv::Point2d hmiPt;
-        hmiPt.x = std::lround(hmiTemp.x / HMI_SCALE_X);
-        hmiPt.y = std::lround(hmiTemp.y / HMI_SCALE_Y);
+        hmiPt.x = std::lround(hmiTemp.x);
+        hmiPt.y = std::lround(hmiTemp.y);
         m_HMIGluePath.PathLeft.push_back(hmiPt);
     }
 }
