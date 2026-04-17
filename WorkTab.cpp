@@ -2139,13 +2139,15 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
 	// pathSourceImage / imgClone: 實際拿來取路徑的影像，原點為左上角，單位為 pixel
     this->toolPath.Path.clear();
     cv::Mat imgClone = pathSourceImage.clone();
+	cv::flip(imgClone, imgClone, -1); // 提取路徑前先將輸入影像旋轉 180 度。
     GetToolPath_CurvatureOptimized_Mask(imgClone, pathMask, offsetPixel, this->toolPath, 0.0008,false);
 
 	// 此時 toolPath 中的點原本是基於 pathSourceImage 左上角的 pixel 座標。
 	// 若校正流程有做方向翻轉，則再把點翻回 correctedImage 的顯示方向。
 	// 在進入 OptimizeGluePath(...) 前，toolPath 仍然是影像左上角為原點、單位為 pixel。
 
-    if (usedCalibrationCorrection) {
+    /*
+     if (usedCalibrationCorrection) {
 		// 把 toolPath 中的點座標翻回 pathSourceImage 的顯示方向，這樣後續優化與繪圖就不需要再考慮翻轉了。
         ApplyConfiguredFlipToToolPath(this->toolPath, pathSourceImage.size(), imgFlip);
     }
@@ -2154,6 +2156,8 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
         AfxMessageBox(_T("No path detected in ROI."));
         return;
     }
+    */
+   
 
     // 8. 膠路同步優化 (核心步驟)
 	// 直接使用成員變數 MaskX/Y/Width/Height 和 referenceX/Y
@@ -2218,7 +2222,9 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
 
     ToolPath displayToolPath = this->toolPath;
     GluePath displayPath = finalPath;
-    if (usedCalibrationCorrection) {
+
+    /*
+     if (usedCalibrationCorrection) {
         // toolPath / finalPath 目前都是 correctedImage 的顯示座標系；
         // Debug 視窗要疊在 imgClone(pathSourceImage 座標系) 上，因此翻回取路徑時的影像方向。
         ApplyConfiguredFlipToToolPath(displayToolPath, correctedImage.size(), imgFlip);
@@ -2227,6 +2233,8 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
         // Debug 視窗要疊在 imgClone(pathSourceImage 座標系) 上，因此翻回取路徑時的影像方向。
         ApplyConfiguredFlipToGluePath(displayPath, correctedImage.size(), imgFlip);
     }
+    */
+   
 
     // 原始 toolPath：黃色，先確認抓路徑本身和 imgClone 是否對齊
     for (const auto& pt : displayToolPath.Path) {
@@ -2249,7 +2257,7 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
      }
 
     // Debug 視窗以實際設備觀察方向顯示，顯示前將整張疊圖旋轉 180 度。
-    cv::flip(displayImg, displayImg, -1);
+    //cv::flip(displayImg, displayImg, -1);
 
     cv::imshow("Optimized Glue Path (Debug only)", displayImg);
     cv::waitKey(0);
