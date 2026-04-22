@@ -386,6 +386,7 @@ void CSPDlg::UpdateModbusStatusDisplay(bool connected)
 
 	m_Status_Bar.SetPaneText(2, connected ? _T("Modbus: Connected") : _T("Modbus: Not Connected"));
     m_Status_Bar.Invalidate();
+    m_WorkTab.UpdateModbusSyncState(connected);
 }
 
 void CSPDlg::OnBnClickedBtnWorking()

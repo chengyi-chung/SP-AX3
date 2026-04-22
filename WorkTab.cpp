@@ -497,8 +497,10 @@ BOOL WorkTab::OnInitDialog()
 	CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
 
 	imgFlip = pParentWnd->m_SystemPara.ImageFlip;
+    m_hmiSyncIntervalMs = 500;
     m_lastSyncedSystemPara = pParentWnd->m_SystemPara;
     m_lastSyncedMemStruct = pParentWnd->m_MemStruct_SP;
+    UpdateModbusSyncState(pParentWnd != nullptr && pParentWnd->m_modbusCtx != nullptr);
 
 
     // 設定按鈕底色與文字顏色
@@ -595,7 +597,7 @@ HBRUSH WorkTab::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
 
 void WorkTab::StartHmiSyncTimer()
 {
-    if (!m_hmiSyncEnabled) {
+    if (!m_hmiSyncEnabled && m_hWnd) {
         SetTimer(kHmiSyncTimerId, m_hmiSyncIntervalMs, nullptr);
         m_hmiSyncEnabled = true;
     }
@@ -610,6 +612,20 @@ void WorkTab::StopHmiSyncTimer()
     m_hmiSyncEnabled = false;
 }
 
+void WorkTab::UpdateModbusSyncState(bool connected)
+{
+    if (!m_hWnd) {
+        return;
+    }
+
+    if (connected) {
+        StartHmiSyncTimer();
+    }
+    else {
+        StopHmiSyncTimer();
+    }
+}
+
 bool WorkTab::ReadHoldingRegistersBlock(int startAddress, int count, std::vector<uint16_t>& outValues, int stationID)
 {
     CSPDlg* pParent = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
@@ -618,9 +634,7 @@ bool WorkTab::ReadHoldingRegistersBlock(int startAddress, int count, std::vector
     }
 
     if (!pParent->m_modbusCtx) {
-        if (!pParent->InitModbusWithRetry(pParent->m_SystemPara.IpAddress, pParent->Port, stationID, 3, 1000)) {
-            return false;
-        }
+        return false;
     }
 
     std::lock_guard<std::mutex> lock(pParent->m_modbusMutex);
@@ -642,9 +656,7 @@ bool WorkTab::WriteHoldingRegistersBlock(int startAddress, const std::vector<uin
     }
 
     if (!pParent->m_modbusCtx) {
-        if (!pParent->InitModbusWithRetry(pParent->m_SystemPara.IpAddress, pParent->Port, stationID, 3, 1000)) {
-            return false;
-        }
+        return false;
     }
 
     std::lock_guard<std::mutex> lock(pParent->m_modbusMutex);
@@ -869,54 +881,57 @@ void WorkTab::SyncHmiData(int stationID)
         return;
     }
 
+    CSPDlg* pParent = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
+    if (!pParent || !pParent->m_modbusCtx) {
+        UpdateModbusSyncState(false);
+        return;
+    }
+
     m_hmiSyncBusy = true;
 
     constexpr int kSystemConfigStart = 139;
     constexpr int kMemStructStart = 157;   // Assumption: contiguous HMI block after 139~156
 
-    CSPDlg* pParent = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
-    if (pParent) {
-        std::vector<uint16_t> regs;
-        SystemConfigA remoteSystem = pParent->m_SystemPara;
-        if (ReadHoldingRegistersBlock(kSystemConfigStart, 18, regs, stationID)) {
-            ApplySystemConfigRegisters(regs, remoteSystem);
-            if (IsSystemConfigDisplayDataValid(remoteSystem) &&
-                !IsSystemConfigEqual(remoteSystem, m_lastSyncedSystemPara)) {
-                pParent->m_SystemPara = remoteSystem;
-                m_lastSyncedSystemPara = remoteSystem;
-                MaskX = pParent->m_SystemPara.MaskX;
-                MaskY = pParent->m_SystemPara.MaskY;
-                MaskWidth = pParent->m_SystemPara.MaskWidth;
-                MaskHeight = pParent->m_SystemPara.MaskHeight;
-                referenceX = pParent->m_SystemPara.RefCenterX;
-                referenceY = pParent->m_SystemPara.RefCenterY;
-                if (!m_bFactorSelectMode && (m_bROIMode || flgCenter)) {
-                    ShowImageOnPictureControl(flgCenter, cv::Scalar(0, 0, 255, 255), 1, CrossStyle::Solid);
-                }
+    std::vector<uint16_t> regs;
+    SystemConfigA remoteSystem = pParent->m_SystemPara;
+    if (ReadHoldingRegistersBlock(kSystemConfigStart, 18, regs, stationID)) {
+        ApplySystemConfigRegisters(regs, remoteSystem);
+        if (IsSystemConfigDisplayDataValid(remoteSystem) &&
+            !IsSystemConfigEqual(remoteSystem, m_lastSyncedSystemPara)) {
+            pParent->m_SystemPara = remoteSystem;
+            m_lastSyncedSystemPara = remoteSystem;
+            MaskX = pParent->m_SystemPara.MaskX;
+            MaskY = pParent->m_SystemPara.MaskY;
+            MaskWidth = pParent->m_SystemPara.MaskWidth;
+            MaskHeight = pParent->m_SystemPara.MaskHeight;
+            referenceX = pParent->m_SystemPara.RefCenterX;
+            referenceY = pParent->m_SystemPara.RefCenterY;
+            if (!m_bFactorSelectMode && (m_bROIMode || flgCenter)) {
+                ShowImageOnPictureControl(flgCenter, cv::Scalar(0, 0, 255, 255), 1, CrossStyle::Solid);
             }
         }
+    }
 
-        if (!IsSystemConfigEqual(pParent->m_SystemPara, m_lastSyncedSystemPara)) {
-            BuildSystemConfigRegisters(pParent->m_SystemPara, regs);
-            if (WriteHoldingRegistersBlock(kSystemConfigStart, regs, stationID)) {
-                m_lastSyncedSystemPara = pParent->m_SystemPara;
-            }
+    if (!IsSystemConfigEqual(pParent->m_SystemPara, m_lastSyncedSystemPara)) {
+        BuildSystemConfigRegisters(pParent->m_SystemPara, regs);
+        if (WriteHoldingRegistersBlock(kSystemConfigStart, regs, stationID)) {
+            m_lastSyncedSystemPara = pParent->m_SystemPara;
         }
+    }
 
-        MemStruct_SP remoteMem = pParent->m_MemStruct_SP;
-        if (ReadHoldingRegistersBlock(kMemStructStart, 26, regs, stationID)) {
-            ApplyMemStructRegisters(regs, remoteMem);
-            if (!IsMemStructEqual(remoteMem, m_lastSyncedMemStruct)) {
-                pParent->m_MemStruct_SP = remoteMem;
-                m_lastSyncedMemStruct = remoteMem;
-            }
+    MemStruct_SP remoteMem = pParent->m_MemStruct_SP;
+    if (ReadHoldingRegistersBlock(kMemStructStart, 26, regs, stationID)) {
+        ApplyMemStructRegisters(regs, remoteMem);
+        if (!IsMemStructEqual(remoteMem, m_lastSyncedMemStruct)) {
+            pParent->m_MemStruct_SP = remoteMem;
+            m_lastSyncedMemStruct = remoteMem;
         }
+    }
 
-        if (!IsMemStructEqual(pParent->m_MemStruct_SP, m_lastSyncedMemStruct)) {
-            BuildMemStructRegisters(pParent->m_MemStruct_SP, regs);
-            if (WriteHoldingRegistersBlock(kMemStructStart, regs, stationID)) {
-                m_lastSyncedMemStruct = pParent->m_MemStruct_SP;
-            }
+    if (!IsMemStructEqual(pParent->m_MemStruct_SP, m_lastSyncedMemStruct)) {
+        BuildMemStructRegisters(pParent->m_MemStruct_SP, regs);
+        if (WriteHoldingRegistersBlock(kMemStructStart, regs, stationID)) {
+            m_lastSyncedMemStruct = pParent->m_MemStruct_SP;
         }
     }
 

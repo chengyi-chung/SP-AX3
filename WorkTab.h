@@ -182,7 +182,7 @@ private:
 	cv::Size m_factorBoardSize;
 	bool m_hmiSyncEnabled = false;
 	bool m_hmiSyncBusy = false;
-	UINT m_hmiSyncIntervalMs = 300;
+	UINT m_hmiSyncIntervalMs = 500;
 	SystemConfigA m_lastSyncedSystemPara{};
 	MemStruct_SP m_lastSyncedMemStruct{};
 
@@ -232,6 +232,7 @@ public:
 	afx_msg void OnBnClickedCheckWorkCenter();
 	afx_msg void OnBnClickedWorkImageProcess();
 	afx_msg void OnBnClickedMfcbtnWorkImgCalibrate();
+	void UpdateModbusSyncState(bool connected);
 
 	// 新增：讀取 Holding Registers
 	bool ReadModbusRegisters(int startAddress, int numRegisters, std::vector<uint16_t>& outRegs, int stationID = 1);
