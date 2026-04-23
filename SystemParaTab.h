@@ -31,7 +31,11 @@ protected:
 
 public:
 	virtual BOOL OnInitDialog();
+	afx_msg void OnTimer(UINT_PTR nIDEvent);
 	afx_msg void OnBnClickedSystemCreateData();
 	afx_msg void OnEnChangeTabSysOffsetValue();
 	afx_msg void OnBnClickedMfcbtnSaveSystem();
+
+private:
+	CFont m_liveDataFont;
 };

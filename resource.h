@@ -103,6 +103,8 @@
 #define IDC_EDIT_MACHINE_X              11001
 #define IDC_EDIT_MACHINE_Y              11002
 #define IDC_EDIT_MACHINE_Z              11003
+#define IDC_EDIT_SYSTEM_CONFIG_LIVE     11004
+#define IDC_EDIT_MEMSTRUCT_LIVE         11005
 #define IDC_MFCBTN_EXAMPLE              11010
 #define ID_INDICATOR_TIME               59142
 #define ID_INDICATOR_FILE               59143
@@ -114,7 +116,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        146
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1075
+#define _APS_NEXT_CONTROL_VALUE         11006
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

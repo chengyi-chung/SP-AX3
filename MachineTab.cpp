@@ -7,6 +7,7 @@
 #include "Resource.h"
 #include "afxdialogex.h"
 #include "MachineTab.h"
+#include <algorithm>
 
 // MachineTab 對話方塊
 
@@ -94,7 +95,7 @@ BOOL MachineTab::OnInitDialog()
 	
 
 	// 新增：每 30 秒執行一次 Modbus keep-alive
-    //SetTimer(200, 30000, NULL); // Timer ID 200, 30秒
+    SetTimer(200, 30000, NULL); // Timer ID 200, 30秒
 
 	return TRUE;  // return TRUE unless you set the focus to a control
 	// EXCEPTION: OCX Property Pages should return FALSE
@@ -122,6 +123,25 @@ void MachineTab::OpenModBus()
 		// 連線失敗，已顯示錯誤訊息
 		return;
 	}
+
+	constexpr int kSystemConfigStart = 139;
+	constexpr int kMemStructStart = 157;
+	std::vector<uint16_t> regs;
+
+	BuildSystemConfigRegisters(pParentWnd->m_SystemPara, regs);
+	if (!WriteHoldingRegistersBlock(kSystemConfigStart, regs, slaveId)) {
+		AfxMessageBox(_T("初始寫入 SystemConfigA 到 Modbus 失敗。"));
+		return;
+	}
+
+	BuildMemStructRegisters(pParentWnd->m_MemStruct_SP, regs);
+	if (!WriteHoldingRegistersBlock(kMemStructStart, regs, slaveId)) {
+		AfxMessageBox(_T("初始寫入 MemStruct_SP 到 Modbus 失敗。"));
+		return;
+	}
+
+	ReadRegisterStringBlock(160, 26, pParentWnd->m_SystemPara.HMI_ID, sizeof(pParentWnd->m_SystemPara.HMI_ID), slaveId);
+	ReadRegisterStringBlock(190, 26, pParentWnd->m_SystemPara.PLC_ID, sizeof(pParentWnd->m_SystemPara.PLC_ID), slaveId);
 
 	// 之後可直接用 pParentWnd->m_modbusCtx 做 Modbus 操作
 	// 啟動座標讀取執行緒
@@ -1071,6 +1091,185 @@ void MachineTab::UpdateControl()
 	*/
 }
 
+bool MachineTab::ReadHoldingRegistersBlock(int startAddress, int count, std::vector<uint16_t>& outValues, int stationID)
+{
+	CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
+	if (!pParentWnd || !pParentWnd->m_modbusCtx) {
+		return false;
+	}
+
+	std::lock_guard<std::mutex> lock(pParentWnd->m_modbusMutex);
+	modbus_set_slave(pParentWnd->m_modbusCtx, stationID);
+
+	outValues.assign(count, 0);
+	return modbus_read_registers(pParentWnd->m_modbusCtx, startAddress, count, outValues.data()) != -1;
+}
+
+bool MachineTab::WriteHoldingRegistersBlock(int startAddress, const std::vector<uint16_t>& values, int stationID)
+{
+	if (values.empty()) {
+		return true;
+	}
+
+	CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
+	if (!pParentWnd || !pParentWnd->m_modbusCtx) {
+		return false;
+	}
+
+	std::lock_guard<std::mutex> lock(pParentWnd->m_modbusMutex);
+	modbus_set_slave(pParentWnd->m_modbusCtx, stationID);
+	return modbus_write_registers(pParentWnd->m_modbusCtx, startAddress, static_cast<int>(values.size()), values.data()) != -1;
+}
+
+bool MachineTab::ReadRegisterStringBlock(int startAddress, int count, char* outBuffer, size_t outBufferSize, int stationID)
+{
+	if (outBuffer == nullptr || outBufferSize == 0) {
+		return false;
+	}
+
+	std::vector<uint16_t> regs;
+	if (!ReadHoldingRegistersBlock(startAddress, count, regs, stationID)) {
+		outBuffer[0] = '\0';
+		return false;
+	}
+
+	const size_t charCount = (std::min)(regs.size(), outBufferSize - 1);
+	for (size_t i = 0; i < charCount; ++i) {
+		outBuffer[i] = static_cast<char>(regs[i] & 0x00FF);
+		if (outBuffer[i] == '\0') {
+			return true;
+		}
+	}
+
+	outBuffer[charCount] = '\0';
+	return true;
+}
+
+void MachineTab::BuildSystemConfigRegisters(const SystemConfigA& src, std::vector<uint16_t>& outValues) const
+{
+	outValues.assign(18, 0);
+	outValues[0] = static_cast<uint16_t>(src.ImageBinary);
+	outValues[1] = static_cast<uint16_t>(src.CreateToolPath);
+	outValues[2] = static_cast<uint16_t>(src.DispalyToolPath);
+	outValues[3] = static_cast<uint16_t>(src.DisplayROI);
+	outValues[4] = static_cast<uint16_t>(src.DisplayRefLine);
+	outValues[5] = static_cast<uint16_t>(src.TabWork);
+	outValues[6] = static_cast<uint16_t>(std::lround(src.OffsetValue));
+	outValues[7] = static_cast<uint16_t>(src.BinaryUpper);
+	outValues[8] = static_cast<uint16_t>(src.BinaryLower);
+	outValues[9] = static_cast<uint16_t>(src.MaskX);
+	outValues[10] = static_cast<uint16_t>(src.MaskY);
+	outValues[11] = static_cast<uint16_t>(src.MaskWidth);
+	outValues[12] = static_cast<uint16_t>(src.MaskHeight);
+	outValues[13] = static_cast<uint16_t>(src.StationID);
+	outValues[14] = static_cast<uint16_t>(src.CameraID);
+	outValues[15] = static_cast<uint16_t>(src.RefCenterX);
+	outValues[16] = static_cast<uint16_t>(src.RefCenterY);
+	outValues[17] = static_cast<uint16_t>(src.ImageFlip);
+}
+
+void MachineTab::ApplySystemConfigRegisters(const std::vector<uint16_t>& values, SystemConfigA& dst) const
+{
+	if (values.size() < 18) {
+		return;
+	}
+
+	dst.ImageBinary = values[0];
+	dst.CreateToolPath = values[1];
+	dst.DispalyToolPath = values[2];
+	dst.DisplayROI = values[3];
+	dst.DisplayRefLine = values[4];
+	dst.TabWork = values[5];
+	dst.OffsetValue = static_cast<float>(values[6]);
+	dst.BinaryUpper = values[7];
+	dst.BinaryLower = values[8];
+	dst.MaskX = values[9];
+	dst.MaskY = values[10];
+	dst.MaskWidth = values[11];
+	dst.MaskHeight = values[12];
+	dst.StationID = values[13];
+	dst.CameraID = values[14];
+	dst.RefCenterX = values[15];
+	dst.RefCenterY = values[16];
+	dst.ImageFlip = static_cast<short>(values[17]);
+}
+
+void MachineTab::BuildMemStructRegisters(const MemStruct_SP& src, std::vector<uint16_t>& outValues) const
+{
+	outValues.assign(26, 0);
+	outValues[0] = static_cast<uint16_t>(src.RecipeID);
+	outValues[1] = static_cast<uint16_t>(src.CurrentProduction);
+	outValues[2] = static_cast<uint16_t>(src.Set_temperature0);
+	outValues[3] = static_cast<uint16_t>(src.Temperature0);
+	outValues[4] = static_cast<uint16_t>(src.Set_Temperature1);
+	outValues[5] = static_cast<uint16_t>(src.Temperature1);
+	outValues[6] = static_cast<uint16_t>(src.Set_temperature2);
+	outValues[7] = static_cast<uint16_t>(src.Temperature2);
+	outValues[8] = static_cast<uint16_t>(src.Servo_ALE0);
+	outValues[9] = static_cast<uint16_t>(src.Servo_ALE1);
+	outValues[10] = static_cast<uint16_t>(src.Servo_ALE2);
+	outValues[11] = static_cast<uint16_t>(src.Servo_ALE3);
+	outValues[12] = static_cast<uint16_t>(src.i_ProcessingTimeCount);
+	outValues[13] = static_cast<uint16_t>(src.i_SystemTimeCount);
+	outValues[14] = static_cast<uint16_t>(src.MachineID);
+	outValues[15] = static_cast<uint16_t>(src.MachineModel);
+	outValues[16] = src.Alm_tem_not_reach;
+	outValues[17] = src.flag_AL_overload;
+	outValues[18] = src.Alm_airPressureLow;
+	outValues[19] = src.flag_AL_emergency;
+	outValues[20] = src.flag_AL_midside_sensor;
+	outValues[21] = src.Alm_ManualY_GoOut;
+	outValues[22] = src.MachineStatus;
+	outValues[23] = src.WorkingMode;
+
+	union FloatBits {
+		float f;
+		uint32_t u;
+	} value{};
+	value.f = src.p19;
+	outValues[24] = static_cast<uint16_t>((value.u >> 16) & 0xFFFF);
+	outValues[25] = static_cast<uint16_t>(value.u & 0xFFFF);
+}
+
+void MachineTab::ApplyMemStructRegisters(const std::vector<uint16_t>& values, MemStruct_SP& dst) const
+{
+	if (values.size() < 26) {
+		return;
+	}
+
+	dst.RecipeID = values[0];
+	dst.CurrentProduction = values[1];
+	dst.Set_temperature0 = values[2];
+	dst.Temperature0 = values[3];
+	dst.Set_Temperature1 = values[4];
+	dst.Temperature1 = values[5];
+	dst.Set_temperature2 = values[6];
+	dst.Temperature2 = values[7];
+	dst.Servo_ALE0 = values[8];
+	dst.Servo_ALE1 = values[9];
+	dst.Servo_ALE2 = values[10];
+	dst.Servo_ALE3 = values[11];
+	dst.i_ProcessingTimeCount = values[12];
+	dst.i_SystemTimeCount = values[13];
+	dst.MachineID = values[14];
+	dst.MachineModel = values[15];
+	dst.Alm_tem_not_reach = static_cast<uint8_t>(values[16]);
+	dst.flag_AL_overload = static_cast<uint8_t>(values[17]);
+	dst.Alm_airPressureLow = static_cast<uint8_t>(values[18]);
+	dst.flag_AL_emergency = static_cast<uint8_t>(values[19]);
+	dst.flag_AL_midside_sensor = static_cast<uint8_t>(values[20]);
+	dst.Alm_ManualY_GoOut = static_cast<uint8_t>(values[21]);
+	dst.MachineStatus = static_cast<uint8_t>(values[22]);
+	dst.WorkingMode = static_cast<uint8_t>(values[23]);
+
+	union FloatBits {
+		float f;
+		uint32_t u;
+	} value{};
+	value.u = (static_cast<uint32_t>(values[24]) << 16) | values[25];
+	dst.p19 = value.f;
+}
+
 // Custom message handler to update coordinates
 LRESULT MachineTab::OnUpdateCoordinates(WPARAM wParam, LPARAM lParam)
 {
@@ -1276,19 +1475,37 @@ void MachineTab::OnTimer(UINT_PTR nIDEvent)
 
 	if (nIDEvent == 200) // Timer ID 200
 	{
-		// 執行 Modbus keep-alive，這裡簡單讀取一個寄存器作為範例
 		CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
 		if (pParentWnd && pParentWnd->m_modbusCtx)
 		{
-			uint16_t dummy;
-			std::lock_guard<std::mutex> lock(pParentWnd->m_modbusMutex);
-			int rc = modbus_read_registers(pParentWnd->m_modbusCtx, 0, 1, &dummy);
-
-			if (rc == -1)
+			uint16_t dummy = 0;
 			{
-				CString errorMessage;
-				errorMessage.Format(_T("Modbus keep-alive failed: %S"), modbus_strerror(errno));
-				AfxMessageBox(errorMessage);
+				std::lock_guard<std::mutex> lock(pParentWnd->m_modbusMutex);
+				modbus_set_slave(pParentWnd->m_modbusCtx, pParentWnd->m_SystemPara.StationID);
+				int rc = modbus_read_registers(pParentWnd->m_modbusCtx, 0, 1, &dummy);
+
+				if (rc == -1)
+				{
+					CString errorMessage;
+					errorMessage.Format(_T("Modbus keep-alive failed: %S"), modbus_strerror(errno));
+					AfxMessageBox(errorMessage);
+					return;
+				}
+			}
+
+			constexpr int kSystemConfigStart = 139;
+			constexpr int kSystemConfigCount = 18;
+			constexpr int kMemStructStart = 157;
+			constexpr int kMemStructCount = 26;
+
+			std::vector<uint16_t> systemRegs;
+			if (ReadHoldingRegistersBlock(kSystemConfigStart, kSystemConfigCount, systemRegs, pParentWnd->m_SystemPara.StationID)) {
+				ApplySystemConfigRegisters(systemRegs, pParentWnd->m_SystemPara);
+			}
+
+			std::vector<uint16_t> memRegs;
+			if (ReadHoldingRegistersBlock(kMemStructStart, kMemStructCount, memRegs, pParentWnd->m_SystemPara.StationID)) {
+				ApplyMemStructRegisters(memRegs, pParentWnd->m_MemStruct_SP);
 			}
 		}
 	}

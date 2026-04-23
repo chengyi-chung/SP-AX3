@@ -39,6 +39,7 @@ BEGIN_MESSAGE_MAP(SystemParaTab, CDialog)
 	ON_BN_CLICKED(IDC_SYSTEM_CREATE_DATA, &SystemParaTab::OnBnClickedSystemCreateData)
 	ON_EN_CHANGE(IDD_TAB_SYS_OFFSET_VALUE, &SystemParaTab::OnEnChangeTabSysOffsetValue)
 	ON_BN_CLICKED(IDC_MFCBTN_SAVE_SYSTEM, &SystemParaTab::OnBnClickedMfcbtnSaveSystem)
+	ON_WM_TIMER()
 END_MESSAGE_MAP()
 
 
@@ -75,8 +76,41 @@ BOOL SystemParaTab::OnInitDialog()
 		return FALSE; // 初始化失敗
 	}
 	*/
+	CWnd* pSystemConfigEdit = GetDlgItem(IDC_EDIT_SYSTEM_CONFIG_LIVE);
+	CWnd* pMemStructEdit = GetDlgItem(IDC_EDIT_MEMSTRUCT_LIVE);
+	if (pSystemConfigEdit != nullptr) {
+		CFont* pBaseFont = pSystemConfigEdit->GetFont();
+		if (pBaseFont != nullptr) {
+			LOGFONT lf{};
+			if (pBaseFont->GetLogFont(&lf) != 0) {
+				lf.lfHeight = static_cast<LONG>(lf.lfHeight * 1.25);
+				if (m_liveDataFont.GetSafeHandle() != nullptr) {
+					m_liveDataFont.DeleteObject();
+				}
+				if (m_liveDataFont.CreateFontIndirect(&lf)) {
+					pSystemConfigEdit->SetFont(&m_liveDataFont);
+					if (pMemStructEdit != nullptr) {
+						pMemStructEdit->SetFont(&m_liveDataFont);
+					}
+				}
+			}
+		}
+	}
+
+	SetTimer(1, 1000, nullptr);
+	UpdateControl();
 	return TRUE;  // return TRUE unless you set the focus to a control
 	// EXCEPTION: OCX 屬性頁應傳回 FALSE
+}
+
+void SystemParaTab::OnTimer(UINT_PTR nIDEvent)
+{
+	if (nIDEvent == 1) {
+		UpdateControl();
+		return;
+	}
+
+	CDialog::OnTimer(nIDEvent);
 }
 
 
@@ -165,6 +199,11 @@ void SystemParaTab::UpdateControl()
 	CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
 	if (pParentWnd != nullptr)
 	{
+		CEdit* pSystemConfigEdit = reinterpret_cast<CEdit*>(GetDlgItem(IDC_EDIT_SYSTEM_CONFIG_LIVE));
+		CEdit* pMemStructEdit = reinterpret_cast<CEdit*>(GetDlgItem(IDC_EDIT_MEMSTRUCT_LIVE));
+		const int systemConfigFirstVisibleLine = pSystemConfigEdit ? pSystemConfigEdit->GetFirstVisibleLine() : 0;
+		const int memStructFirstVisibleLine = pMemStructEdit ? pMemStructEdit->GetFirstVisibleLine() : 0;
+
 		CString str;
 		
 	//	str.Format(_T("%0.4f"), pParentWnd->m_SystemPara.OffsetX);
@@ -183,6 +222,14 @@ void SystemParaTab::UpdateControl()
 		// MACKey / GoldenKey 為 char[17]，轉為 CString 顯示
 		CString macKey(pParentWnd->m_SystemPara.MACKey);
 		CString goldenKey(pParentWnd->m_SystemPara.GoldenKey);
+		CString hmiId(pParentWnd->m_SystemPara.HMI_ID);
+		CString plcId(pParentWnd->m_SystemPara.PLC_ID);
+		if (hmiId.IsEmpty()) {
+			hmiId = _T("N/A");
+		}
+		if (plcId.IsEmpty()) {
+			plcId = _T("N/A");
+		}
 
 		//Fill in struct SystemConfig components to IDC_EDIT_SYSTEM_DATA
 		// 格式化資料以顯示在 IDC_EDIT_SYSTEM_DATA 控制項中
@@ -197,6 +244,8 @@ void SystemParaTab::UpdateControl()
 			_T("相機 ID: %d\r\n")
 			_T("MAC 位址: %s\r\n")
 			_T("解密金鑰: %s\r\n")
+			_T("HMI ID: %s\r\n")
+			_T("PLC ID: %s\r\n")
 			_T("相機寬度: %d\r\n")
 			_T("相機高度: %d\r\n")
 			_T("轉換因子: %.4f\r\n")
@@ -215,6 +264,8 @@ void SystemParaTab::UpdateControl()
 			pParentWnd->m_SystemPara.CameraID,
 			macKey,
 			goldenKey,
+			hmiId,
+			plcId,
 			pParentWnd->m_SystemPara.CameraWidth,
 			pParentWnd->m_SystemPara.CameraHeight,
 			pParentWnd->m_SystemPara.TransferFactor,
@@ -228,6 +279,100 @@ void SystemParaTab::UpdateControl()
 
 		// 將格式化後的文字設定到 IDC_EDIT_SYSTEM_DATA 控制項中
 		SetDlgItemText(IDC_EDIT_SYSTEM_DATA, displayText);
+
+		CString liveSystemConfig;
+		liveSystemConfig.Format(
+			_T("ImageBinary: %d\r\n")
+			_T("CreateToolPath: %d\r\n")
+			_T("DispalyToolPath: %d\r\n")
+			_T("DisplayROI: %d\r\n")
+			_T("DisplayRefLine: %d\r\n")
+			_T("TabWork: %d\r\n")
+			_T("OffsetValue: %.3f\r\n")
+			_T("BinaryUpper: %d\r\n")
+			_T("BinaryLower: %d\r\n")
+			_T("MaskX/Y/W/H: %d / %d / %d / %d\r\n")
+			_T("StationID: %d\r\n")
+			_T("CameraID: %d\r\n")
+			_T("HMI_ID: %s\r\n")
+			_T("PLC_ID: %s\r\n")
+			_T("RefCenterX/Y: %d / %d\r\n")
+			_T("ImageFlip: %d"),
+			pParentWnd->m_SystemPara.ImageBinary,
+			pParentWnd->m_SystemPara.CreateToolPath,
+			pParentWnd->m_SystemPara.DispalyToolPath,
+			pParentWnd->m_SystemPara.DisplayROI,
+			pParentWnd->m_SystemPara.DisplayRefLine,
+			pParentWnd->m_SystemPara.TabWork,
+			pParentWnd->m_SystemPara.OffsetValue,
+			pParentWnd->m_SystemPara.BinaryUpper,
+			pParentWnd->m_SystemPara.BinaryLower,
+			pParentWnd->m_SystemPara.MaskX,
+			pParentWnd->m_SystemPara.MaskY,
+			pParentWnd->m_SystemPara.MaskWidth,
+			pParentWnd->m_SystemPara.MaskHeight,
+			pParentWnd->m_SystemPara.StationID,
+			pParentWnd->m_SystemPara.CameraID,
+			hmiId,
+			plcId,
+			pParentWnd->m_SystemPara.RefCenterX,
+			pParentWnd->m_SystemPara.RefCenterY,
+			pParentWnd->m_SystemPara.ImageFlip);
+		SetDlgItemText(IDC_EDIT_SYSTEM_CONFIG_LIVE, liveSystemConfig);
+
+		CString liveMemStruct;
+		liveMemStruct.Format(
+			_T("RecipeID: %d\r\n")
+			_T("CurrentProduction: %d\r\n")
+			_T("SetTemp0/Temp0: %d / %d\r\n")
+			_T("SetTemp1/Temp1: %d / %d\r\n")
+			_T("SetTemp2/Temp2: %d / %d\r\n")
+			_T("Servo ALE: %d, %d, %d, %d\r\n")
+			_T("Process/System Time: %d / %d\r\n")
+			_T("MachineID/Model: %d / %d\r\n")
+			_T("Alm tem not reach: %u\r\n")
+			_T("AL overload: %u\r\n")
+			_T("Air pressure low: %u\r\n")
+			_T("AL emergency: %u\r\n")
+			_T("Midside sensor: %u\r\n")
+			_T("ManualY GoOut: %u\r\n")
+			_T("MachineStatus: %u\r\n")
+			_T("WorkingMode: %u\r\n")
+			_T("p19: %.4f"),
+			pParentWnd->m_MemStruct_SP.RecipeID,
+			pParentWnd->m_MemStruct_SP.CurrentProduction,
+			pParentWnd->m_MemStruct_SP.Set_temperature0,
+			pParentWnd->m_MemStruct_SP.Temperature0,
+			pParentWnd->m_MemStruct_SP.Set_Temperature1,
+			pParentWnd->m_MemStruct_SP.Temperature1,
+			pParentWnd->m_MemStruct_SP.Set_temperature2,
+			pParentWnd->m_MemStruct_SP.Temperature2,
+			pParentWnd->m_MemStruct_SP.Servo_ALE0,
+			pParentWnd->m_MemStruct_SP.Servo_ALE1,
+			pParentWnd->m_MemStruct_SP.Servo_ALE2,
+			pParentWnd->m_MemStruct_SP.Servo_ALE3,
+			pParentWnd->m_MemStruct_SP.i_ProcessingTimeCount,
+			pParentWnd->m_MemStruct_SP.i_SystemTimeCount,
+			pParentWnd->m_MemStruct_SP.MachineID,
+			pParentWnd->m_MemStruct_SP.MachineModel,
+			static_cast<unsigned>(pParentWnd->m_MemStruct_SP.Alm_tem_not_reach),
+			static_cast<unsigned>(pParentWnd->m_MemStruct_SP.flag_AL_overload),
+			static_cast<unsigned>(pParentWnd->m_MemStruct_SP.Alm_airPressureLow),
+			static_cast<unsigned>(pParentWnd->m_MemStruct_SP.flag_AL_emergency),
+			static_cast<unsigned>(pParentWnd->m_MemStruct_SP.flag_AL_midside_sensor),
+			static_cast<unsigned>(pParentWnd->m_MemStruct_SP.Alm_ManualY_GoOut),
+			static_cast<unsigned>(pParentWnd->m_MemStruct_SP.MachineStatus),
+			static_cast<unsigned>(pParentWnd->m_MemStruct_SP.WorkingMode),
+			pParentWnd->m_MemStruct_SP.p19);
+		SetDlgItemText(IDC_EDIT_MEMSTRUCT_LIVE, liveMemStruct);
+
+		if (pSystemConfigEdit) {
+			pSystemConfigEdit->LineScroll(systemConfigFirstVisibleLine - pSystemConfigEdit->GetFirstVisibleLine());
+		}
+
+		if (pMemStructEdit) {
+			pMemStructEdit->LineScroll(memStructFirstVisibleLine - pMemStructEdit->GetFirstVisibleLine());
+		}
 	}
 }
 

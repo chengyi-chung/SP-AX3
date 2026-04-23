@@ -3,6 +3,7 @@
 //add libmodbus header
 #include <modbus.h>
 #include <bitset>
+#include <vector>
 
 #include <mutex>
 
@@ -33,6 +34,13 @@ public:
 
 	//Update data in Edit control with SystemConfig m_SystemPara
 	void UpdateControl();
+	bool ReadHoldingRegistersBlock(int startAddress, int count, std::vector<uint16_t>& outValues, int stationID);
+	bool WriteHoldingRegistersBlock(int startAddress, const std::vector<uint16_t>& values, int stationID);
+	bool ReadRegisterStringBlock(int startAddress, int count, char* outBuffer, size_t outBufferSize, int stationID);
+	void BuildSystemConfigRegisters(const SystemConfigA& src, std::vector<uint16_t>& outValues) const;
+	void ApplySystemConfigRegisters(const std::vector<uint16_t>& values, SystemConfigA& dst) const;
+	void BuildMemStructRegisters(const MemStruct_SP& src, std::vector<uint16_t>& outValues) const;
+	void ApplyMemStructRegisters(const std::vector<uint16_t>& values, MemStruct_SP& dst) const;
 
 	// 執行緒相關
 	static UINT ReadCoordinatesThread(LPVOID pParam); // 執行緒函數

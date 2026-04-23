@@ -80,6 +80,8 @@ struct SystemConfigA  // For AX-3 PLC, SP Shoe Last Machine
     int CameraID;
     char MACKey[18];
     char GoldenKey[18];
+    char HMI_ID[27];
+    char PLC_ID[27];
     int CameraWidth;
     int CameraHeight;
     float TransferFactor;

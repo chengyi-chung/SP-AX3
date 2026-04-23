@@ -1766,6 +1766,8 @@ void WriteConfigToFile_SP(const std::string& filename, const SystemConfigA& SysC
 	file << "CameraID=" << SysConfig.CameraID << "\n";
 	file << "MACKey=" << SysConfig.MACKey << "\n";
 	file << "GoldenKey=" << SysConfig.GoldenKey << "\n";
+	file << "HMI_ID=" << SysConfig.HMI_ID << "\n";
+	file << "PLC_ID=" << SysConfig.PLC_ID << "\n";
 	file << "CameraWidth=" << SysConfig.CameraWidth << "\n";
 	file << "CameraHeight=" << SysConfig.CameraHeight << "\n";
 	file << "ImageFlip=" << SysConfig.ImageFlip << "\n";
@@ -1826,6 +1828,8 @@ void InitialConfigA(const std::string& filename, SystemConfigA& SysConfig)
 	SysConfig.ImageFlip = 2;   
 	SysConfig.RefCenterX = 695.0f;
 	SysConfig.RefCenterY = 194.0f;
+	SysConfig.HMI_ID[0] = '\0';
+	SysConfig.PLC_ID[0] = '\0';
 
 	WriteConfigToFile_SP(filename, SysConfig);
 }
@@ -2020,6 +2024,8 @@ int ReadSystemConfig_SP(const std::string& filename, SystemConfigA& SysConfig)
 			else if (key == "CameraID")          SysConfig.CameraID = std::stoi(val);
 			else if (key == "MACKey")            strncpy_s(SysConfig.MACKey, val.c_str(), _TRUNCATE);
 			else if (key == "GoldenKey")         strncpy_s(SysConfig.GoldenKey, val.c_str(), _TRUNCATE);
+			else if (key == "HMI_ID")            strncpy_s(SysConfig.HMI_ID, val.c_str(), _TRUNCATE);
+			else if (key == "PLC_ID")            strncpy_s(SysConfig.PLC_ID, val.c_str(), _TRUNCATE);
 			else if (key == "CameraWidth")       SysConfig.CameraWidth = std::stoi(val);
 			else if (key == "CameraHeight")      SysConfig.CameraHeight = std::stoi(val);
 			else if (key == "ImageFlip")         SysConfig.ImageFlip = std::stoi(val);
