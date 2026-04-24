@@ -140,8 +140,10 @@ void MachineTab::OpenModBus()
 		return;
 	}
 
-	ReadRegisterStringBlock(160, 26, pParentWnd->m_SystemPara.HMI_ID, sizeof(pParentWnd->m_SystemPara.HMI_ID), slaveId);
-	ReadRegisterStringBlock(190, 26, pParentWnd->m_SystemPara.PLC_ID, sizeof(pParentWnd->m_SystemPara.PLC_ID), slaveId);
+	// Temporarily disable HMI_ID / PLC_ID Modbus reads until the register map
+	// is rearranged to avoid overlapping the MemStruct_SP sync block.
+	// ReadRegisterStringBlock(160, 26, pParentWnd->m_SystemPara.HMI_ID, sizeof(pParentWnd->m_SystemPara.HMI_ID), slaveId);
+	// ReadRegisterStringBlock(190, 26, pParentWnd->m_SystemPara.PLC_ID, sizeof(pParentWnd->m_SystemPara.PLC_ID), slaveId);
 
 	// 之後可直接用 pParentWnd->m_modbusCtx 做 Modbus 操作
 	// 啟動座標讀取執行緒

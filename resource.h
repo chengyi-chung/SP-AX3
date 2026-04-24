@@ -1,6 +1,6 @@
 //{{NO_DEPENDENCIES}}
-// Microsoft Visual C++ ï¿½ï¿½ï¿½Íªï¿½ Include ï¿½É®×¡C
-// ï¿½ï¿½ SP-AX.rc ï¿½Ï¥ï¿½
+// Microsoft Visual C++ ²£¥Íªº Include ÀÉ®×¡C
+// ¥Ñ SP-AX.rc ¨Ï¥Î
 //
 #define IDM_ABOUTBOX                    0x0010
 #define IDD_ABOUTBOX                    100
@@ -54,6 +54,7 @@
 #define IDC_EDIT_SERVER_ID              1029
 #define IDC_EDIT_REPORT                 1029
 #define IDC_EDIT_SYSTEM_DATA            1029
+#define IDC_IDC_IMAGE_PRO_HEIGHT        1029
 #define IDC_IDC_WORK_LOAD_IMG           1033
 #define IDC_IDC_WORK_GO                 1035
 #define IDD_TAB_SYS_OFFSET_VALUE        1036
@@ -90,6 +91,7 @@
 #define IDC_EDIT_Z2                     1067
 #define IDC_CHECK1                      1067
 #define IDC_CHECK_WORK_ROI              1067
+#define IDC_IDC_IMAGE_PRO_BINARY_CHK    1067
 #define IDC_EDIT_Z3                     1068
 #define IDC_EDIT_Z4                     1069
 #define IDC_EDIT_Z5                     1070
@@ -105,6 +107,11 @@
 #define IDC_EDIT_MACHINE_Z              11003
 #define IDC_EDIT_SYSTEM_CONFIG_LIVE     11004
 #define IDC_EDIT_MEMSTRUCT_LIVE         11005
+#define IDC_IMAGE_PRO_PICTURE_CTL       11006
+#define IDC_IDC_IMAGE_PRO_SLIDER_H      11007
+#define IDC_IDC_IMAGE_PRO_LOW           11008
+#define IDC_IDC_IMAGE_PRO_SLIDER        11009
+#define IDC_IDC_IMAGE_PRO_SLIDER_L      11009
 #define IDC_MFCBTN_EXAMPLE              11010
 #define ID_INDICATOR_TIME               59142
 #define ID_INDICATOR_FILE               59143
@@ -116,8 +123,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        146
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         11006
+#define _APS_NEXT_CONTROL_VALUE         11010
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
-

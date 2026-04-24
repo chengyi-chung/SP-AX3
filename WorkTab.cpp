@@ -5,6 +5,7 @@
 #include "SPDlg.h"
 #include "afxdialogex.h"
 #include "WorkTab.h"
+#include "ImagePro.h"
 #include <algorithm>
 #include <string>
 #include <cmath>
@@ -2914,7 +2915,14 @@ void WorkTab::OnBnClickedCheckWorkCenter()
 
 void WorkTab::OnBnClickedWorkImageProcess()
 {
+    if (m_mat.empty()) {
+        AfxMessageBox(_T("目前沒有可顯示的影像。"));
+        return;
+    }
 
+    ImagePro dlg(this);
+    dlg.SetImage(m_mat);
+    dlg.DoModal();
 
 }
 

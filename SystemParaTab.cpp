@@ -222,14 +222,8 @@ void SystemParaTab::UpdateControl()
 		// MACKey / GoldenKey 為 char[17]，轉為 CString 顯示
 		CString macKey(pParentWnd->m_SystemPara.MACKey);
 		CString goldenKey(pParentWnd->m_SystemPara.GoldenKey);
-		CString hmiId(pParentWnd->m_SystemPara.HMI_ID);
-		CString plcId(pParentWnd->m_SystemPara.PLC_ID);
-		if (hmiId.IsEmpty()) {
-			hmiId = _T("N/A");
-		}
-		if (plcId.IsEmpty()) {
-			plcId = _T("N/A");
-		}
+		CString hmiId(_T("N/A (disabled)"));
+		CString plcId(_T("N/A (disabled)"));
 
 		//Fill in struct SystemConfig components to IDC_EDIT_SYSTEM_DATA
 		// 格式化資料以顯示在 IDC_EDIT_SYSTEM_DATA 控制項中
