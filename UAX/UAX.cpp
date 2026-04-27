@@ -347,6 +347,8 @@ void GetToolPath_CurvatureOptimized_Mask(
 	double offsetPixel,
 	ToolPath& toolpath,
 	double epsilonFactor,
+	int binaryUpper,
+	int binaryLower,
 	bool enableCurvatureOptimization)
 {
 	if (ImgSrc.empty()) throw std::invalid_argument("Input image is empty.");
@@ -386,8 +388,13 @@ void GetToolPath_CurvatureOptimized_Mask(
 		std::cout << "[DEBUG] After Mask, non-zero pixels: " << cv::countNonZero(gray) << std::endl;
 	}
 
-	// 4. Binarize with a fixed threshold.
-	cv::threshold(gray, gray, 128, 255, cv::THRESH_BINARY);
+	// 4. Binarize with configured lower/upper bounds.
+	int lowerBound = (std::max)(0, (std::min)(255, binaryLower));
+	int upperBound = (std::max)(0, (std::min)(255, binaryUpper));
+	if (lowerBound > upperBound) {
+		std::swap(lowerBound, upperBound);
+	}
+	cv::inRange(gray, cv::Scalar(lowerBound), cv::Scalar(upperBound), gray);
 
 	// 5. Extract outer contours.
 	std::vector<std::vector<cv::Point>> contours;
@@ -429,6 +436,9 @@ void GetToolPath_CurvatureOptimized_Mask(
 		}
 	}
 
+	//以下只在 debug 模式下執行
+#ifdef _DEBUG
+	
 	// 7. Draw contours and sampled path points for debug display
 	cv::drawContours(ImgSrc, contours, -1, cv::Scalar(0, 0, 255), 1); // contour outline
 
@@ -443,6 +453,9 @@ void GetToolPath_CurvatureOptimized_Mask(
 	cv::Mat image = ImgSrc.clone();
 	//cv::flip(image, image, -1);
 	ShowZoomedImage("Masked & " + std::string(enableCurvatureOptimization ? "Reduced" : "Original") + " Points Result", image);
+#endif
+
+
 }
 
 

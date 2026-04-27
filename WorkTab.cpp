@@ -2156,7 +2156,15 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
     this->toolPath.Path.clear();
     cv::Mat imgClone = pathSourceImage.clone();
 	cv::flip(imgClone, imgClone, -1); // 提取路徑前先將輸入影像旋轉 180 度。
-    GetToolPath_CurvatureOptimized_Mask(imgClone, pathMask, offsetPixel, this->toolPath, 0.0008,false);
+    GetToolPath_CurvatureOptimized_Mask(
+        imgClone,
+        pathMask,
+        offsetPixel,
+        this->toolPath,
+        0.0008,
+        pParentWnd->m_SystemPara.BinaryUpper,
+        pParentWnd->m_SystemPara.BinaryLower,
+        false);
 
 	// 此時 toolPath 中的點原本是基於 pathSourceImage 左上角的 pixel 座標。
 	// 若校正流程有做方向翻轉，則再把點翻回 correctedImage 的顯示方向。
@@ -2218,12 +2226,12 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
 	 DeleteFile(_T("tool_HMIGluePath.csv"));
 
 	 ExportToolPathAsCSV(this->toolPath, "tool_raw_path.csv");  // 原始工具路徑：原點為影像左上角，單位為 pixel
-    ExportGluePathAsToolCSV(finalPath, "tool_final_glue_path.csv", "pixel");
-    ExportGluePathAsToolCSV(this->m_OptimizedGluePath, "tool_optimized_glue_path.csv", "pixel");
-    ExportGluePathAsToolCSV(this->m_machineGluePath, "tool_machine_glue_path.csv", "pixel");
-    ExportGluePathAsToolCSV(this->m_machineGluePath_mm, "tool_machine_glue_path_mm.csv", "mm");
-    ExportGluePathAsToolCSV(this->m_HMIGluePath_temp, "tool_HMIGluePath_temp.csv", "mm x10");
-    ExportGluePathAsToolCSV(this->m_HMIGluePath, "tool_HMIGluePath.csv", "integer display coordinate");
+     ExportGluePathAsToolCSV(finalPath, "tool_final_glue_path.csv", "pixel");
+     ExportGluePathAsToolCSV(this->m_OptimizedGluePath, "tool_optimized_glue_path.csv", "pixel");
+     ExportGluePathAsToolCSV(this->m_machineGluePath, "tool_machine_glue_path.csv", "pixel");
+     ExportGluePathAsToolCSV(this->m_machineGluePath_mm, "tool_machine_glue_path_mm.csv", "mm");
+     ExportGluePathAsToolCSV(this->m_HMIGluePath_temp, "tool_HMIGluePath_temp.csv", "mm x10");
+     ExportGluePathAsToolCSV(this->m_HMIGluePath, "tool_HMIGluePath.csv", "integer display coordinate");
 
     // 僅 Debug 模式顯示 OpenCV 視窗，方便開發階段檢查路徑正確性。
     // 此視窗只用來比對「計算出的路徑」和「取路徑時使用的影像(imgClone)」之相對位置，

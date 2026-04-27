@@ -128,6 +128,8 @@ extern "C" UAX_API void GetToolPath_CurvatureOptimized_Mask(cv::Mat& ImgSrc,
     double offsetPixel,
     ToolPath& toolpath,
     double epsilonFactor,
+    int binaryUpper,
+    int binaryLower,
     bool enableCurvatureOptimization = true);   // ← 新增：是否啟用 Douglas-Peucker 簡化
 
 //extern "C" UAX_API void GetToolPath_CurvatureOptimized_Mask(cv::Mat& ImgSrc,
