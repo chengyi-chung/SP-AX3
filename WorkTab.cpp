@@ -187,6 +187,42 @@ void SortGluePathByAscendingY(GluePath& gluePath)
     }
 }
 
+bool IsPointInsideRoi(const cv::Point2d& pt, const cv::Rect& roiRect)
+{
+    return pt.x >= roiRect.x &&
+        pt.x < (roiRect.x + roiRect.width) &&
+        pt.y >= roiRect.y &&
+        pt.y < (roiRect.y + roiRect.height);
+}
+
+void FilterGluePathByRoiAndLimit(GluePath& gluePath, const cv::Rect& roiRect, size_t maxPoints)
+{
+    const size_t count = (std::min)(gluePath.PathRight.size(), gluePath.PathLeft.size());
+    std::vector<cv::Point2d> filteredRight;
+    std::vector<cv::Point2d> filteredLeft;
+    filteredRight.reserve((std::min)(count, maxPoints));
+    filteredLeft.reserve((std::min)(count, maxPoints));
+
+    for (size_t i = 0; i < count; ++i) {
+        const cv::Point2d& rightPt = gluePath.PathRight[i];
+        const cv::Point2d& leftPt = gluePath.PathLeft[i];
+
+        if (!IsPointInsideRoi(rightPt, roiRect) || !IsPointInsideRoi(leftPt, roiRect)) {
+            continue;
+        }
+
+        filteredRight.push_back(rightPt);
+        filteredLeft.push_back(leftPt);
+
+        if (filteredRight.size() >= maxPoints) {
+            break;
+        }
+    }
+
+    gluePath.PathRight = std::move(filteredRight);
+    gluePath.PathLeft = std::move(filteredLeft);
+}
+
 void ExportGluePathAsToolCSV(const GluePath& gluePath, const std::string& fileName, const char* unit = "")
 {
     const size_t count = (std::min)(gluePath.PathRight.size(), gluePath.PathLeft.size());
@@ -2233,6 +2269,10 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
 
 	// 最後再依 Y 座標排序，確保路徑點是從上到下的順序，這對於後續的機器人運動規劃很重要。
     SortGluePathByAscendingY(finalPath);
+
+    // 只保留 ROI 內的有效路徑點，並限制最多輸出 30 筆。
+    // 30 是上限，若有效點數小於 30 則直接接受。
+    FilterGluePathByRoiAndLimit(finalPath, roiRect, 30);
 
     // 9. 儲存或顯示結果
 	// m_OptimizedGluePath：原點為 correctedImage 左上角，單位為 pixel

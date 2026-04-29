@@ -26,11 +26,11 @@ GluePathOptimizer::GluePathOptimizer(const ROIMask& roi)
  * @param optimizedPath 輸出結構
  * @param shoeType      鞋型：1=右腳（右側為主），2=左腳（左側為主）
  */
-void GluePathOptimizer::OptimizePath(const std::vector<cv::Point2d>& inputPath,
+void GluePathOptimizer::OptimizePath(
+    const std::vector<cv::Point2d>& inputPath,
     GluePath& optimizedPath,
     int shoeType)
 {
-    // Step 1: 濾除不在 ROI 內的雜點
     std::vector<cv::Point2d> maskedPath = FilterByMask(inputPath);
     if (maskedPath.empty()) {
         optimizedPath.PathRight.clear();
@@ -38,75 +38,73 @@ void GluePathOptimizer::OptimizePath(const std::vector<cv::Point2d>& inputPath,
         return;
     }
 
-    // Step 2: 分割左右原始點
-    std::vector<cv::Point2d> rightRaw, leftRaw;
+    std::vector<cv::Point2d> rightRaw;
+    std::vector<cv::Point2d> leftRaw;
     SplitByCenter(maskedPath, rightRaw, leftRaw);
 
-    // ────────────────────────────────────────────────
-    // 【核心邏輯：決定主導側】
-    // ────────────────────────────────────────────────
-    std::vector<cv::Point2d>* primaryRawPtr = nullptr;
-    std::vector<cv::Point2d>* secondaryRawPtr = nullptr;
+    std::vector<cv::Point2d>* primaryRawPtr = NULL;
+    std::vector<cv::Point2d>* secondaryRawPtr = NULL;
     bool isLeftPrimary = false;
 
-    if (shoeType == 2) {          // 左腳
+    if (shoeType == 2) {
         primaryRawPtr = &leftRaw;
         secondaryRawPtr = &rightRaw;
         isLeftPrimary = true;
     }
-    else if (shoeType == 1) {     // 右腳
+    else if (shoeType == 1) {
         primaryRawPtr = &rightRaw;
         secondaryRawPtr = &leftRaw;
         isLeftPrimary = false;
-    }                                                                                           
+    }
+    else if (rightRaw.size() >= leftRaw.size()) {
+        primaryRawPtr = &rightRaw;
+        secondaryRawPtr = &leftRaw;
+        isLeftPrimary = false;
+    }
     else {
-        // 自動模式（建議正式版務必傳正確 shoeType）
-        if (rightRaw.size() >= leftRaw.size()) {
-            primaryRawPtr = &rightRaw;
-            secondaryRawPtr = &leftRaw;
-            isLeftPrimary = false;
-        }
-        else {
-            primaryRawPtr = &leftRaw;
-            secondaryRawPtr = &rightRaw;
-            isLeftPrimary = true;
-        }
+        primaryRawPtr = &leftRaw;
+        secondaryRawPtr = &rightRaw;
+        isLeftPrimary = true;
     }
 
-    if (primaryRawPtr->empty()) {
+    if (primaryRawPtr == NULL || primaryRawPtr->empty()) {
         optimizedPath.PathRight.clear();
         optimizedPath.PathLeft.clear();
         return;
     }
 
-    // Step 3: 對主要側擬合（方案1重點：弧長參數化，保留 U 型原始順序）
-    //         不再使用 SortByY！直接使用 GetToolPath 輸出的原始順序
-    std::vector<cv::Point2d> primarySmooth = FitCurve(*primaryRawPtr, 30);
+    std::vector<cv::Point2d> primarySmoothPts = FitCurve(*primaryRawPtr, 30);
 
-    // 抽出標準 Y 序列（仍保留原需求：左右 Y 對齊）
-    std::vector<double> standardYs;
-    standardYs.reserve(primarySmooth.size());
-    for (const auto& p : primarySmooth) {
-        standardYs.push_back(p.y);
+    std::vector<double> targetYs;
+    targetYs.reserve(primarySmoothPts.size());
+    for (size_t i = 0; i < primarySmoothPts.size(); ++i) {
+        targetYs.push_back(primarySmoothPts[i].y);
     }
 
-    // Step 4: 次要側強制跟隨相同 Y 值
-    std::vector<cv::Point2d> secondarySmooth;
-    if (!secondaryRawPtr->empty()) {
-        secondarySmooth = FitCurveAtGivenY(*secondaryRawPtr, standardYs);
+    std::vector<cv::Point2d> secondarySmoothPts;
+    if (secondaryRawPtr != NULL && !secondaryRawPtr->empty()) {
+        secondarySmoothPts = FitCurveAtGivenY(*secondaryRawPtr, targetYs);
     }
     else {
-        secondarySmooth = primarySmooth;
+        secondarySmoothPts = primarySmoothPts;
     }
 
-    // Step 5: 寫回輸出
+    primarySmoothPts = FilterByMask(primarySmoothPts);
+    secondarySmoothPts = FilterByMask(secondarySmoothPts);
+
+    if (primarySmoothPts.empty() || secondarySmoothPts.empty()) {
+        optimizedPath.PathRight.clear();
+        optimizedPath.PathLeft.clear();
+        return;
+    }
+
     if (isLeftPrimary) {
-        optimizedPath.PathLeft = std::move(primarySmooth);
-        optimizedPath.PathRight = std::move(secondarySmooth);
+        optimizedPath.PathLeft = primarySmoothPts;
+        optimizedPath.PathRight = secondarySmoothPts;
     }
     else {
-        optimizedPath.PathRight = std::move(primarySmooth);
-        optimizedPath.PathLeft = std::move(secondarySmooth);
+        optimizedPath.PathRight = primarySmoothPts;
+        optimizedPath.PathLeft = secondarySmoothPts;
     }
 }
 
@@ -264,8 +262,9 @@ GluePathOptimizer::FilterByMask(const std::vector<cv::Point2d>& inputPath) const
 
     for (const auto& pt : inputPath)
     {
-        if (pt.x >= xMin && pt.x <= xMax &&
-            pt.y >= yMin && pt.y <= yMax)
+        // Match cv::Rect semantics: left/top inclusive, right/bottom exclusive.
+        if (pt.x >= xMin && pt.x < xMax &&
+            pt.y >= yMin && pt.y < yMax)
         {
             result.push_back(pt);
         }
