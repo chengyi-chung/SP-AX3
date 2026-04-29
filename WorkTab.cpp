@@ -1552,6 +1552,29 @@ void WorkTab::ShowImageOnPictureControl(bool flgCenter, cv::Scalar crossColor, i
             2);
     }
 
+    if (m_factorPreviewMat.empty()) {
+        const double scaleX = static_cast<double>(rect.Width()) / sourceMat.cols;
+        const double scaleY = static_cast<double>(rect.Height()) / sourceMat.rows;
+
+        auto toDisplayPoint = [&](const cv::Point2d& pt) {
+            const int x = (std::max)(0, (std::min)(cvRound(pt.x * scaleX), imageToShow.cols - 1));
+            const int y = (std::max)(0, (std::min)(cvRound(pt.y * scaleY), imageToShow.rows - 1));
+            return cv::Point(x, y);
+            };
+
+        for (const auto& pt : toolPath.Path) {
+            cv::circle(imageToShow, toDisplayPoint(pt), 2, cv::Scalar(0, 255, 255, 255), cv::FILLED);
+        }
+
+        for (const auto& pt : m_OptimizedGluePath.PathLeft) {
+            cv::circle(imageToShow, toDisplayPoint(pt), 4, cv::Scalar(0, 0, 255, 255), cv::FILLED);
+        }
+
+        for (const auto& pt : m_OptimizedGluePath.PathRight) {
+            cv::circle(imageToShow, toDisplayPoint(pt), 4, cv::Scalar(0, 255, 0, 255), cv::FILLED);
+        }
+    }
+
     BITMAPINFO bitmapInfo;
     memset(&bitmapInfo, 0, sizeof(bitmapInfo));
     bitmapInfo.bmiHeader.biBitCount = 32;
@@ -2156,6 +2179,11 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
     this->toolPath.Path.clear();
     cv::Mat imgClone = pathSourceImage.clone();
 	cv::flip(imgClone, imgClone, -1); // 提取路徑前先將輸入影像旋轉 180 度。
+
+	pParentWnd->m_SystemPara.BinaryUpper = 255;
+	pParentWnd->m_SystemPara.BinaryLower = 200; 
+
+
     GetToolPath_CurvatureOptimized_Mask(
         imgClone,
         pathMask,
@@ -2296,6 +2324,19 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
 void WorkTab::OnBnClickedIdcWorkLoadImg()
 {
     // TODO: 在此加入控制項告知處理常式
+    // 載入新影像前先清除上一張圖的所有路徑資料，避免舊資料殘留。
+    this->toolPath.Path.clear();
+    this->m_OptimizedGluePath.PathLeft.clear();
+    this->m_OptimizedGluePath.PathRight.clear();
+    this->m_machineGluePath.PathLeft.clear();
+    this->m_machineGluePath.PathRight.clear();
+    this->m_machineGluePath_mm.PathLeft.clear();
+    this->m_machineGluePath_mm.PathRight.clear();
+    this->m_HMIGluePath_temp.PathLeft.clear();
+    this->m_HMIGluePath_temp.PathRight.clear();
+    this->m_HMIGluePath.PathLeft.clear();
+    this->m_HMIGluePath.PathRight.clear();
+
 	//Add Dialog Box to load image
 	CString strFilter = _T("Image Files (*.bmp;*.jpg;*.jpeg;*.png;*.tif;*.tiff)|*.bmp;*.jpg;*.jpeg;*.png;*.tif;*.tiff|All Files (*.*)|*.*||");
 	CFileDialog dlg(TRUE, NULL, NULL, OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_HIDEREADONLY, strFilter, this);

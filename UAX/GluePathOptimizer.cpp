@@ -172,34 +172,34 @@ GluePathOptimizer::FitCurveAtGivenY(const std::vector<cv::Point2d>& pts,
 {
     if (pts.empty() || targetYs.empty()) return {};
 
-    // 先按 y 排序次要側原始點（這次排序是為了插值，不是破壞順序）
     std::vector<cv::Point2d> sortedPts = pts;
     std::sort(sortedPts.begin(), sortedPts.end(),
         [](const cv::Point2d& a, const cv::Point2d& b) { return a.y < b.y; });
 
-    // 移除重複 y（如果有完全相同 y，取平均 x 或第一個）
     std::vector<cv::Point2d> uniquePts;
     uniquePts.reserve(sortedPts.size());
     if (!sortedPts.empty()) {
         uniquePts.push_back(sortedPts[0]);
         for (size_t i = 1; i < sortedPts.size(); ++i) {
-            if (std::abs(sortedPts[i].y - uniquePts.back().y) > 1e-6) {  // 避免浮點重複
+            if (std::abs(sortedPts[i].y - uniquePts.back().y) > 1e-6) {
                 uniquePts.push_back(sortedPts[i]);
             }
             else {
-                // 有重複 y，取平均 x（可改成其他策略）
                 uniquePts.back().x = (uniquePts.back().x + sortedPts[i].x) / 2.0;
             }
         }
     }
 
+    std::vector<cv::Point2d> result;
+    result.reserve(targetYs.size());
+
     if (uniquePts.size() < 2) {
-        // 點太少，直接回傳 targetYs 上最近的點
-        std::vector<cv::Point2d> result;
-        for (double y : targetYs) {
+        for (size_t i = 0; i < targetYs.size(); ++i) {
+            const double y = targetYs[i];
             double bestX = uniquePts.empty() ? 0.0 : uniquePts[0].x;
             double minDist = uniquePts.empty() ? 1e9 : std::abs(uniquePts[0].y - y);
-            for (const auto& p : uniquePts) {
+            for (size_t j = 0; j < uniquePts.size(); ++j) {
+                const cv::Point2d& p = uniquePts[j];
                 double dist = std::abs(p.y - y);
                 if (dist < minDist) {
                     minDist = dist;
@@ -211,35 +211,35 @@ GluePathOptimizer::FitCurveAtGivenY(const std::vector<cv::Point2d>& pts,
         return result;
     }
 
-    // 逐一對 targetYs 做線性插值（最穩健）
-    std::vector<cv::Point2d> result;
-    result.reserve(targetYs.size());
-
-    size_t idx = 0;  // 用來加速查找
-    for (double ty : targetYs) {
-        // 找到 ty 所在的區間 [uniquePts[idx].y, uniquePts[idx+1].y]
-        while (idx + 1 < uniquePts.size() && uniquePts[idx + 1].y < ty) {
-            ++idx;
-        }
-
+    for (size_t i = 0; i < targetYs.size(); ++i) {
+        const double ty = targetYs[i];
         double x;
-        if (idx + 1 >= uniquePts.size()) {
-            // ty > 最大 y → 最後一段外插（可改成 clamp 或最近鄰）
-            x = uniquePts.back().x;
-        }
-        else if (ty <= uniquePts[0].y) {
-            // ty < 最小 y → 第一段外插
+        if (ty <= uniquePts.front().y) {
             x = uniquePts[0].x;
         }
+        else if (ty >= uniquePts.back().y) {
+            x = uniquePts.back().x;
+        }
         else {
-            // 線性插值
-            double y0 = uniquePts[idx].y;
-            double y1 = uniquePts[idx + 1].y;
-            double x0 = uniquePts[idx].x;
-            double x1 = uniquePts[idx + 1].x;
+            size_t upperIdx = 1;
+            while (upperIdx < uniquePts.size() && uniquePts[upperIdx].y < ty) {
+                ++upperIdx;
+            }
+            const size_t lowerIdx = upperIdx - 1;
 
-            double t = (ty - y0) / (y1 - y0);
-            x = x0 + t * (x1 - x0);
+            const double y0 = uniquePts[lowerIdx].y;
+            const double y1 = uniquePts[upperIdx].y;
+            const double x0 = uniquePts[lowerIdx].x;
+            const double x1 = uniquePts[upperIdx].x;
+
+            const double dy = y1 - y0;
+            if (std::abs(dy) <= 1e-9) {
+                x = (x0 + x1) * 0.5;
+            }
+            else {
+                const double t = (ty - y0) / dy;
+                x = x0 + t * (x1 - x0);
+            }
         }
 
         result.emplace_back(x, ty);
