@@ -68,6 +68,17 @@ CSPDlg::CSPDlg(CWnd* pParent /*=nullptr*/)
 
 }
 
+void CSPDlg::RefreshSystemParaTabDisplay()
+{
+	if (!m_SystemParaTab.GetSafeHwnd()) {
+		return;
+	}
+
+	m_SystemParaTab.UpdateControl();
+	m_SystemParaTab.Invalidate(FALSE);
+	m_SystemParaTab.UpdateWindow();
+}
+
 void CSPDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
@@ -178,15 +189,6 @@ BOOL CSPDlg::OnInitDialog()
     lf.lfWeight = FW_BOLD;
     m_StatusTimeFont.CreateFontIndirect(&lf);
 	
-	// 啟動時只主動嘗試連線一次。
-	// 若本次啟動失敗，之後本次 session 不再自動重試，要等下次重新啟動程式才會再嘗試。
-	InitModbusWithRetry(
-		m_SystemPara.IpAddress,
-		m_SystemPara.Port,
-		m_SystemPara.StationID,
-		3,
-		1000);
-
     // Set Timer
 	SetTimer(100, 1000, NULL);
 
@@ -227,19 +229,20 @@ BOOL CSPDlg::OnInitDialog()
 	m_ModBusTab.ShowWindow(SW_HIDE);
 
 	//Add Tab Control Item Machine
-	//m_MachineTab.Create(IDD_TAB_MACHINE, &m_Tab_Main);
-	//m_MachineTab.MoveWindow(&rect);
-	//m_MachineTab.ShowWindow(SW_HIDE);
+	m_MachineTab.Create(IDD_TAB_MACHINE, &m_Tab_Main);
+	m_MachineTab.MoveWindow(&rect);
+	m_MachineTab.ShowWindow(SW_HIDE);
 
 	// 修改初始化按鈕樣式的函式
 	InitButtonStyle();
 
 	//Get Mac ID assign to m_SystemPara with UAX: GetMacAddress
 
-	// 讀取系統參數
-	ReadSystemParametersFromConfigFile();
-
-
+	// 啟動後由 OpenModBus() 負責：
+	// 1. 建立 Modbus 連線
+	// 2. 將 SystemConfig.ini 對應的 SystemConfigA 寫入 HMI
+	// 3. 讀回 HMI / PLC 執行期資料並刷新畫面
+	m_MachineTab.OpenModBus();
 
 	return TRUE;  // return TRUE unless you set the focus to a control
 }
@@ -439,7 +442,6 @@ void CSPDlg::OnBnClickedBtnMachine()
 	//change to select tab
 	m_Tab_Main.SetCurSel(3);
 	m_MachineTab.UpdateControl();  //Update Control with m_SystemPara
-	m_MachineTab.OpenModBus();
 
 	// OnTcnSelchangeTabMain
 	// 獲取 Tab Control 的指針
@@ -571,7 +573,6 @@ void CSPDlg::OnTcnSelchangeTabMain(NMHDR* pNMHDR, LRESULT* pResult)
 			OnBnClickedBtnModbus();
 			break;
 		case 3://Machine
-			m_MachineTab.OpenModBus();
 			//m_MachineTab.UpdateControl();
 			OnBnClickedBtnMachine();
 			

@@ -79,8 +79,18 @@ BOOL MachineTab::OnInitDialog()
 	((CButton*)GetDlgItem(IDC_RADIO_AUTO))->SetCheck(TRUE);
 	((CButton*)GetDlgItem(IDC_RADIO_MANUAL))->SetCheck(FALSE);
 
-	// Laucjh OnBnClickedRadioAuto
-	OnBnClickedRadioAuto();
+	// 啟動時只初始化 UI 狀態，不在連線建立前主動送出 Auto 指令，
+	// 避免程式剛啟動時跳出「Modbus 尚未連線」的誤報視窗。
+	((CButton*)GetDlgItem(IDC_MFCBTN_MACHINE_AUTO_WORK_SART))->EnableWindow(TRUE);
+	((CButton*)GetDlgItem(IDC_MFCBTN_MACHINE_AUTO_WORK_STOP))->EnableWindow(TRUE);
+	((CButton*)GetDlgItem(IDC_MFCBTN_MACHINE_HOME))->EnableWindow(FALSE);
+	((CButton*)GetDlgItem(IDC_MFCBTN_MACHINE_RESET_SW))->EnableWindow(FALSE);
+	((CButton*)GetDlgItem(IDC_BTN_JOG_X_PLUS))->EnableWindow(FALSE);
+	((CButton*)GetDlgItem(IDC_BTN_JOG_X_MINUS))->EnableWindow(FALSE);
+	((CButton*)GetDlgItem(IDC_BTN_JOG_Y_PLUS))->EnableWindow(FALSE);
+	((CButton*)GetDlgItem(IDC_BTN_JOG_Y_MINUS))->EnableWindow(FALSE);
+	((CButton*)GetDlgItem(IDC_BTN_JOG_Z_PLUS))->EnableWindow(FALSE);
+	((CButton*)GetDlgItem(IDC_BTN_JOG_Z_MINUS))->EnableWindow(FALSE);
 	
 	m_iMachineMode = 1;
 
@@ -128,17 +138,21 @@ void MachineTab::OpenModBus()
 	constexpr int kMemStructStart = 157;
 	std::vector<uint16_t> regs;
 
+	// 啟動時以 SystemConfig.ini 載入到 m_SystemPara 的值為準，直接寫入 HMI。
 	BuildSystemConfigRegisters(pParentWnd->m_SystemPara, regs);
 	if (!WriteHoldingRegistersBlock(kSystemConfigStart, regs, slaveId)) {
-		AfxMessageBox(_T("初始寫入 SystemConfigA 到 Modbus 失敗。"));
+		AfxMessageBox(_T("初始化寫入 SystemConfigA 到 Modbus 失敗。"));
 		return;
 	}
 
-	BuildMemStructRegisters(pParentWnd->m_MemStruct_SP, regs);
-	if (!WriteHoldingRegistersBlock(kMemStructStart, regs, slaveId)) {
-		AfxMessageBox(_T("初始寫入 MemStruct_SP 到 Modbus 失敗。"));
-		return;
+	// MemStruct_SP 視為 HMI/PLC 執行期資料來源，啟動後只讀回主程式，不主動覆蓋遠端。
+	MemStruct_SP remoteMem = pParentWnd->m_MemStruct_SP;
+	if (ReadHoldingRegistersBlock(kMemStructStart, 26, regs, slaveId)) {
+		ApplyMemStructRegisters(regs, remoteMem);
+		pParentWnd->m_MemStruct_SP = remoteMem;
 	}
+
+	pParentWnd->RefreshSystemParaTabDisplay();
 
 	// Temporarily disable HMI_ID / PLC_ID Modbus reads until the register map
 	// is rearranged to avoid overlapping the MemStruct_SP sync block.

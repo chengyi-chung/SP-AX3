@@ -183,6 +183,8 @@ private:
 	bool m_hmiSyncEnabled = false;
 	bool m_hmiSyncBusy = false;
 	UINT m_hmiSyncIntervalMs = 500;
+	bool m_hasSystemSyncBaseline = false;
+	bool m_hasMemSyncBaseline = false;
 	SystemConfigA m_lastSyncedSystemPara{};
 	MemStruct_SP m_lastSyncedMemStruct{};
 

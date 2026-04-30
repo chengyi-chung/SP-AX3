@@ -118,6 +118,7 @@ public:
     void InitButtonStyle();   // 初始化按鈕樣式
     void ApplyButtonStyle();  // 套用按鈕樣式
     void UpdateModbusStatusDisplay(bool connected);
+    void RefreshSystemParaTabDisplay();
 
     // 共用 Modbus 連線物件與互斥鎖
     modbus_t* m_modbusCtx = nullptr;

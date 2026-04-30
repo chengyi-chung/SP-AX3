@@ -660,6 +660,8 @@ void WorkTab::UpdateModbusSyncState(bool connected)
     }
     else {
         StopHmiSyncTimer();
+        m_hasSystemSyncBaseline = false;
+        m_hasMemSyncBaseline = false;
     }
 }
 
@@ -933,26 +935,21 @@ void WorkTab::SyncHmiData(int stationID)
     SystemConfigA remoteSystem = pParent->m_SystemPara;
     if (ReadHoldingRegistersBlock(kSystemConfigStart, 18, regs, stationID)) {
         ApplySystemConfigRegisters(regs, remoteSystem);
-        if (IsSystemConfigDisplayDataValid(remoteSystem) &&
-            !IsSystemConfigEqual(remoteSystem, m_lastSyncedSystemPara)) {
-            pParent->m_SystemPara = remoteSystem;
-            m_lastSyncedSystemPara = remoteSystem;
-            MaskX = pParent->m_SystemPara.MaskX;
-            MaskY = pParent->m_SystemPara.MaskY;
-            MaskWidth = pParent->m_SystemPara.MaskWidth;
-            MaskHeight = pParent->m_SystemPara.MaskHeight;
-            referenceX = pParent->m_SystemPara.RefCenterX;
-            referenceY = pParent->m_SystemPara.RefCenterY;
-            if (!m_bFactorSelectMode && (m_bROIMode || flgCenter)) {
-                ShowImageOnPictureControl(flgCenter, cv::Scalar(0, 0, 255, 255), 1, CrossStyle::Solid);
+        if (IsSystemConfigDisplayDataValid(remoteSystem)) {
+            if (!IsSystemConfigEqual(remoteSystem, m_lastSyncedSystemPara)) {
+                pParent->m_SystemPara = remoteSystem;
+                MaskX = pParent->m_SystemPara.MaskX;
+                MaskY = pParent->m_SystemPara.MaskY;
+                MaskWidth = pParent->m_SystemPara.MaskWidth;
+                MaskHeight = pParent->m_SystemPara.MaskHeight;
+                referenceX = pParent->m_SystemPara.RefCenterX;
+                referenceY = pParent->m_SystemPara.RefCenterY;
+                if (!m_bFactorSelectMode && (m_bROIMode || flgCenter)) {
+                    ShowImageOnPictureControl(flgCenter, cv::Scalar(0, 0, 255, 255), 1, CrossStyle::Solid);
+                }
             }
-        }
-    }
-
-    if (!IsSystemConfigEqual(pParent->m_SystemPara, m_lastSyncedSystemPara)) {
-        BuildSystemConfigRegisters(pParent->m_SystemPara, regs);
-        if (WriteHoldingRegistersBlock(kSystemConfigStart, regs, stationID)) {
-            m_lastSyncedSystemPara = pParent->m_SystemPara;
+            m_lastSyncedSystemPara = remoteSystem;
+            m_hasSystemSyncBaseline = true;
         }
     }
 
@@ -963,13 +960,8 @@ void WorkTab::SyncHmiData(int stationID)
             pParent->m_MemStruct_SP = remoteMem;
             m_lastSyncedMemStruct = remoteMem;
         }
-    }
-
-    if (!IsMemStructEqual(pParent->m_MemStruct_SP, m_lastSyncedMemStruct)) {
-        BuildMemStructRegisters(pParent->m_MemStruct_SP, regs);
-        if (WriteHoldingRegistersBlock(kMemStructStart, regs, stationID)) {
-            m_lastSyncedMemStruct = pParent->m_MemStruct_SP;
-        }
+        m_lastSyncedMemStruct = remoteMem;
+        m_hasMemSyncBaseline = true;
     }
 
     m_hmiSyncBusy = false;
@@ -2515,15 +2507,15 @@ void WorkTab::OnBnClickedIdcWorkGo()
     }
     */
     // 7. 資料轉換：將最終要送給 HMI 的路徑資料轉成寄存器格式。
-    //    右側路徑 -> X1 / Y
-    //    左側路徑 -> X2
-    //    依 HMI Data 定義，X2 軸送出前強制轉為正值。
-    //    這裡使用的資料來源是 m_HMIGluePath.PathRight / m_HMIGluePath.PathLeft。
+    //    左側路徑 -> X1 / Y
+    //    右側路徑 -> X2
+    //    依 HMI Data 定義，左右 X 軸送出前都轉為正值。
+    //    這裡使用的資料來源是 m_HMIGluePath.PathLeft / m_HMIGluePath.PathRight。
     for (size_t i = 0; i < pointCount; ++i) 
     {
-        x1Regs[i] = toReg(m_HMIGluePath.PathRight[i].x);
-        yRegs[i] = toReg(m_HMIGluePath.PathRight[i].y);
-        x2Regs[i] = toReg(std::abs(m_HMIGluePath.PathLeft[i].x));
+        x1Regs[i] = toReg(std::abs(m_HMIGluePath.PathLeft[i].x));
+        yRegs[i] = toReg(m_HMIGluePath.PathLeft[i].y);
+        x2Regs[i] = toReg(std::abs(m_HMIGluePath.PathRight[i].x));
     }
 
     // 8. Modbus 連線檢查與自動重連邏輯
