@@ -13,7 +13,7 @@ struct ToolPath
     cv::Point2d            Offset;       // 工具路徑的整體偏移量
     std::vector<cv::Point2d> Path;       // 工具路徑上的點序列
     std::vector<int>       numClusters;  // 每個點所屬的輪廓/叢集編號
-};
+};  
 
 struct GluePath
 {

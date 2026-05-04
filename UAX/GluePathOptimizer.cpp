@@ -2,9 +2,132 @@
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <limits>
 #include <numeric>
 #include <stdexcept>
 #include <opencv2/core.hpp>
+
+namespace
+{
+    std::vector<cv::Point2d> FilterProfileByYRange(
+        const std::vector<cv::Point2d>& profile,
+        double yMin,
+        double yMax)
+    {
+        std::vector<cv::Point2d> filtered;
+        filtered.reserve(profile.size());
+        for (size_t i = 0; i < profile.size(); ++i) {
+            if (profile[i].y >= yMin && profile[i].y <= yMax) {
+                filtered.push_back(profile[i]);
+            }
+        }
+        return filtered;
+    }
+
+    std::vector<cv::Point2d> BuildSideProfileByY(
+        const std::vector<cv::Point2d>& rawPts,
+        bool keepRightMost)
+    {
+        if (rawPts.empty()) {
+            return std::vector<cv::Point2d>();
+        }
+
+        std::vector<cv::Point2d> sortedPts = rawPts;
+        std::sort(sortedPts.begin(), sortedPts.end(),
+            [](const cv::Point2d& a, const cv::Point2d& b) {
+                if (a.y != b.y) {
+                    return a.y < b.y;
+                }
+                return a.x < b.x;
+            });
+
+        std::vector<cv::Point2d> profile;
+        profile.reserve(sortedPts.size());
+
+        size_t i = 0;
+        while (i < sortedPts.size()) {
+            const double currentY = sortedPts[i].y;
+            cv::Point2d chosen = sortedPts[i];
+            size_t j = i + 1;
+            while (j < sortedPts.size() && std::abs(sortedPts[j].y - currentY) <= 1e-6) {
+                if (keepRightMost) {
+                    if (sortedPts[j].x > chosen.x) {
+                        chosen = sortedPts[j];
+                    }
+                }
+                else {
+                    if (sortedPts[j].x < chosen.x) {
+                        chosen = sortedPts[j];
+                    }
+                }
+                ++j;
+            }
+
+            profile.push_back(chosen);
+            i = j;
+        }
+
+        return profile;
+    }
+
+    std::vector<cv::Point2d> SampleProfilePoints(
+        const std::vector<cv::Point2d>& profile,
+        size_t maxPoints)
+    {
+        if (profile.empty() || maxPoints == 0) {
+            return std::vector<cv::Point2d>();
+        }
+
+        if (profile.size() <= maxPoints) {
+            return profile;
+        }
+
+        std::vector<cv::Point2d> sampled;
+        sampled.reserve(maxPoints);
+        for (size_t i = 0; i < maxPoints; ++i) {
+            const size_t index = static_cast<size_t>(
+                std::lround(static_cast<double>(i) * static_cast<double>(profile.size() - 1) /
+                    static_cast<double>(maxPoints - 1)));
+            if (sampled.empty() ||
+                std::abs(profile[index].y - sampled.back().y) > 1e-6 ||
+                std::abs(profile[index].x - sampled.back().x) > 1e-6) {
+                sampled.push_back(profile[index]);
+            }
+        }
+        return sampled;
+    }
+
+    cv::Point2d FindNearestPointOnPath(
+        const cv::Point2d& target,
+        const std::vector<cv::Point2d>& candidates)
+    {
+        if (candidates.empty()) {
+            return target;
+        }
+
+        size_t bestIndex = 0;
+        double bestDist2 = std::numeric_limits<double>::max();
+        for (size_t i = 0; i < candidates.size(); ++i) {
+            const double dx = candidates[i].x - target.x;
+            const double dy = candidates[i].y - target.y;
+            const double dist2 = dx * dx + dy * dy;
+            if (dist2 < bestDist2) {
+                bestDist2 = dist2;
+                bestIndex = i;
+            }
+        }
+        return candidates[bestIndex];
+    }
+
+    void SnapPointsToRawPath(
+        std::vector<cv::Point2d>& smoothedPts,
+        const std::vector<cv::Point2d>& rawPts)
+    {
+        for (size_t i = 0; i < smoothedPts.size(); ++i) {
+            smoothedPts[i] = FindNearestPointOnPath(smoothedPts[i], rawPts);
+        }
+    }
+}
 
 // ══════════════════════════════════════════════════════════════════════════════
 //  建構子
@@ -47,14 +170,14 @@ void GluePathOptimizer::OptimizePath(
     bool isLeftPrimary = false;
 
     if (shoeType == 2) {
-        primaryRawPtr = &leftRaw;
-        secondaryRawPtr = &rightRaw;
-        isLeftPrimary = true;
-    }
-    else if (shoeType == 1) {
         primaryRawPtr = &rightRaw;
         secondaryRawPtr = &leftRaw;
         isLeftPrimary = false;
+    }
+    else if (shoeType == 1) {
+        primaryRawPtr = &leftRaw;
+        secondaryRawPtr = &rightRaw;
+        isLeftPrimary = true;
     }
     else if (rightRaw.size() >= leftRaw.size()) {
         primaryRawPtr = &rightRaw;
@@ -73,7 +196,25 @@ void GluePathOptimizer::OptimizePath(
         return;
     }
 
-    std::vector<cv::Point2d> primarySmoothPts = FitCurve(*primaryRawPtr, 30);
+    const bool primaryIsRightSide = !isLeftPrimary;
+    const bool secondaryIsRightSide = isLeftPrimary;
+
+    std::vector<cv::Point2d> primaryProfile =
+        BuildSideProfileByY(*primaryRawPtr, primaryIsRightSide);
+    std::vector<cv::Point2d> secondaryProfile =
+        BuildSideProfileByY(*secondaryRawPtr, secondaryIsRightSide);
+
+    if (!primaryProfile.empty() && !secondaryProfile.empty()) {
+        const double commonYMin = (std::max)(primaryProfile.front().y, secondaryProfile.front().y);
+        const double commonYMax = (std::min)(primaryProfile.back().y, secondaryProfile.back().y);
+        if (commonYMin <= commonYMax) {
+            primaryProfile = FilterProfileByYRange(primaryProfile, commonYMin, commonYMax);
+            secondaryProfile = FilterProfileByYRange(secondaryProfile, commonYMin, commonYMax);
+        }
+    }
+
+    std::vector<cv::Point2d> primarySmoothPts =
+        SampleProfilePoints(primaryProfile, 30);
 
     std::vector<double> targetYs;
     targetYs.reserve(primarySmoothPts.size());
@@ -82,8 +223,15 @@ void GluePathOptimizer::OptimizePath(
     }
 
     std::vector<cv::Point2d> secondarySmoothPts;
-    if (secondaryRawPtr != NULL && !secondaryRawPtr->empty()) {
-        secondarySmoothPts = FitCurveAtGivenY(*secondaryRawPtr, targetYs);
+    if (!secondaryProfile.empty() && !targetYs.empty()) {
+        secondarySmoothPts = FitCurveAtGivenY(secondaryProfile, targetYs);
+
+        // Keep the secondary side anchored to its own profile endpoints so the
+        // first/last point is not lost by interpolation drift near the contour ends.
+        if (!secondarySmoothPts.empty()) {
+            secondarySmoothPts.front().x = secondaryProfile.front().x;
+            secondarySmoothPts.back().x = secondaryProfile.back().x;
+        }
     }
     else {
         secondarySmoothPts = primarySmoothPts;
@@ -92,11 +240,15 @@ void GluePathOptimizer::OptimizePath(
     primarySmoothPts = FilterByMask(primarySmoothPts);
     secondarySmoothPts = FilterByMask(secondarySmoothPts);
 
-    if (primarySmoothPts.empty() || secondarySmoothPts.empty()) {
+    const size_t pairCount = (std::min)(primarySmoothPts.size(), secondarySmoothPts.size());
+    if (pairCount == 0) {
         optimizedPath.PathRight.clear();
         optimizedPath.PathLeft.clear();
         return;
     }
+
+    primarySmoothPts.resize(pairCount);
+    secondarySmoothPts.resize(pairCount);
 
     if (isLeftPrimary) {
         optimizedPath.PathLeft = primarySmoothPts;
@@ -105,6 +257,14 @@ void GluePathOptimizer::OptimizePath(
     else {
         optimizedPath.PathRight = primarySmoothPts;
         optimizedPath.PathLeft = secondarySmoothPts;
+    }
+
+    for (size_t i = 0; i < pairCount; ++i) {
+        const double sharedY = isLeftPrimary
+            ? optimizedPath.PathLeft[i].y
+            : optimizedPath.PathRight[i].y;
+        optimizedPath.PathRight[i].y = sharedY;
+        optimizedPath.PathLeft[i].y = sharedY;
     }
 }
 
@@ -130,34 +290,49 @@ GluePathOptimizer::ComputeArcLengthParam(const std::vector<cv::Point2d>& pts)
 std::vector<cv::Point2d>
 GluePathOptimizer::FitCurve(const std::vector<cv::Point2d>& pts, int targetCount)
 {
-    if (pts.size() < 3) return pts;   // 點太少直接返回
+    if (pts.empty()) return {};
+    if (pts.size() < 2 || targetCount <= 0) return pts;
 
-    // 計算弧長參數 t
-    //auto s = ComputeArcLengthParam(pts);
-    auto s = ComputeArcLengthParam(pts);
-    double sTotal = s.back();
-
-    std::vector<double> xs, ys;
-    xs.reserve(pts.size());
-    ys.reserve(pts.size());
-    for (const auto& p : pts) {
-        xs.push_back(p.x);
-        ys.push_back(p.y);
+    const std::vector<double> arcLengths = ComputeArcLengthParam(pts);
+    const double totalLength = arcLengths.empty() ? 0.0 : arcLengths.back();
+    if (totalLength <= 1e-9) {
+        return pts;
     }
-
-    // 分別對 x(s) 和 y(s) 做 3 次多項式擬合（對 U 型極穩定）
-    std::vector<double> coeffX = PolyFit(s, xs, 4);
-    std::vector<double> coeffY = PolyFit(s, ys, 4);
 
     std::vector<cv::Point2d> result;
     result.reserve(targetCount);
 
     for (int i = 0; i < targetCount; ++i) {
-        double t = (targetCount > 1) ? (sTotal * i) / (targetCount - 1) : 0.0;
-        double x = PolyEval(coeffX, t);
-        double y = PolyEval(coeffY, t);
-        result.emplace_back(x, y);
+        const double targetLength = (targetCount > 1)
+            ? (totalLength * static_cast<double>(i)) / static_cast<double>(targetCount - 1)
+            : 0.0;
+
+        size_t upperIdx = 1;
+        while (upperIdx < arcLengths.size() && arcLengths[upperIdx] < targetLength) {
+            ++upperIdx;
+        }
+
+        if (upperIdx >= arcLengths.size()) {
+            result.push_back(pts.back());
+            continue;
+        }
+
+        const size_t lowerIdx = upperIdx - 1;
+        const double s0 = arcLengths[lowerIdx];
+        const double s1 = arcLengths[upperIdx];
+        const cv::Point2d& p0 = pts[lowerIdx];
+        const cv::Point2d& p1 = pts[upperIdx];
+
+        double alpha = 0.0;
+        if (std::abs(s1 - s0) > 1e-9) {
+            alpha = (targetLength - s0) / (s1 - s0);
+        }
+
+        result.emplace_back(
+            p0.x + alpha * (p1.x - p0.x),
+            p0.y + alpha * (p1.y - p0.y));
     }
+
     return result;
 }
 
@@ -278,13 +453,70 @@ void GluePathOptimizer::SplitByCenter(const std::vector<cv::Point2d>& maskedPath
 {
     rightPts.clear();
     leftPts.clear();
-    const double cx = static_cast<double>(mROI.RefCenterX);
-    for (const auto& pt : maskedPath)
-    {
-        if (pt.x >= cx)
-            rightPts.push_back(pt);
-        else
-            leftPts.push_back(pt);
+    if (maskedPath.empty()) {
+        return;
+    }
+
+    if (maskedPath.size() == 1) {
+        rightPts.push_back(maskedPath.front());
+        return;
+    }
+
+    size_t topIdx = 0;
+    size_t bottomIdx = 0;
+    for (size_t i = 1; i < maskedPath.size(); ++i) {
+        if (maskedPath[i].y < maskedPath[topIdx].y ||
+            (std::abs(maskedPath[i].y - maskedPath[topIdx].y) <= 1e-6 &&
+                maskedPath[i].x < maskedPath[topIdx].x)) {
+            topIdx = i;
+        }
+
+        if (maskedPath[i].y > maskedPath[bottomIdx].y ||
+            (std::abs(maskedPath[i].y - maskedPath[bottomIdx].y) <= 1e-6 &&
+                maskedPath[i].x < maskedPath[bottomIdx].x)) {
+            bottomIdx = i;
+        }
+    }
+
+    std::vector<cv::Point2d> chainA;
+    std::vector<cv::Point2d> chainB;
+
+    size_t idx = topIdx;
+    while (true) {
+        chainA.push_back(maskedPath[idx]);
+        if (idx == bottomIdx) {
+            break;
+        }
+        idx = (idx + 1) % maskedPath.size();
+    }
+
+    idx = topIdx;
+    while (true) {
+        chainB.push_back(maskedPath[idx]);
+        if (idx == bottomIdx) {
+            break;
+        }
+        idx = (idx == 0) ? (maskedPath.size() - 1) : (idx - 1);
+    }
+
+    auto averageX = [](const std::vector<cv::Point2d>& chain) -> double {
+        if (chain.empty()) {
+            return 0.0;
+        }
+        double sumX = 0.0;
+        for (size_t i = 0; i < chain.size(); ++i) {
+            sumX += chain[i].x;
+        }
+        return sumX / static_cast<double>(chain.size());
+    };
+
+    if (averageX(chainA) >= averageX(chainB)) {
+        rightPts = chainA;
+        leftPts = chainB;
+    }
+    else {
+        rightPts = chainB;
+        leftPts = chainA;
     }
 }
 
