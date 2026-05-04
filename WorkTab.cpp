@@ -754,77 +754,79 @@ void WorkTab::ApplySystemConfigRegisters(const std::vector<uint16_t>& values, Sy
 
 void WorkTab::BuildMemStructRegisters(const MemStruct_SP& src, std::vector<uint16_t>& outValues) const
 {
-    outValues.assign(26, 0);
-    outValues[0] = static_cast<uint16_t>(src.RecipeID);
-    outValues[1] = static_cast<uint16_t>(src.CurrentProduction);
-    outValues[2] = static_cast<uint16_t>(src.Set_temperature0);
-    outValues[3] = static_cast<uint16_t>(src.Temperature0);
-    outValues[4] = static_cast<uint16_t>(src.Set_Temperature1);
-    outValues[5] = static_cast<uint16_t>(src.Temperature1);
-    outValues[6] = static_cast<uint16_t>(src.Set_temperature2);
-    outValues[7] = static_cast<uint16_t>(src.Temperature2);
-    outValues[8] = static_cast<uint16_t>(src.Servo_ALE0);
-    outValues[9] = static_cast<uint16_t>(src.Servo_ALE1);
-    outValues[10] = static_cast<uint16_t>(src.Servo_ALE2);
-    outValues[11] = static_cast<uint16_t>(src.Servo_ALE3);
-    outValues[12] = static_cast<uint16_t>(src.i_ProcessingTimeCount);
-    outValues[13] = static_cast<uint16_t>(src.i_SystemTimeCount);
-    outValues[14] = static_cast<uint16_t>(src.MachineID);
-    outValues[15] = static_cast<uint16_t>(src.MachineModel);
-    outValues[16] = src.Alm_tem_not_reach;
-    outValues[17] = src.flag_AL_overload;
-    outValues[18] = src.Alm_airPressureLow;
-    outValues[19] = src.flag_AL_emergency;
-    outValues[20] = src.flag_AL_midside_sensor;
-    outValues[21] = src.Alm_ManualY_GoOut;
-    outValues[22] = src.MachineStatus;
-    outValues[23] = src.WorkingMode;
+    outValues.assign(27, 0);  // 增加到 27 個寄存器
+    outValues[0] = static_cast<uint16_t>(src.CreateToolPath);  // Register 157
+    outValues[1] = static_cast<uint16_t>(src.RecipeID);
+    outValues[2] = static_cast<uint16_t>(src.CurrentProduction);
+    outValues[3] = static_cast<uint16_t>(src.Set_temperature0);
+    outValues[4] = static_cast<uint16_t>(src.Temperature0);
+    outValues[5] = static_cast<uint16_t>(src.Set_Temperature1);
+    outValues[6] = static_cast<uint16_t>(src.Temperature1);
+    outValues[7] = static_cast<uint16_t>(src.Set_temperature2);
+    outValues[8] = static_cast<uint16_t>(src.Temperature2);
+    outValues[9] = static_cast<uint16_t>(src.Servo_ALE0);
+    outValues[10] = static_cast<uint16_t>(src.Servo_ALE1);
+    outValues[11] = static_cast<uint16_t>(src.Servo_ALE2);
+    outValues[12] = static_cast<uint16_t>(src.Servo_ALE3);
+    outValues[13] = static_cast<uint16_t>(src.i_ProcessingTimeCount);
+    outValues[14] = static_cast<uint16_t>(src.i_SystemTimeCount);
+    outValues[15] = static_cast<uint16_t>(src.MachineID);
+    outValues[16] = static_cast<uint16_t>(src.MachineModel);
+    outValues[17] = src.Alm_tem_not_reach;
+    outValues[18] = src.flag_AL_overload;
+    outValues[19] = src.Alm_airPressureLow;
+    outValues[20] = src.flag_AL_emergency;
+    outValues[21] = src.flag_AL_midside_sensor;
+    outValues[22] = src.Alm_ManualY_GoOut;
+    outValues[23] = src.MachineStatus;
+    outValues[24] = src.WorkingMode;
 
     union FloatBits {
         float f;
         uint32_t u;
     } value{};
     value.f = src.p19;
-    outValues[24] = static_cast<uint16_t>((value.u >> 16) & 0xFFFF);
-    outValues[25] = static_cast<uint16_t>(value.u & 0xFFFF);
+    outValues[25] = static_cast<uint16_t>((value.u >> 16) & 0xFFFF);
+    outValues[26] = static_cast<uint16_t>(value.u & 0xFFFF);
 }
 
 void WorkTab::ApplyMemStructRegisters(const std::vector<uint16_t>& values, MemStruct_SP& dst) const
 {
-    if (values.size() < 26) {
+    if (values.size() < 27) {  // 增加到 27 個寄存器
         return;
     }
 
-    dst.RecipeID = values[0];
-    dst.CurrentProduction = values[1];
-    dst.Set_temperature0 = values[2];
-    dst.Temperature0 = values[3];
-    dst.Set_Temperature1 = values[4];
-    dst.Temperature1 = values[5];
-    dst.Set_temperature2 = values[6];
-    dst.Temperature2 = values[7];
-    dst.Servo_ALE0 = values[8];
-    dst.Servo_ALE1 = values[9];
-    dst.Servo_ALE2 = values[10];
-    dst.Servo_ALE3 = values[11];
-    dst.i_ProcessingTimeCount = values[12];
-    dst.i_SystemTimeCount = values[13];
-    dst.MachineID = values[14];
-    dst.MachineModel = values[15];
-    dst.Alm_tem_not_reach = static_cast<uint8_t>(values[16]);
-    dst.flag_AL_overload = static_cast<uint8_t>(values[17]);
-    dst.Alm_airPressureLow = static_cast<uint8_t>(values[18]);
-    dst.flag_AL_emergency = static_cast<uint8_t>(values[19]);
-    dst.flag_AL_midside_sensor = static_cast<uint8_t>(values[20]);
-    dst.Alm_ManualY_GoOut = static_cast<uint8_t>(values[21]);
-    dst.MachineStatus = static_cast<uint8_t>(values[22]);
-    dst.WorkingMode = static_cast<uint8_t>(values[23]);
+    dst.CreateToolPath = values[0];  // Register 157 的值寫入 CreateToolPath
+    dst.RecipeID = values[1];
+    dst.CurrentProduction = values[2];
+    dst.Set_temperature0 = values[3];
+    dst.Temperature0 = values[4];
+    dst.Set_Temperature1 = values[5];
+    dst.Temperature1 = values[6];
+    dst.Set_temperature2 = values[7];
+    dst.Temperature2 = values[8];
+    dst.Servo_ALE0 = values[9];
+    dst.Servo_ALE1 = values[10];
+    dst.Servo_ALE2 = values[11];
+    dst.Servo_ALE3 = values[12];
+    dst.i_ProcessingTimeCount = values[13];
+    dst.i_SystemTimeCount = values[14];
+    dst.MachineID = values[15];
+    dst.MachineModel = values[16];
+    dst.Alm_tem_not_reach = static_cast<uint8_t>(values[17]);
+    dst.flag_AL_overload = static_cast<uint8_t>(values[18]);
+    dst.Alm_airPressureLow = static_cast<uint8_t>(values[19]);
+    dst.flag_AL_emergency = static_cast<uint8_t>(values[20]);
+    dst.flag_AL_midside_sensor = static_cast<uint8_t>(values[21]);
+    dst.Alm_ManualY_GoOut = static_cast<uint8_t>(values[22]);
+    dst.MachineStatus = static_cast<uint8_t>(values[23]);
+    dst.WorkingMode = static_cast<uint8_t>(values[24]);
 
     union FloatBits {
         float f;
         uint32_t u;
     } value{};
-    value.u = (static_cast<uint32_t>(values[24]) << 16) | values[25];
+    value.u = (static_cast<uint32_t>(values[25]) << 16) | values[26];
     dst.p19 = value.f;
 }
 
@@ -887,7 +889,8 @@ bool WorkTab::IsSystemConfigDisplayDataValid(const SystemConfigA& value) const
 
 bool WorkTab::IsMemStructEqual(const MemStruct_SP& lhs, const MemStruct_SP& rhs) const
 {
-    return lhs.RecipeID == rhs.RecipeID &&
+    return lhs.CreateToolPath == rhs.CreateToolPath &&
+        lhs.RecipeID == rhs.RecipeID &&
         lhs.CurrentProduction == rhs.CurrentProduction &&
         lhs.Set_temperature0 == rhs.Set_temperature0 &&
         lhs.Temperature0 == rhs.Temperature0 &&
@@ -2209,7 +2212,7 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
 	cv::flip(imgClone, imgClone, -1); // 提取路徑前先將輸入影像旋轉 180 度。
 
 	pParentWnd->m_SystemPara.BinaryUpper = 255;
-	pParentWnd->m_SystemPara.BinaryLower = 200; 
+	pParentWnd->m_SystemPara.BinaryLower = 210; 
 
 
     GetToolPath_CurvatureOptimized_Mask(
@@ -2446,7 +2449,6 @@ void WorkTab::OnBnClickedIdcWorkGo()
         AfxMessageBox(_T("路徑座標轉換失敗，無法產生 Machine/HMI 路徑。"));
         return;
     }
-
 
     /*
      //增加測試功能：將優化後的膠路點位寫入 PLC (AX-3 系列) 的 Modbus TCP 寄存器中
@@ -3250,7 +3252,7 @@ bool WorkTab::SyncReadAndUpdateMemStruct(int stationID)
 {
     constexpr int kMemStructStart = 157;
     std::vector<uint16_t> values;
-    if (!ReadHoldingRegistersBlock(kMemStructStart, 26, values, stationID)) {
+    if (!ReadHoldingRegistersBlock(kMemStructStart, 27, values, stationID)) {  // 增加到 27 個寄存器
         return false;
     }
 

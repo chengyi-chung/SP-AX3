@@ -64,32 +64,33 @@
 
 | Modbus Register | `MemStruct_SP` 成員 | 備註 |
 |---|---|---|
-| 157 | `RecipeID` | `uint16_t` |
-| 158 | `CurrentProduction` | `uint16_t` |
-| 159 | `Set_temperature0` | `uint16_t` |
-| 160 | `Temperature0` | `uint16_t` |
-| 161 | `Set_Temperature1` | `uint16_t` |
-| 162 | `Temperature1` | `uint16_t` |
-| 163 | `Set_temperature2` | `uint16_t` |
-| 164 | `Temperature2` | `uint16_t` |
-| 165 | `Servo_ALE0` | `uint16_t` |
-| 166 | `Servo_ALE1` | `uint16_t` |
-| 167 | `Servo_ALE2` | `uint16_t` |
-| 168 | `Servo_ALE3` | `uint16_t` |
-| 169 | `i_ProcessingTimeCount` | `uint16_t` |
-| 170 | `i_SystemTimeCount` | `uint16_t` |
-| 171 | `MachineID` | `uint16_t` |
-| 172 | `MachineModel` | `uint16_t` |
-| 173 | `Alm_tem_not_reach` | `uint8_t` |
-| 174 | `flag_AL_overload` | `uint8_t` |
-| 175 | `Alm_airPressureLow` | `uint8_t` |
-| 176 | `flag_AL_emergency` | `uint8_t` |
-| 177 | `flag_AL_midside_sensor` | `uint8_t` |
-| 178 | `Alm_ManualY_GoOut` | `uint8_t` |
-| 179 | `MachineStatus` | `uint8_t` |
-| 180 | `WorkingMode` | `uint8_t` |
-| 181 | `p19` 高 16-bit | `float` 拆高位 |
-| 182 | `p19` 低 16-bit | `float` 拆低位 |
+| 157 | `CreateToolPath` | `uint16_t` 控制是否建立工具路徑 |
+| 158 | `RecipeID` | `uint16_t` |
+| 159 | `CurrentProduction` | `uint16_t` |
+| 160 | `Set_temperature0` | `uint16_t` |
+| 161 | `Temperature0` | `uint16_t` |
+| 162 | `Set_Temperature1` | `uint16_t` |
+| 163 | `Temperature1` | `uint16_t` |
+| 164 | `Set_temperature2` | `uint16_t` |
+| 165 | `Temperature2` | `uint16_t` |
+| 166 | `Servo_ALE0` | `uint16_t` |
+| 167 | `Servo_ALE1` | `uint16_t` |
+| 168 | `Servo_ALE2` | `uint16_t` |
+| 169 | `Servo_ALE3` | `uint16_t` |
+| 170 | `i_ProcessingTimeCount` | `uint16_t` |
+| 171 | `i_SystemTimeCount` | `uint16_t` |
+| 172 | `MachineID` | `uint16_t` |
+| 173 | `MachineModel` | `uint16_t` |
+| 174 | `Alm_tem_not_reach` | `uint8_t` |
+| 175 | `flag_AL_overload` | `uint8_t` |
+| 176 | `Alm_airPressureLow` | `uint8_t` |
+| 177 | `flag_AL_emergency` | `uint8_t` |
+| 178 | `flag_AL_midside_sensor` | `uint8_t` |
+| 179 | `Alm_ManualY_GoOut` | `uint8_t` |
+| 180 | `MachineStatus` | `uint8_t` |
+| 181 | `WorkingMode` | `uint8_t` |
+| 182 | `p19` 高 16-bit | `float` 拆高位 |
+| 183 | `p19` 低 16-bit | `float` 拆低位 |
 
 ## 4. 目前同步方向
 
