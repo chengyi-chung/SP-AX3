@@ -2280,7 +2280,7 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
         0.0008,
         pParentWnd->m_SystemPara.BinaryUpper,
         pParentWnd->m_SystemPara.BinaryLower,
-         true);
+        false);
 
 	// 此時 toolPath 中的點原本是基於 pathSourceImage 左上角的 pixel 座標。
 	// 若校正流程有做方向翻轉，則再把點翻回 correctedImage 的顯示方向。

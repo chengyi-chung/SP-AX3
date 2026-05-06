@@ -353,29 +353,17 @@ void GetToolPath_CurvatureOptimized_Mask(
 {
 	if (ImgSrc.empty()) throw std::invalid_argument("Input image is empty.");
 
-	// 1. Erode the source image by the requested inward offset in pixels
-	cv::Mat processed;
-	int numPixelsToErode = static_cast<int>(std::lround(offsetPixel));
-	if (numPixelsToErode > 0) {
-		cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
-		cv::erode(ImgSrc, processed, kernel, cv::Point(-1, -1), numPixelsToErode);
-	}
-	else {
-		processed = ImgSrc.clone();
-	}
-
-	// 2. Convert to grayscale.
+	// 1. Convert to grayscale and apply ROI before erosion.
 	cv::Mat gray;
-	if (processed.channels() == 3) cv::cvtColor(processed, gray, cv::COLOR_BGR2GRAY);
-	else gray = processed;
+	if (ImgSrc.channels() == 3) cv::cvtColor(ImgSrc, gray, cv::COLOR_BGR2GRAY);
+	else gray = ImgSrc.clone();
 
-	// 3. Apply binary mask before extracting contours.
+	cv::Mat maskGray;
 	if (!Mask.empty()) {
-		cv::Mat maskGray;
 		if (Mask.channels() == 3)
 			cv::cvtColor(Mask, maskGray, cv::COLOR_BGR2GRAY);
 		else
-			maskGray = Mask;
+			maskGray = Mask.clone();
 
 		cv::threshold(maskGray, maskGray, 1, 255, cv::THRESH_BINARY);
 
@@ -387,23 +375,40 @@ void GetToolPath_CurvatureOptimized_Mask(
 
 		std::cout << "[DEBUG] After Mask, non-zero pixels: " << cv::countNonZero(gray) << std::endl;
 	}
+	else {
+		maskGray = cv::Mat(gray.size(), CV_8UC1, cv::Scalar(255));
+	}
 
-	// 4. Binarize with configured lower/upper bounds.
+	// 2. Binarize with configured lower/upper bounds.
 	int lowerBound = (std::max)(0, (std::min)(255, binaryLower));
 	int upperBound = (std::max)(0, (std::min)(255, binaryUpper));
 	if (lowerBound > upperBound) {
 		std::swap(lowerBound, upperBound);
 	}
 	cv::inRange(gray, cv::Scalar(lowerBound), cv::Scalar(upperBound), gray);
+	cv::bitwise_and(gray, maskGray, gray);
 
-	// 5. Extract outer contours.
+	// 3. Erode inside ROI only. Pixels outside ROI are treated as foreground
+	// so shapes touching the ROI boundary are not eroded by the ROI edge.
+	int numPixelsToErode = static_cast<int>(std::lround(offsetPixel));
+	if (numPixelsToErode > 0) {
+		cv::Mat erodeInput = gray.clone();
+		erodeInput.setTo(255, maskGray == 0);
+
+		cv::Mat eroded;
+		cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
+		cv::erode(erodeInput, eroded, kernel, cv::Point(-1, -1), numPixelsToErode);
+		cv::bitwise_and(eroded, maskGray, gray);
+	}
+
+	// 4. Extract outer contours.
 	std::vector<std::vector<cv::Point>> contours;
 	cv::findContours(gray, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_TC89_L1);
 
 	toolpath.Path.clear();
 	toolpath.Offset = cv::Point2d(offsetPixel, 0.0);
 
-	// 6. Either simplify contours or keep original contour points.
+	// 5. Either simplify contours or keep original contour points.
 	for (const auto& contour : contours)
 	{
 		if (contour.size() < 3) continue;
