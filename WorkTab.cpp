@@ -223,6 +223,62 @@ void FilterGluePathByRoiAndLimit(GluePath& gluePath, const cv::Rect& roiRect, si
     gluePath.PathLeft = std::move(filteredLeft);
 }
 
+void NormalizeGluePathPairCount(GluePath& gluePath)
+{
+    auto pointAtY = [](const std::vector<cv::Point2d>& pts, double targetY) -> cv::Point2d {
+        if (pts.empty()) {
+            return cv::Point2d(0.0, targetY);
+        }
+
+        if (pts.size() == 1) {
+            return cv::Point2d(pts.front().x, targetY);
+        }
+
+        const cv::Point2d* p0 = &pts[pts.size() - 2];
+        const cv::Point2d* p1 = &pts.back();
+        if (targetY < pts.front().y) {
+            p0 = &pts.front();
+            p1 = &pts[1];
+        }
+
+        const double dy = p1->y - p0->y;
+        if (std::abs(dy) < 1e-6) {
+            return cv::Point2d(p1->x, targetY);
+        }
+
+        const double t = (targetY - p0->y) / dy;
+        return cv::Point2d(p0->x + (p1->x - p0->x) * t, targetY);
+    };
+
+    if (gluePath.PathRight.empty() || gluePath.PathLeft.empty()) {
+        gluePath.PathRight.clear();
+        gluePath.PathLeft.clear();
+        return;
+    }
+
+    const size_t targetCount = (std::min)(
+        static_cast<size_t>(30),
+        (std::max)(gluePath.PathRight.size(), gluePath.PathLeft.size()));
+
+    while (gluePath.PathLeft.size() < targetCount) {
+        const size_t targetIndex = gluePath.PathLeft.size();
+        const double targetY = gluePath.PathRight[(std::min)(targetIndex, gluePath.PathRight.size() - 1)].y;
+        gluePath.PathLeft.push_back(pointAtY(gluePath.PathLeft, targetY));
+    }
+
+    while (gluePath.PathRight.size() < targetCount) {
+        const size_t targetIndex = gluePath.PathRight.size();
+        const double targetY = gluePath.PathLeft[(std::min)(targetIndex, gluePath.PathLeft.size() - 1)].y;
+        gluePath.PathRight.push_back(pointAtY(gluePath.PathRight, targetY));
+    }
+
+    gluePath.PathRight.resize(targetCount);
+    gluePath.PathLeft.resize(targetCount);
+    for (size_t i = 0; i < targetCount; ++i) {
+        gluePath.PathLeft[i].y = gluePath.PathRight[i].y;
+    }
+}
+
 void ExportGluePathAsToolCSV(const GluePath& gluePath, const std::string& fileName, const char* unit = "")
 {
     const size_t count = (std::min)(gluePath.PathRight.size(), gluePath.PathLeft.size());
@@ -2250,6 +2306,15 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
     roiOpt.MaskWidth = MaskWidth; roiOpt.MaskHeight = MaskHeight;
     roiOpt.RefCenterX = this->referenceX;
     roiOpt.RefCenterY = this->referenceY;
+    const double entryTransferFactor =
+        (pParentWnd && pParentWnd->m_SystemPara.TransferFactor > 0.0f)
+        ? static_cast<double>(pParentWnd->m_SystemPara.TransferFactor)
+        : 1.0;
+    const double entryPointXMm = pParentWnd
+        ? static_cast<double>(pParentWnd->m_SystemPara.EntryPointX)
+        : 0.0;
+    roiOpt.EntryPointX = static_cast<double>(this->referenceX) +
+        entryPointXMm / entryTransferFactor;
 
     // 直接傳入成員變數，避免重複拷貝
     // 注意：OutputPath 建議定義為類別成員，以便後續繪圖或傳送給 PLC
@@ -2257,6 +2322,7 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
 
 	// 分割成左、右兩條路徑優化，輸出的 finalPath 仍以影像左上角為原點、單位為 pixel。
     OptimizeGluePath(this->toolPath.Path, roiOpt, finalPath, 2);
+    NormalizeGluePathPairCount(finalPath);
 
     // 校正後的 toolPath 已經透過 ApplyConfiguredFlipToToolPath(...)
     // 翻回 correctedImage 的顯示方向。
@@ -2269,6 +2335,7 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
     // 只保留 ROI 內的有效路徑點，並限制最多輸出 30 筆。
     // 30 是上限，若有效點數小於 30 則直接接受。
     FilterGluePathByRoiAndLimit(finalPath, roiRect, 30);
+    NormalizeGluePathPairCount(finalPath);
 
     // 9. 儲存或顯示結果
 	// m_OptimizedGluePath：原點為 correctedImage 左上角，單位為 pixel
@@ -3311,6 +3378,7 @@ void WorkTab::OnBnClickedCheckWorkRoi()
 void WorkTab::ConvertToMachineCoordinates()
 {
     CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
+    NormalizeGluePathPairCount(m_OptimizedGluePath);
 
     // 每次重建前先清空舊資料，避免路徑重複累加。
     m_machineGluePath.PathRight.clear();
@@ -3331,59 +3399,48 @@ void WorkTab::ConvertToMachineCoordinates()
 
     constexpr double HMI_TEMP_SCALE = 10.0;
 
-    // 右側膠路：
-    // optimized pixel -> machine pixel(X右正、Y下正) -> machine mm -> HMI temp(mm x10) -> HMI display(integer)
-    for (const auto& pt : m_OptimizedGluePath.PathRight) {
-        // 1. 以 referenceX/referenceY 當作機械原點，X 向右為正、Y 向下為正，只重構座標值。
-        cv::Point2d machinePt;
-        machinePt.x = pt.x - referenceX;
-        machinePt.y = pt.y - referenceY;
-        m_machineGluePath.PathRight.push_back(machinePt);
+    auto convertPoint = [this, transferFactor, HMI_TEMP_SCALE](const cv::Point2d& pt,
+        std::vector<cv::Point2d>& machinePath,
+        std::vector<cv::Point2d>& machineMmPath,
+        std::vector<cv::Point2d>& hmiTempPath,
+        std::vector<cv::Point2d>& hmiPath) {
+            cv::Point2d machinePt;
+            machinePt.x = pt.x - referenceX;
+            machinePt.y = pt.y - referenceY;
+            machinePath.push_back(machinePt);
 
-        // 2. 將 machine pixel 乘上 mm/pixel 係數，得到機械座標(mm)。
-        cv::Point2d machinePtMm;
-        machinePtMm.x = machinePt.x * transferFactor;
-        machinePtMm.y = machinePt.y * transferFactor;
-        m_machineGluePath_mm.PathRight.push_back(machinePtMm);
+            cv::Point2d machinePtMm;
+            machinePtMm.x = machinePt.x * transferFactor;
+            machinePtMm.y = machinePt.y * transferFactor;
+            machineMmPath.push_back(machinePtMm);
 
-        // 3. 將機械 mm 座標乘上 10，得到 HMI 暫存座標。
-        cv::Point2d hmiTemp;
-        hmiTemp.x = machinePtMm.x * HMI_TEMP_SCALE;
-        hmiTemp.y = machinePtMm.y * HMI_TEMP_SCALE;
-        m_HMIGluePath_temp.PathRight.push_back(hmiTemp);
+            cv::Point2d hmiTemp;
+            hmiTemp.x = machinePtMm.x * HMI_TEMP_SCALE;
+            hmiTemp.y = machinePtMm.y * HMI_TEMP_SCALE;
+            hmiTempPath.push_back(hmiTemp);
 
-        // 4. 直接取整數，得到最終 HMI 顯示座標。
-        cv::Point2d hmiPt;
-        hmiPt.x = std::lround(hmiTemp.x);
-        hmiPt.y = std::lround(hmiTemp.y);
-        m_HMIGluePath.PathRight.push_back(hmiPt);
-    }
+            cv::Point2d hmiPt;
+            hmiPt.x = std::lround(hmiTemp.x);
+            hmiPt.y = std::lround(hmiTemp.y);
+            hmiPath.push_back(hmiPt);
+        };
 
-    // 左側膠路與右側使用完全相同的轉換流程。
-    for (const auto& pt : m_OptimizedGluePath.PathLeft) {
-        // 1. optimized pixel -> machine pixel (X右正、Y下正)
-        cv::Point2d machinePt;
-        machinePt.x = pt.x - referenceX;
-        machinePt.y = pt.y - referenceY;
-        m_machineGluePath.PathLeft.push_back(machinePt);
-
-        // 2. machine pixel -> machine mm
-        cv::Point2d machinePtMm;
-        machinePtMm.x = machinePt.x * transferFactor;
-        machinePtMm.y = machinePt.y * transferFactor;
-        m_machineGluePath_mm.PathLeft.push_back(machinePtMm);
-
-        // 3. machine mm -> HMI temp(mm x10)
-        cv::Point2d hmiTemp;
-        hmiTemp.x = machinePtMm.x * HMI_TEMP_SCALE;
-        hmiTemp.y = machinePtMm.y * HMI_TEMP_SCALE;
-        m_HMIGluePath_temp.PathLeft.push_back(hmiTemp);
-
-        // 4. HMI temp -> HMI display(integer)
-        cv::Point2d hmiPt;
-        hmiPt.x = std::lround(hmiTemp.x);
-        hmiPt.y = std::lround(hmiTemp.y);
-        m_HMIGluePath.PathLeft.push_back(hmiPt);
+    const size_t pairCount = (std::min)(m_OptimizedGluePath.PathRight.size(), m_OptimizedGluePath.PathLeft.size());
+    for (size_t i = 0; i < pairCount; ++i) {
+        convertPoint(m_OptimizedGluePath.PathRight[i],
+            m_machineGluePath.PathRight,
+            m_machineGluePath_mm.PathRight,
+            m_HMIGluePath_temp.PathRight,
+            m_HMIGluePath.PathRight);
+        convertPoint(m_OptimizedGluePath.PathLeft[i],
+            m_machineGluePath.PathLeft,
+            m_machineGluePath_mm.PathLeft,
+            m_HMIGluePath_temp.PathLeft,
+            m_HMIGluePath.PathLeft);
+        m_machineGluePath.PathLeft[i].y = m_machineGluePath.PathRight[i].y;
+        m_machineGluePath_mm.PathLeft[i].y = m_machineGluePath_mm.PathRight[i].y;
+        m_HMIGluePath_temp.PathLeft[i].y = m_HMIGluePath_temp.PathRight[i].y;
+        m_HMIGluePath.PathLeft[i].y = m_HMIGluePath.PathRight[i].y;
     }
 }
 

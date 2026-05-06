@@ -23,12 +23,13 @@ struct GluePath
 
 struct ROIMask
 {
-    int MaskX;       // ROI 左上角 X
-    int MaskY;       // ROI 左上角 Y
-    int MaskWidth;   // ROI 寬度
-    int MaskHeight;  // ROI 高度
-    int RefCenterX;  // 分割左右的參考中心 X（僅用於分割，不再用於鏡射）
-    int RefCenterY;  // 參考中心 Y（保留未來使用）
+    int MaskX;       // ROI left X
+    int MaskY;       // ROI top Y
+    int MaskWidth;   // ROI width
+    int MaskHeight;  // ROI height
+    int RefCenterX;  // center X for side split and mirror
+    int RefCenterY;  // reserved center Y
+    double EntryPointX; // entry X in image pixels; caller converts ini mm
 };
 
 
