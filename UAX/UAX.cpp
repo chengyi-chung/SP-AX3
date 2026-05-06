@@ -1773,6 +1773,7 @@ void WriteConfigToFile_SP(const std::string& filename, const SystemConfigA& SysC
 	file << "[ToolPath]\n";
 	file << std::fixed << std::setprecision(4);
 	file << "OffsetValue=" << SysConfig.OffsetValue << "\n";
+	file << "EntryPointX=" << SysConfig.EntryPointX << "\n";
 	file << "TransferFactor=" << SysConfig.TransferFactor << "\n";
 
 	file << "[Camera]\n";
@@ -1838,6 +1839,7 @@ void InitialConfigA(const std::string& filename, SystemConfigA& SysConfig)
 	SysConfig.MaskWidth = 650;
 	SysConfig.MaskHeight = 870;	
 	SysConfig.OffsetValue = 10.0f;
+	SysConfig.EntryPointX = 0.0f;
 	SysConfig.ImageFlip = 2;   
 	SysConfig.RefCenterX = 695.0f;
 	SysConfig.RefCenterY = 194.0f;
@@ -2013,6 +2015,8 @@ int ReadSystemConfig_SP(const std::string& filename, SystemConfigA& SysConfig)
 		s = s.substr(start, end - start + 1);
 		};
 
+	SysConfig.EntryPointX = 0.0f;
+
 	std::string line;
 
 	while (std::getline(file, line))
@@ -2032,6 +2036,7 @@ int ReadSystemConfig_SP(const std::string& filename, SystemConfigA& SysConfig)
 			else if (key == "Port")              SysConfig.Port = std::stoi(val);
 			else if (key == "StationID")         SysConfig.StationID = std::stoi(val);
 			else if (key == "OffsetValue")       SysConfig.OffsetValue = std::stof(val);
+			else if (key == "EntryPointX")       SysConfig.EntryPointX = std::stof(val);
 			else if (key == "TransferFactor")    SysConfig.TransferFactor = std::stof(val);
 
 			else if (key == "CameraID")          SysConfig.CameraID = std::stoi(val);

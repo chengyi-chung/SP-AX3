@@ -836,6 +836,7 @@ bool WorkTab::IsSystemConfigEqual(const SystemConfigA& lhs, const SystemConfigA&
         lhs.Port == rhs.Port &&
         lhs.StationID == rhs.StationID &&
         lhs.OffsetValue == rhs.OffsetValue &&
+        lhs.EntryPointX == rhs.EntryPointX &&
         lhs.CameraID == rhs.CameraID &&
         lhs.CameraWidth == rhs.CameraWidth &&
         lhs.CameraHeight == rhs.CameraHeight &&

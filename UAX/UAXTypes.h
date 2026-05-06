@@ -77,6 +77,7 @@ struct SystemConfigA  // For AX-3 PLC, SP Shoe Last Machine
     int Port;
     int StationID;
     float OffsetValue;
+    float EntryPointX;
     int CameraID;
     char MACKey[18];
     char GoldenKey[18];

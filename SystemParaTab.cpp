@@ -233,7 +233,8 @@ void SystemParaTab::UpdateControl()
 			_T("端口: %d\r\n")
 			_T("站點 ID: %d\r\n\r\n")
 			_T("工具路徑配置:\r\n")
-			_T("偏移值: %.4f\r\n\r\n")
+			_T("偏移值: %.4f\r\n")
+			_T("EntryPointX: %.4f\r\n\r\n")
 			_T("相機配置:\r\n")
 			_T("相機 ID: %d\r\n")
 			_T("MAC 位址: %s\r\n")
@@ -255,6 +256,7 @@ void SystemParaTab::UpdateControl()
 			pParentWnd->m_SystemPara.Port,
 			pParentWnd->m_SystemPara.StationID,
 			pParentWnd->m_SystemPara.OffsetValue,
+			pParentWnd->m_SystemPara.EntryPointX,
 			pParentWnd->m_SystemPara.CameraID,
 			macKey,
 			goldenKey,
@@ -283,6 +285,7 @@ void SystemParaTab::UpdateControl()
 			_T("DisplayRefLine: %d\r\n")
 			_T("TabWork: %d\r\n")
 			_T("OffsetValue: %.3f\r\n")
+			_T("EntryPointX: %.3f\r\n")
 			_T("BinaryUpper: %d\r\n")
 			_T("BinaryLower: %d\r\n")
 			_T("MaskX/Y/W/H: %d / %d / %d / %d\r\n")
@@ -299,6 +302,7 @@ void SystemParaTab::UpdateControl()
 			pParentWnd->m_SystemPara.DisplayRefLine,
 			pParentWnd->m_SystemPara.TabWork,
 			pParentWnd->m_SystemPara.OffsetValue,
+			pParentWnd->m_SystemPara.EntryPointX,
 			pParentWnd->m_SystemPara.BinaryUpper,
 			pParentWnd->m_SystemPara.BinaryLower,
 			pParentWnd->m_SystemPara.MaskX,
