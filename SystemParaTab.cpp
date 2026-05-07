@@ -279,7 +279,7 @@ void SystemParaTab::UpdateControl()
 		CString liveSystemConfig;
 		liveSystemConfig.Format(
 			_T("ImageBinary: %d\r\n")
-			_T("CreateToolPath: %d\r\n")
+			_T("CreateToolPath (Register 157): %d\r\n")
 			_T("DispalyToolPath: %d\r\n")
 			_T("DisplayROI: %d\r\n")
 			_T("DisplayRefLine: %d\r\n")
@@ -373,4 +373,3 @@ void SystemParaTab::UpdateControl()
 		}
 	}
 }
-

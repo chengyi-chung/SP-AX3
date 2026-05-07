@@ -109,7 +109,7 @@ struct SystemConfigA  // For AX-3 PLC, SP Shoe Last Machine
 
 struct MemStruct_SP   //For SP Shoe Last Machine, IOT
 {
-    int CreateToolPath; // 從 register 157 讀取的值，控制是否建立工具路徑
+    int CreateToolPath; // 保留欄位；Register 157 歸類於 SystemConfigA::CreateToolPath
     int RecipeID;
     int CurrentProduction;
     int Set_temperature0;

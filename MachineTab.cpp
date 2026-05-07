@@ -135,7 +135,7 @@ void MachineTab::OpenModBus()
 	}
 
 	constexpr int kSystemConfigStart = 139;
-	constexpr int kMemStructStart = 157;
+	constexpr int kMemStructStart = 114;
 	std::vector<uint16_t> regs;
 
 	// 啟動時以 SystemConfig.ini 載入到 m_SystemPara 的值為準，直接寫入 HMI。
@@ -147,7 +147,7 @@ void MachineTab::OpenModBus()
 
 	// MemStruct_SP 視為 HMI/PLC 執行期資料來源，啟動後只讀回主程式，不主動覆蓋遠端。
 	MemStruct_SP remoteMem = pParentWnd->m_MemStruct_SP;
-	if (ReadHoldingRegistersBlock(kMemStructStart, 26, regs, slaveId)) {
+	if (ReadHoldingRegistersBlock(kMemStructStart, 25, regs, slaveId)) {
 		ApplyMemStructRegisters(regs, remoteMem);
 		pParentWnd->m_MemStruct_SP = remoteMem;
 	}
@@ -1163,7 +1163,7 @@ bool MachineTab::ReadRegisterStringBlock(int startAddress, int count, char* outB
 
 void MachineTab::BuildSystemConfigRegisters(const SystemConfigA& src, std::vector<uint16_t>& outValues) const
 {
-	outValues.assign(18, 0);
+	outValues.assign(19, 0);
 	outValues[0] = static_cast<uint16_t>(src.ImageBinary);
 	outValues[1] = static_cast<uint16_t>(src.CreateToolPath);
 	outValues[2] = static_cast<uint16_t>(src.DispalyToolPath);
@@ -1182,11 +1182,12 @@ void MachineTab::BuildSystemConfigRegisters(const SystemConfigA& src, std::vecto
 	outValues[15] = static_cast<uint16_t>(src.RefCenterX);
 	outValues[16] = static_cast<uint16_t>(src.RefCenterY);
 	outValues[17] = static_cast<uint16_t>(src.ImageFlip);
+	outValues[18] = static_cast<uint16_t>(src.CreateToolPath);  // Register 157
 }
 
 void MachineTab::ApplySystemConfigRegisters(const std::vector<uint16_t>& values, SystemConfigA& dst) const
 {
-	if (values.size() < 18) {
+	if (values.size() < 19) {
 		return;
 	}
 
@@ -1208,24 +1209,25 @@ void MachineTab::ApplySystemConfigRegisters(const std::vector<uint16_t>& values,
 	dst.RefCenterX = values[15];
 	dst.RefCenterY = values[16];
 	dst.ImageFlip = static_cast<short>(values[17]);
+	dst.CreateToolPath = values[18];  // Register 157 belongs to SystemConfigA
 }
 
 void MachineTab::BuildMemStructRegisters(const MemStruct_SP& src, std::vector<uint16_t>& outValues) const
 {
-	outValues.assign(27, 0);  // 增加到 27 個寄存器
-	outValues[0] = static_cast<uint16_t>(src.CreateToolPath);  // Register 157
-	outValues[1] = static_cast<uint16_t>(src.RecipeID);
-	outValues[2] = static_cast<uint16_t>(src.CurrentProduction);
-	outValues[3] = static_cast<uint16_t>(src.Set_temperature0);
-	outValues[4] = static_cast<uint16_t>(src.Temperature0);
-	outValues[5] = static_cast<uint16_t>(src.Set_Temperature1);
-	outValues[6] = static_cast<uint16_t>(src.Temperature1);
-	outValues[7] = static_cast<uint16_t>(src.Set_temperature2);
-	outValues[8] = static_cast<uint16_t>(src.Temperature2);
-	outValues[9] = static_cast<uint16_t>(src.Servo_ALE0);
-	outValues[10] = static_cast<uint16_t>(src.Servo_ALE1);
-	outValues[11] = static_cast<uint16_t>(src.Servo_ALE2);
-	outValues[12] = static_cast<uint16_t>(src.Servo_ALE3);
+	outValues.assign(25, 0);
+	outValues[0] = static_cast<uint16_t>(src.RecipeID);
+	outValues[1] = static_cast<uint16_t>(src.CurrentProduction);
+	outValues[2] = static_cast<uint16_t>(src.Set_temperature0);
+	outValues[3] = static_cast<uint16_t>(src.Temperature0);
+	outValues[4] = static_cast<uint16_t>(src.Set_Temperature1);
+	outValues[5] = static_cast<uint16_t>(src.Temperature1);
+	outValues[6] = static_cast<uint16_t>(src.Set_temperature2);
+	outValues[7] = static_cast<uint16_t>(src.Temperature2);
+	outValues[8] = static_cast<uint16_t>(src.Servo_ALE0);
+	outValues[9] = static_cast<uint16_t>(src.Servo_ALE1);
+	outValues[10] = static_cast<uint16_t>(src.Servo_ALE2);
+	outValues[11] = static_cast<uint16_t>(src.Servo_ALE3);
+	outValues[12] = static_cast<uint16_t>(std::lround(src.p19 * 100.0f));
 	outValues[13] = static_cast<uint16_t>(src.i_ProcessingTimeCount);
 	outValues[14] = static_cast<uint16_t>(src.i_SystemTimeCount);
 	outValues[15] = static_cast<uint16_t>(src.MachineID);
@@ -1238,35 +1240,27 @@ void MachineTab::BuildMemStructRegisters(const MemStruct_SP& src, std::vector<ui
 	outValues[22] = src.Alm_ManualY_GoOut;
 	outValues[23] = src.MachineStatus;
 	outValues[24] = src.WorkingMode;
-
-	union FloatBits {
-		float f;
-		uint32_t u;
-	} value{};
-	value.f = src.p19;
-	outValues[25] = static_cast<uint16_t>((value.u >> 16) & 0xFFFF);
-	outValues[26] = static_cast<uint16_t>(value.u & 0xFFFF);
 }
 
 void MachineTab::ApplyMemStructRegisters(const std::vector<uint16_t>& values, MemStruct_SP& dst) const
 {
-	if (values.size() < 27) {  // 增加到 27 個寄存器
+	if (values.size() < 25) {
 		return;
 	}
 
-	dst.CreateToolPath = values[0];  // Register 157
-	dst.RecipeID = values[1];
-	dst.CurrentProduction = values[2];
-	dst.Set_temperature0 = values[3];
-	dst.Temperature0 = values[4];
-	dst.Set_Temperature1 = values[5];
-	dst.Temperature1 = values[6];
-	dst.Set_temperature2 = values[7];
-	dst.Temperature2 = values[8];
-	dst.Servo_ALE0 = values[9];
-	dst.Servo_ALE1 = values[10];
-	dst.Servo_ALE2 = values[11];
-	dst.Servo_ALE3 = values[12];
+	dst.RecipeID = values[0];
+	dst.CurrentProduction = values[1];
+	dst.Set_temperature0 = values[2];
+	dst.Temperature0 = values[3];
+	dst.Set_Temperature1 = values[4];
+	dst.Temperature1 = values[5];
+	dst.Set_temperature2 = values[6];
+	dst.Temperature2 = values[7];
+	dst.Servo_ALE0 = values[8];
+	dst.Servo_ALE1 = values[9];
+	dst.Servo_ALE2 = values[10];
+	dst.Servo_ALE3 = values[11];
+	dst.p19 = static_cast<float>(values[12]) / 100.0f;
 	dst.i_ProcessingTimeCount = values[13];
 	dst.i_SystemTimeCount = values[14];
 	dst.MachineID = values[15];
@@ -1279,13 +1273,6 @@ void MachineTab::ApplyMemStructRegisters(const std::vector<uint16_t>& values, Me
 	dst.Alm_ManualY_GoOut = static_cast<uint8_t>(values[22]);
 	dst.MachineStatus = static_cast<uint8_t>(values[23]);
 	dst.WorkingMode = static_cast<uint8_t>(values[24]);
-
-	union FloatBits {
-		float f;
-		uint32_t u;
-	} value{};
-	value.u = (static_cast<uint32_t>(values[25]) << 16) | values[26];
-	dst.p19 = value.f;
 }
 
 // Custom message handler to update coordinates
@@ -1512,18 +1499,20 @@ void MachineTab::OnTimer(UINT_PTR nIDEvent)
 			}
 
 			constexpr int kSystemConfigStart = 139;
-			constexpr int kSystemConfigCount = 18;
-			constexpr int kMemStructStart = 157;
-			constexpr int kMemStructCount = 26;
+			constexpr int kSystemConfigCount = 19;
+			constexpr int kMemStructStart = 114;
+			constexpr int kMemStructCount = 25;
 
 			std::vector<uint16_t> systemRegs;
 			if (ReadHoldingRegistersBlock(kSystemConfigStart, kSystemConfigCount, systemRegs, pParentWnd->m_SystemPara.StationID)) {
 				ApplySystemConfigRegisters(systemRegs, pParentWnd->m_SystemPara);
+				pParentWnd->RefreshSystemParaTabDisplay();
 			}
 
 			std::vector<uint16_t> memRegs;
 			if (ReadHoldingRegistersBlock(kMemStructStart, kMemStructCount, memRegs, pParentWnd->m_SystemPara.StationID)) {
 				ApplyMemStructRegisters(memRegs, pParentWnd->m_MemStruct_SP);
+				pParentWnd->RefreshSystemParaTabDisplay();
 			}
 		}
 	}
