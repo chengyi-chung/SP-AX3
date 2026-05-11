@@ -13,6 +13,7 @@
 #include "WorkTab.h"
 #include <thread>
 #include <chrono>
+#include <cmath>
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -77,6 +78,145 @@ void CSPDlg::RefreshSystemParaTabDisplay()
 	m_SystemParaTab.UpdateControl();
 	m_SystemParaTab.Invalidate(FALSE);
 	m_SystemParaTab.UpdateWindow();
+}
+
+void CSPDlg::ScaleDialogTo1024x768()
+{
+	const int targetWindowWidth = 1024;
+	const int targetWindowHeight = 768;
+
+	CRect oldClientRect;
+	GetClientRect(&oldClientRect);
+	if (oldClientRect.Width() <= 0 || oldClientRect.Height() <= 0) {
+		return;
+	}
+
+	CRect oldWindowRect;
+	GetWindowRect(&oldWindowRect);
+	SetWindowPos(
+		nullptr,
+		oldWindowRect.left,
+		oldWindowRect.top,
+		targetWindowWidth,
+		targetWindowHeight,
+		SWP_NOZORDER | SWP_NOACTIVATE);
+
+	CRect newClientRect;
+	GetClientRect(&newClientRect);
+	if (newClientRect.Width() <= 0 || newClientRect.Height() <= 0) {
+		return;
+	}
+
+	m_dialogScaleX = static_cast<double>(newClientRect.Width()) / oldClientRect.Width();
+	m_dialogScaleY = static_cast<double>(newClientRect.Height()) / oldClientRect.Height();
+	m_scaledStatusBarHeight = (std::max)(16, static_cast<int>(std::lround(20.0 * m_dialogScaleY)));
+
+	ScaleChildWindows(this, m_dialogScaleX, m_dialogScaleY);
+
+	LOGFONT lf = {};
+	CFont* pFont = GetFont();
+	if (pFont && pFont->GetLogFont(&lf)) {
+		const double fontScale = (std::min)(m_dialogScaleX, m_dialogScaleY);
+		lf.lfHeight = static_cast<LONG>(std::lround(lf.lfHeight * fontScale));
+		if (lf.lfHeight == 0) {
+			lf.lfHeight = -12;
+		}
+		m_ScaledDialogFont.DeleteObject();
+		if (m_ScaledDialogFont.CreateFontIndirect(&lf)) {
+			SetFont(&m_ScaledDialogFont);
+			ApplyScaledFont(this);
+		}
+	}
+
+	LayoutTabPages();
+	LayoutStatusBar();
+	Invalidate(TRUE);
+}
+
+void CSPDlg::ScaleChildWindows(CWnd* pParent, double scaleX, double scaleY)
+{
+	if (!pParent || !::IsWindow(pParent->GetSafeHwnd())) {
+		return;
+	}
+
+	for (CWnd* pChild = pParent->GetWindow(GW_CHILD);
+		pChild != nullptr;
+		pChild = pChild->GetWindow(GW_HWNDNEXT)) {
+		CRect childRect;
+		pChild->GetWindowRect(&childRect);
+		pParent->ScreenToClient(&childRect);
+
+		const int left = static_cast<int>(std::lround(childRect.left * scaleX));
+		const int top = static_cast<int>(std::lround(childRect.top * scaleY));
+		const int width = (std::max)(1, static_cast<int>(std::lround(childRect.Width() * scaleX)));
+		const int height = (std::max)(1, static_cast<int>(std::lround(childRect.Height() * scaleY)));
+
+		pChild->SetWindowPos(
+			nullptr,
+			left,
+			top,
+			width,
+			height,
+			SWP_NOZORDER | SWP_NOACTIVATE);
+
+		ScaleChildWindows(pChild, scaleX, scaleY);
+	}
+}
+
+void CSPDlg::ApplyScaledFont(CWnd* pParent)
+{
+	if (!pParent || !::IsWindow(pParent->GetSafeHwnd()) || !m_ScaledDialogFont.GetSafeHandle()) {
+		return;
+	}
+
+	for (CWnd* pChild = pParent->GetWindow(GW_CHILD);
+		pChild != nullptr;
+		pChild = pChild->GetWindow(GW_HWNDNEXT)) {
+		pChild->SetFont(&m_ScaledDialogFont, FALSE);
+		ApplyScaledFont(pChild);
+	}
+}
+
+void CSPDlg::LayoutTabPages()
+{
+	if (!m_Tab_Main.GetSafeHwnd()) {
+		return;
+	}
+
+	CRect tabPageRect;
+	m_Tab_Main.GetClientRect(&tabPageRect);
+	const int marginX = (std::max)(1, static_cast<int>(std::lround(10.0 * m_dialogScaleX)));
+	const int marginY = (std::max)(1, static_cast<int>(std::lround(10.0 * m_dialogScaleY)));
+	tabPageRect.DeflateRect(marginX, marginY);
+	m_Tab_Main.AdjustRect(FALSE, &tabPageRect);
+
+	if (m_WorkTab.GetSafeHwnd()) {
+		m_WorkTab.MoveWindow(&tabPageRect);
+	}
+	if (m_SystemParaTab.GetSafeHwnd()) {
+		m_SystemParaTab.MoveWindow(&tabPageRect);
+	}
+	if (m_ModBusTab.GetSafeHwnd()) {
+		m_ModBusTab.MoveWindow(&tabPageRect);
+	}
+	if (m_MachineTab.GetSafeHwnd()) {
+		m_MachineTab.MoveWindow(&tabPageRect);
+	}
+}
+
+void CSPDlg::LayoutStatusBar()
+{
+	if (!m_Status_Bar.GetSafeHwnd()) {
+		return;
+	}
+
+	CRect rect;
+	GetClientRect(&rect);
+	const int statusHeight = (std::max)(16, m_scaledStatusBarHeight);
+	m_Status_Bar.MoveWindow(rect.left, rect.bottom - statusHeight, rect.Width(), statusHeight);
+	m_Status_Bar.SetPaneInfo(0, ID_INDICATOR_FILE, SBPS_NORMAL, (std::max)(80, rect.Width() - static_cast<int>(std::lround(260.0 * m_dialogScaleX))));
+	m_Status_Bar.SetPaneInfo(1, ID_INDICATOR_TIME, SBPS_OWNERDRAW, static_cast<int>(std::lround(80.0 * m_dialogScaleX)));
+	m_Status_Bar.SetPaneInfo(2, ID_INDICATOR_MODBUS, SBPS_OWNERDRAW, static_cast<int>(std::lround(160.0 * m_dialogScaleX)));
 }
 
 void CSPDlg::DoDataExchange(CDataExchange* pDX)
@@ -235,6 +375,9 @@ BOOL CSPDlg::OnInitDialog()
 
 	// 修改初始化按鈕樣式的函式
 	InitButtonStyle();
+
+	// Runtime 將整個主 Dialog 與所有子控制項縮放到 1024x768。
+	ScaleDialogTo1024x768();
 
 	//Get Mac ID assign to m_SystemPara with UAX: GetMacAddress
 
@@ -458,12 +601,7 @@ void CSPDlg::OnSize(UINT nType, int cx, int cy)
 	// TODO: 在此加入您的訊息處理常式程式碼
 	if (m_Status_Bar.m_hWnd)
 	{
-		CRect rect;
-		GetClientRect(&rect);
-		m_Status_Bar.MoveWindow(rect.left, rect.bottom - 20, rect.Width(), 20);
-		m_Status_Bar.SetPaneInfo(0, ID_INDICATOR_FILE, SBPS_NORMAL, rect.Width() - 260);
-		m_Status_Bar.SetPaneInfo(1, ID_INDICATOR_TIME, SBPS_OWNERDRAW, 80);
-		m_Status_Bar.SetPaneInfo(2, ID_INDICATOR_MODBUS, SBPS_OWNERDRAW, 160);
+		LayoutStatusBar();
 	}
 	
 }

@@ -85,6 +85,10 @@ protected:
     COLORREF m_ButtonTextColor;  // 按鈕文字顏色
     COLORREF m_ButtonBkColor;    // 按鈕背景顏色
     CFont m_StatusTimeFont;      // Status bar 時間字型
+    CFont m_ScaledDialogFont;    // Runtime 1024x768 縮放後的共用字型
+    double m_dialogScaleX = 1.0;
+    double m_dialogScaleY = 1.0;
+    int m_scaledStatusBarHeight = 20;
 
 
 	// 產生的訊息對應函式
@@ -119,6 +123,11 @@ public:
     void ApplyButtonStyle();  // 套用按鈕樣式
     void UpdateModbusStatusDisplay(bool connected);
     void RefreshSystemParaTabDisplay();
+    void ScaleDialogTo1024x768();
+    void ScaleChildWindows(CWnd* pParent, double scaleX, double scaleY);
+    void ApplyScaledFont(CWnd* pParent);
+    void LayoutTabPages();
+    void LayoutStatusBar();
 
     // 共用 Modbus 連線物件與互斥鎖
     modbus_t* m_modbusCtx = nullptr;

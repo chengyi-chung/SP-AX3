@@ -62,6 +62,7 @@ public:
 	static UINT GrabThread(LPVOID pParam);
 	cv::Mat m_mat;
 	cv::Mat m_matTemp;
+	cv::Mat m_pathDisplayMat;
 	CImage m_image;
 	CDC* pDC;
 	CWnd* pWnd;

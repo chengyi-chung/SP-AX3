@@ -1040,6 +1040,7 @@ void WorkTab::HandleAutoCreateToolPathRequest(int stationID)
     m_HMIGluePath_temp.PathRight.clear();
     m_HMIGluePath.PathLeft.clear();
     m_HMIGluePath.PathRight.clear();
+    m_pathDisplayMat.release();
 
     OnBnClickedIdcWorkToolPath();
 
@@ -1217,6 +1218,10 @@ UINT WorkTab::GrabThread(LPVOID pParam)
 				pWorkTab->m_mat = cv::Mat(ptrGrabResult->GetHeight(), ptrGrabResult->GetWidth(), CV_8UC1, (void*)pWorkTab->pImageBuffer).clone();
 
                 pWorkTab->m_mat = ApplyConfiguredFlip(pWorkTab->m_mat, pWorkTab->imgFlip);
+                pWorkTab->m_pathDisplayMat.release();
+                pWorkTab->toolPath.Path.clear();
+                pWorkTab->m_OptimizedGluePath.PathLeft.clear();
+                pWorkTab->m_OptimizedGluePath.PathRight.clear();
 
                 
 
@@ -1581,7 +1586,9 @@ void WorkTab::ShowImageOnPictureCtl()
 
 void WorkTab::ShowImageOnPictureControl(bool flgCenter, cv::Scalar crossColor, int lineThickness, CrossStyle style)
 {
-    const cv::Mat& sourceMat = !m_factorPreviewMat.empty() ? m_factorPreviewMat : m_mat;
+    const cv::Mat& sourceMat = !m_factorPreviewMat.empty()
+        ? m_factorPreviewMat
+        : (!m_pathDisplayMat.empty() ? m_pathDisplayMat : m_mat);
     if (sourceMat.empty() || pWnd == nullptr || !::IsWindow(pWnd->GetSafeHwnd())) return;
 
     CRect rect;
@@ -2349,6 +2356,7 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
         pParentWnd->m_SystemPara.BinaryUpper,
         pParentWnd->m_SystemPara.BinaryLower,
         false);
+    m_pathDisplayMat = imgClone.clone();
 
 	// 此時 toolPath 中的點原本是基於 pathSourceImage 左上角的 pixel 座標。
 	// 若校正流程有做方向翻轉，則再把點翻回 correctedImage 的顯示方向。
@@ -2507,6 +2515,7 @@ void WorkTab::OnBnClickedIdcWorkLoadImg()
     this->m_HMIGluePath_temp.PathRight.clear();
     this->m_HMIGluePath.PathLeft.clear();
     this->m_HMIGluePath.PathRight.clear();
+    this->m_pathDisplayMat.release();
 
 	//Add Dialog Box to load image
 	CString strFilter = _T("Image Files (*.bmp;*.jpg;*.jpeg;*.png;*.tif;*.tiff)|*.bmp;*.jpg;*.jpeg;*.png;*.tif;*.tiff|All Files (*.*)|*.*||");
