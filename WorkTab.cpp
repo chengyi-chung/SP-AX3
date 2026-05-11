@@ -62,32 +62,59 @@ std::string GetToolDebugExportPath(const std::string& fileName)
     return appPath + fileName;
 }
 
-cv::Mat ApplyConfiguredFlip(const cv::Mat& image, int flipCode)
+cv::Mat ApplyConfiguredImageTransform(const cv::Mat& image, int flipCode, bool inverse)
 {
     if (image.empty()) {
         return image;
     }
 
-    if (flipCode == 0 || flipCode == 1 || flipCode == -1) {
+    if (flipCode == 1 || flipCode == -1) {
         cv::Mat flipped;
         cv::flip(image, flipped, flipCode);
         return flipped;
     }
 
+    int rotateCode = -1;
+    switch (flipCode) {
+    case 90:
+        rotateCode = inverse ? cv::ROTATE_90_COUNTERCLOCKWISE : cv::ROTATE_90_CLOCKWISE;
+        break;
+    case 180:
+        rotateCode = cv::ROTATE_180;
+        break;
+    case 270:
+    case -90:
+        rotateCode = inverse ? cv::ROTATE_90_CLOCKWISE : cv::ROTATE_90_COUNTERCLOCKWISE;
+        break;
+    default:
+        break;
+    }
+
+    if (rotateCode >= 0) {
+        cv::Mat rotated;
+        cv::rotate(image, rotated, rotateCode);
+        return rotated;
+    }
+
     return image.clone();
 }
 
-// Apply the same flip transformation to a point, given the image size and flip code
-// flipCode: 0 = vertical, 1 = horizontal, -1 = both
-// The point is expected to be in pixel coordinates relative to the original image
-// The flipped point will be returned in the same coordinate system (relative to the original image)
-// If the image size is invalid, the original point will be returned unchanged
-// Note: This function does not handle rotation, only flipping. Rotation would require a different transformation.
-// Example usage:
-// cv::Point2d originalPt(100, 50);
-// cv::Size imageSize(200, 100);
-// int flipCode = 1; // horizontal flip
-// cv::Point2d flippedPt = ApplyConfiguredFlipToPoint(originalPt, imageSize, flipCode);
+cv::Mat ApplyConfiguredFlip(const cv::Mat& image, int flipCode)
+{
+    return ApplyConfiguredImageTransform(image, flipCode, false);
+}
+
+cv::Mat ApplyInverseConfiguredFlip(const cv::Mat& image, int flipCode)
+{
+    return ApplyConfiguredImageTransform(image, flipCode, true);
+}
+
+bool HasConfiguredImageTransform(int flipCode)
+{
+    return flipCode == 1 || flipCode == -1 ||
+        flipCode == 90 || flipCode == 180 || flipCode == 270 || flipCode == -90;
+}
+
 cv::Point2d ApplyConfiguredFlipToPoint(const cv::Point2d& pt, const cv::Size& imageSize, int flipCode)
 {
     if (imageSize.width <= 0 || imageSize.height <= 0) {
@@ -96,15 +123,22 @@ cv::Point2d ApplyConfiguredFlipToPoint(const cv::Point2d& pt, const cv::Size& im
 
     cv::Point2d flipped = pt;
     switch (flipCode) {
-    case 0:
-        flipped.y = (imageSize.height - 1) - pt.y;
-        break;
     case 1:
         flipped.x = (imageSize.width - 1) - pt.x;
         break;
     case -1:
+    case 180:
         flipped.x = (imageSize.width - 1) - pt.x;
         flipped.y = (imageSize.height - 1) - pt.y;
+        break;
+    case 90:
+        flipped.x = (imageSize.height - 1) - pt.y;
+        flipped.y = pt.x;
+        break;
+    case 270:
+    case -90:
+        flipped.x = pt.y;
+        flipped.y = (imageSize.width - 1) - pt.x;
         break;
     default:
         break;
@@ -126,7 +160,7 @@ cv::Point2d RotatePoint180(const cv::Point2d& pt, const cv::Size& imageSize)
 
 void ApplyConfiguredFlipToToolPath(ToolPath& toolPath, const cv::Size& imageSize, int flipCode)
 {
-    if (!(flipCode == 0 || flipCode == 1 || flipCode == -1)) {
+    if (!HasConfiguredImageTransform(flipCode)) {
         return;
     }
 
@@ -137,7 +171,7 @@ void ApplyConfiguredFlipToToolPath(ToolPath& toolPath, const cv::Size& imageSize
 
 void ApplyConfiguredFlipToGluePath(GluePath& gluePath, const cv::Size& imageSize, int flipCode)
 {
-    if (!(flipCode == 0 || flipCode == 1 || flipCode == -1)) {
+    if (!HasConfiguredImageTransform(flipCode)) {
         return;
     }
 
@@ -960,6 +994,63 @@ bool WorkTab::IsMemStructEqual(const MemStruct_SP& lhs, const MemStruct_SP& rhs)
         lhs.p19 == rhs.p19;
 }
 
+void WorkTab::ClearCreateToolPathRequest(int stationID)
+{
+    CSPDlg* pParent = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
+    if (!pParent) {
+        return;
+    }
+
+    pParent->m_SystemPara.CreateToolPath = 0;
+    m_lastSyncedSystemPara = pParent->m_SystemPara;
+
+    std::vector<uint16_t> values;
+    BuildSystemConfigRegisters(pParent->m_SystemPara, values);
+    WriteHoldingRegistersBlock(139, values, stationID);
+    pParent->RefreshSystemParaTabDisplay();
+}
+
+void WorkTab::HandleAutoCreateToolPathRequest(int stationID)
+{
+    CSPDlg* pParent = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
+    if (!pParent || pParent->m_SystemPara.CreateToolPath != 1 || m_autoCreateToolPathBusy) {
+        return;
+    }
+
+    m_autoCreateToolPathBusy = true;
+
+    if (!m_bGrabThread) {
+        OnBnClickedWorkGrab();
+        m_autoCreateToolPathBusy = false;
+        return;
+    }
+
+    if (m_mat.empty()) {
+        m_autoCreateToolPathBusy = false;
+        return;
+    }
+
+    m_OptimizedGluePath.PathLeft.clear();
+    m_OptimizedGluePath.PathRight.clear();
+    m_machineGluePath.PathLeft.clear();
+    m_machineGluePath.PathRight.clear();
+    m_machineGluePath_mm.PathLeft.clear();
+    m_machineGluePath_mm.PathRight.clear();
+    m_HMIGluePath_temp.PathLeft.clear();
+    m_HMIGluePath_temp.PathRight.clear();
+    m_HMIGluePath.PathLeft.clear();
+    m_HMIGluePath.PathRight.clear();
+
+    OnBnClickedIdcWorkToolPath();
+
+    if (!m_OptimizedGluePath.PathLeft.empty() && !m_OptimizedGluePath.PathRight.empty()) {
+        OnBnClickedIdcWorkGo();
+    }
+
+    ClearCreateToolPathRequest(stationID);
+    m_autoCreateToolPathBusy = false;
+}
+
 void WorkTab::SyncHmiData(int stationID)
 {
     if (m_hmiSyncBusy) {
@@ -990,6 +1081,7 @@ void WorkTab::SyncHmiData(int stationID)
                 MaskHeight = pParent->m_SystemPara.MaskHeight;
                 referenceX = pParent->m_SystemPara.RefCenterX;
                 referenceY = pParent->m_SystemPara.RefCenterY;
+                imgFlip = pParent->m_SystemPara.ImageFlip;
                 if (!m_bFactorSelectMode && (m_bROIMode || flgCenter)) {
                     ShowImageOnPictureControl(flgCenter, cv::Scalar(0, 0, 255, 255), 1, CrossStyle::Solid);
                 }
@@ -1011,6 +1103,8 @@ void WorkTab::SyncHmiData(int stationID)
         m_lastSyncedMemStruct = remoteMem;
         m_hasMemSyncBaseline = true;
     }
+
+    HandleAutoCreateToolPathRequest(stationID);
 
     m_hmiSyncBusy = false;
 }
@@ -1122,21 +1216,7 @@ UINT WorkTab::GrabThread(LPVOID pParam)
                 // 使用 ShowImageOnPictureControl使用下式
 				pWorkTab->m_mat = cv::Mat(ptrGrabResult->GetHeight(), ptrGrabResult->GetWidth(), CV_8UC1, (void*)pWorkTab->pImageBuffer).clone();
 
-                // 根據 imgFlip 的值翻轉影像
-				// 0: 垂直翻轉, 1: 水平翻轉, -1: 水平並垂直翻轉, 其他值: 不翻轉
-				//flip image pWorkTab->m_mat
-                if (pWorkTab->imgFlip == 0)
-                {
-                    cv::flip(pWorkTab->m_mat, pWorkTab->m_mat, 0);
-                }
-                else if (pWorkTab->imgFlip == 1)
-                {
-                    cv::flip(pWorkTab->m_mat, pWorkTab->m_mat, 1);
-                }
-                else if (pWorkTab->imgFlip == -1)
-                {
-                    cv::flip(pWorkTab->m_mat, pWorkTab->m_mat, -1);
-				}
+                pWorkTab->m_mat = ApplyConfiguredFlip(pWorkTab->m_mat, pWorkTab->imgFlip);
 
                 
 
@@ -1180,6 +1260,7 @@ UINT WorkTab::GrabThread(LPVOID pParam)
 	// 使用 ShowImageOnPictureCtl() 使用下式
 	//pWorkTab->m_mat = cv::Mat(pWorkTab->oriImageHeight, pWorkTab->oriImageWidth, CV_8UC1, (void*)pWorkTab->pImageBuffer).clone();
 	
+    pWorkTab->m_bGrabThread = false;
     return exitCode;
 }
 
@@ -2231,14 +2312,14 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
         try {
             // m_mat 在取像後可能已依 imgFlip 翻轉；校正參數通常是以原始相機方向建立。
             // 因此在原始方向做去畸變與路徑提取，最後再把點座標翻回目前顯示座標。
-			cv::Mat rawOrientationImage = ApplyConfiguredFlip(m_mat, imgFlip); // 把 m_mat 翻回校正參數對應的原始相機方向，這樣去畸變後的影像才會和校正參數對齊。
+			cv::Mat rawOrientationImage = ApplyInverseConfiguredFlip(m_mat, imgFlip); // 把 m_mat 翻回校正參數對應的原始相機方向，這樣去畸變後的影像才會和校正參數對齊。
 			cv::Mat undistortedRaw = m_vision.undistortImage(rawOrientationImage); // 去畸變後的影像仍然是原始相機方向，這樣提取路徑才會和校正參數對齊。
             if (!undistortedRaw.empty()) {
 				correctedImage = ApplyConfiguredFlip(undistortedRaw, imgFlip); // 把去畸變後的影像翻回目前顯示的方向，這樣 correctedImage 就是校正後且符合目前顯示方向的影像，可以直接用來顯示。
                 pathSourceImage = undistortedRaw;
 
-				//ApplyConfiguredFlip() 會對 mask 做同樣的翻轉，確保 pathMask 與 pathSourceImage 在同一個座標系統下對齊。
-                pathMask = ApplyConfiguredFlip(mask, imgFlip);
+				//ApplyInverseConfiguredFlip() 會把 mask 轉回原始相機方向，確保 pathMask 與 pathSourceImage 在同一個座標系統下對齊。
+                pathMask = ApplyInverseConfiguredFlip(mask, imgFlip);
                 usedCalibrationCorrection = true;
             }
         }
@@ -3456,7 +3537,7 @@ void WorkTab::OnBnClickedMfcbtnWorkImgFactor()
 
     CWaitCursor waitCursor;
 
-    cv::Mat rawOrientationImage = ApplyConfiguredFlip(m_mat, imgFlip);
+    cv::Mat rawOrientationImage = ApplyInverseConfiguredFlip(m_mat, imgFlip);
     cv::Mat undistortedRaw;
     try {
         undistortedRaw = m_vision.undistortImage(rawOrientationImage);

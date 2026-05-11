@@ -182,6 +182,7 @@ private:
 	cv::Size m_factorBoardSize;
 	bool m_hmiSyncEnabled = false;
 	bool m_hmiSyncBusy = false;
+	bool m_autoCreateToolPathBusy = false;
 	UINT m_hmiSyncIntervalMs = 500;
 	bool m_hasSystemSyncBaseline = false;
 	bool m_hasMemSyncBaseline = false;
@@ -191,6 +192,8 @@ private:
 	void StartHmiSyncTimer();
 	void StopHmiSyncTimer();
 	void SyncHmiData(int stationID = 1);
+	void HandleAutoCreateToolPathRequest(int stationID = 1);
+	void ClearCreateToolPathRequest(int stationID = 1);
 	bool ReadHoldingRegistersBlock(int startAddress, int count, std::vector<uint16_t>& outValues, int stationID = 1);
 	bool WriteHoldingRegistersBlock(int startAddress, const std::vector<uint16_t>& values, int stationID = 1);
 	void BuildSystemConfigRegisters(const SystemConfigA& src, std::vector<uint16_t>& outValues) const;
