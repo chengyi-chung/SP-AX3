@@ -184,6 +184,7 @@ private:
 	bool m_hmiSyncEnabled = false;
 	bool m_hmiSyncBusy = false;
 	bool m_autoCreateToolPathBusy = false;
+	bool m_autoCreateToolPathWaitingForImage = false;
 	UINT m_hmiSyncIntervalMs = 500;
 	bool m_hasSystemSyncBaseline = false;
 	bool m_hasMemSyncBaseline = false;

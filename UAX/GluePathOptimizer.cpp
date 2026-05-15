@@ -354,7 +354,7 @@ void GluePathOptimizer::OptimizePath(
     const cv::Point2d entryPoint = FindEntryPointOnProfile(rightProfile, mROI.EntryPointX);
     rightProfile = BuildProfileFromEntry(rightProfile, entryPoint);
 
-    std::vector<cv::Point2d> rightSmoothPts = SampleProfilePoints(rightProfile, 30);
+    std::vector<cv::Point2d> rightSmoothPts = SampleProfilePoints(rightProfile, 25);
     if (rightSmoothPts.empty()) {
         optimizedPath.PathRight.clear();
         optimizedPath.PathLeft.clear();

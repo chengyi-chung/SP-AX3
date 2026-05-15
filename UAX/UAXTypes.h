@@ -107,6 +107,29 @@ struct SystemConfigA  // For AX-3 PLC, SP Shoe Last Machine
     std::string CameraSerialNumber;     // Camera Serial Number
 };
 
+enum class SystemFunctionAddress : int
+{
+    ImageBinary = 139,
+    Grab = 140,
+    DiplayPath = 141,
+    DisplayROI = 142,
+    DisplayRefLine = 143,
+    TabStatus = 144
+};
+
+struct SystemFunction
+{
+    static constexpr int StartAddress = 139;
+    static constexpr int RegisterCount = 6;
+
+    int ImageBinary = 0;     // Register 139, value = 0 or 1
+    int Grab = 0;            // Register 140, value = 0 or 1
+    int DiplayPath = 0;      // Register 141, value = 0 or 1
+    int DisplayROI = 0;      // Register 142, value = 0 or 1
+    int DisplayRefLine = 0;  // Register 143, value = 0 or 1
+    int TabStatus = 0;       // Register 144: 0=Working, 2=SystemPara, 4=Modbus TCP
+};
+
 struct MemStruct_SP   //For SP Shoe Last Machine, IOT
 {
     int CreateToolPath; // 保留欄位；Register 157 歸類於 SystemConfigA::CreateToolPath

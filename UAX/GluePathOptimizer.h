@@ -54,7 +54,7 @@ private:
 
     // 對主要側做擬合（決定標準Y序列）
     static std::vector<cv::Point2d> FitCurve(const std::vector<cv::Point2d>& pts,
-        int maxPoints = 30);
+        int maxPoints = 25);
 
     // 使用指定的Y序列對另一側做擬合（核心修正）
     static std::vector<cv::Point2d> FitCurveAtGivenY(const std::vector<cv::Point2d>& pts,

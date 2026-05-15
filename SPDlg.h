@@ -29,6 +29,7 @@ public:
 	const std::string SystemConfigFileName = "SystemConfig.ini";
 	//SystemPara m_SystemPara;
 	SystemConfigA m_SystemPara; // System Configuration
+	SystemFunction m_SystemFunction; // System function controls mapped to Modbus 139~144
 
 	//IOT PLC Data
 	MemStruct_SP m_MemStruct_SP; // SP Shoe Last Machine, IOT PLC Data

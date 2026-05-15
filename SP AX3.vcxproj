@@ -224,6 +224,7 @@
     <ResourceCompile Include="SP-AX.rc" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="HMI_Data_Format.md" />
     <None Include="res\SP-AX.rc2" />
     <None Include="SP\ AX3.vcxproj" />
   </ItemGroup>

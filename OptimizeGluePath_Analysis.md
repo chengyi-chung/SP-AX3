@@ -32,7 +32,7 @@ flowchart TD
     G --> I["shoeType=1 -> Right 為 primary"]
     G --> J["其他 -> 點數較多者為 primary"]
 
-    H --> K["FitCurve(primary, 30)"]
+    H --> K["FitCurve(primary, 25)"]
     I --> K
     J --> K
 
@@ -132,7 +132,7 @@ OptimizeGluePath(this->toolPath.Path, roiOpt, finalPath, 2);
 1. 計算 arc-length parameter
 2. 以弧長 `s` 作為自變數
 3. 分別對 `x(s)`、`y(s)` 做四次多項式擬合
-4. 重新取樣成固定數量點，預設 `30` 點
+4. 重新取樣成固定數量點，預設 `25` 點
 
 相關函式：
 - `ComputeArcLengthParam(...)`
@@ -242,9 +242,9 @@ OptimizeGluePath(this->toolPath.Path, roiOpt, finalPath, 2);
 - 某一側點數過少
 - primary / secondary 路徑品質下降
 
-### 8.3 `FitCurve(...)` 是固定 30 點
+### 8.3 `FitCurve(...)` 是固定 25 點
 
-目前主曲線會被重新取樣成固定點數 `30`。
+目前主曲線會被重新取樣成固定點數 `25`。
 
 這代表：
 

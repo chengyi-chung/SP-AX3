@@ -12,6 +12,7 @@
 #include <fstream>
 #include <iomanip>
 #include <numeric>
+#include <system_error>
 #include <tuple>
 #include <vector>
 #include "UAX\\UAXVision.cpp" // bring UAXVision implementation into this module
@@ -44,6 +45,9 @@ using namespace std;
 static const uint32_t c_countOfImagesToGrab = 3;
 
 namespace {
+constexpr size_t kToolPathDescriptionPoints = 25;
+constexpr size_t kHmiAxisBufferPoints = 30;
+
 std::string GetCalibrationFilePath()
 {
     std::string appPath = GetAppPath();
@@ -291,7 +295,7 @@ void NormalizeGluePathPairCount(GluePath& gluePath)
     }
 
     const size_t targetCount = (std::min)(
-        static_cast<size_t>(30),
+        kToolPathDescriptionPoints,
         (std::max)(gluePath.PathRight.size(), gluePath.PathLeft.size()));
 
     while (gluePath.PathLeft.size() < targetCount) {
@@ -757,6 +761,7 @@ void WorkTab::UpdateModbusSyncState(bool connected)
 
 bool WorkTab::ReadHoldingRegistersBlock(int startAddress, int count, std::vector<uint16_t>& outValues, int stationID)
 {
+    try {
     CSPDlg* pParent = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
     if (!pParent) {
         return false;
@@ -771,10 +776,15 @@ bool WorkTab::ReadHoldingRegistersBlock(int startAddress, int count, std::vector
 
     outValues.assign(count, 0);
     return modbus_read_registers(pParent->m_modbusCtx, startAddress, count, outValues.data()) != -1;
+    }
+    catch (const std::system_error&) {
+        return false;
+    }
 }
 
 bool WorkTab::WriteHoldingRegistersBlock(int startAddress, const std::vector<uint16_t>& values, int stationID)
 {
+    try {
     if (values.empty()) {
         return true;
     }
@@ -791,6 +801,10 @@ bool WorkTab::WriteHoldingRegistersBlock(int startAddress, const std::vector<uin
     std::lock_guard<std::mutex> lock(pParent->m_modbusMutex);
     modbus_set_slave(pParent->m_modbusCtx, stationID);
     return modbus_write_registers(pParent->m_modbusCtx, startAddress, static_cast<int>(values.size()), values.data()) != -1;
+    }
+    catch (const std::system_error&) {
+        return false;
+    }
 }
 
 void WorkTab::BuildSystemConfigRegisters(const SystemConfigA& src, std::vector<uint16_t>& outValues) const
@@ -1002,6 +1016,7 @@ void WorkTab::ClearCreateToolPathRequest(int stationID)
     }
 
     pParent->m_SystemPara.CreateToolPath = 0;
+    m_autoCreateToolPathWaitingForImage = false;
     m_lastSyncedSystemPara = pParent->m_SystemPara;
 
     std::vector<uint16_t> values;
@@ -1019,8 +1034,14 @@ void WorkTab::HandleAutoCreateToolPathRequest(int stationID)
 
     m_autoCreateToolPathBusy = true;
 
-    if (!m_bGrabThread) {
+    if (!m_autoCreateToolPathWaitingForImage && !m_bGrabThread) {
+        m_mat.release();
+        m_pathDisplayMat.release();
+        toolPath.Path.clear();
+        m_OptimizedGluePath.PathLeft.clear();
+        m_OptimizedGluePath.PathRight.clear();
         OnBnClickedWorkGrab();
+        m_autoCreateToolPathWaitingForImage = true;
         m_autoCreateToolPathBusy = false;
         return;
     }
@@ -1029,6 +1050,15 @@ void WorkTab::HandleAutoCreateToolPathRequest(int stationID)
         m_autoCreateToolPathBusy = false;
         return;
     }
+
+    if (m_bGrabThread) {
+        OnBnClickedWorkStopGrab();
+        m_autoCreateToolPathWaitingForImage = true;
+        m_autoCreateToolPathBusy = false;
+        return;
+    }
+
+    m_autoCreateToolPathWaitingForImage = false;
 
     m_OptimizedGluePath.PathLeft.clear();
     m_OptimizedGluePath.PathRight.clear();
@@ -1113,9 +1143,19 @@ void WorkTab::SyncHmiData(int stationID)
 void WorkTab::OnTimer(UINT_PTR nIDEvent)
 {
     if (nIDEvent == kHmiSyncTimerId) {
-        CSPDlg* pParent = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
-        if (pParent) {
-            SyncHmiData(pParent->m_SystemPara.StationID);
+        try {
+            CSPDlg* pParent = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
+            if (pParent) {
+                SyncHmiData(pParent->m_SystemPara.StationID);
+            }
+        }
+        catch (const std::system_error&) {
+            m_hmiSyncBusy = false;
+            UpdateModbusSyncState(false);
+        }
+        catch (const std::exception&) {
+            m_hmiSyncBusy = false;
+            UpdateModbusSyncState(false);
         }
         return;
     }
@@ -2408,9 +2448,9 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
 	// 最後再依 Y 座標排序，確保路徑點是從上到下的順序，這對於後續的機器人運動規劃很重要。
     SortGluePathByAscendingY(finalPath);
 
-    // 只保留 ROI 內的有效路徑點，並限制最多輸出 30 筆。
-    // 30 是上限，若有效點數小於 30 則直接接受。
-    FilterGluePathByRoiAndLimit(finalPath, roiRect, 30);
+    // 只保留 ROI 內的有效路徑點，並限制最多輸出路徑描述點數。
+    // 25 是上限，若有效點數小於 25 則直接接受。
+    FilterGluePathByRoiAndLimit(finalPath, roiRect, kToolPathDescriptionPoints);
     NormalizeGluePathPairCount(finalPath);
 
     // 9. 儲存或顯示結果
@@ -2569,6 +2609,7 @@ void WorkTab::GetToolPathData(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& too
 
 void WorkTab::OnBnClickedIdcWorkGo()
 {
+    try {
     // 1. 取得全域資源與父視窗指標
     CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
     if (!pParentWnd) {
@@ -2620,10 +2661,10 @@ void WorkTab::OnBnClickedIdcWorkGo()
     constexpr int kAxisStartX1 = 14; // 右手 X 軸路徑起始位址 (D14~D43)
     constexpr int kAxisStartY = 44; // 共有 Y 軸路徑起始位址 (D44~D73)
     constexpr int kAxisStartX2 = 74; // 左手 X 軸路徑起始位址 (D74~D103)
-    constexpr int kAxisCount = 30; // HMI 陣列預留長度
-    // 5. 計算實際寫入點數 (取 HMI 長度與路徑資料長度的最小值，防止陣列越界)
+    constexpr int kAxisCount = static_cast<int>(kHmiAxisBufferPoints); // HMI 陣列預留長度
+    // 5. 計算路徑描述點數。HMI 固定收 30 筆，但路徑最多只用前 25 點描述。
     const size_t pointCount = (std::min)(
-        static_cast<size_t>(kAxisCount),
+        kToolPathDescriptionPoints,
         (std::min)(m_HMIGluePath.PathRight.size(), m_HMIGluePath.PathLeft.size()));
 
     if (pointCount == 0) {
@@ -2664,6 +2705,12 @@ void WorkTab::OnBnClickedIdcWorkGo()
         yRegs[i] = toReg(m_HMIGluePath.PathLeft[i].y);
         x2Regs[i] = toReg(std::abs(m_HMIGluePath.PathRight[i].x));
     }
+    for (size_t i = pointCount; i < kHmiAxisBufferPoints; ++i)
+    {
+        x1Regs[i] = x1Regs[pointCount - 1];
+        yRegs[i] = yRegs[pointCount - 1];
+        x2Regs[i] = x2Regs[pointCount - 1];
+    }
 
     // 8. Modbus 連線檢查與自動重連邏輯
     const int stationID = 1;
@@ -2682,41 +2729,53 @@ void WorkTab::OnBnClickedIdcWorkGo()
     }
 
     // 9. 執行執行緒安全寫入操作
+    CString writeError;
     {
         // 鎖定 Mutex，避免多執行緒同時競爭同一 Modbus 句柄 (Handle)
         std::lock_guard<std::mutex> lock(pParentWnd->m_modbusMutex);
-        modbus_set_slave(pParentWnd->m_modbusCtx, stationID);
 
-        // 分別寫入 X1, Y, X2 三組路徑陣列到 PLC
-        // 寫入 X1 軸
-        if (modbus_write_registers(pParentWnd->m_modbusCtx, kAxisStartX1, kAxisCount, x1Regs.data()) == -1) {
-            CString err;
-            err.Format(_T("寫入 X1 路徑失敗: %S"), modbus_strerror(errno));
-            AfxMessageBox(err);
-            return;
+        if (!pParentWnd->m_modbusCtx) {
+            writeError = _T("Modbus TCP 連線已中斷，無法寫入 HMI。");
+        }
+        else {
+            modbus_set_slave(pParentWnd->m_modbusCtx, stationID);
+
+            // 分別寫入 X1, Y, X2 三組路徑陣列到 PLC
+            // 注意：每組 (X1, Y, X2) 算一筆資料
+            if (modbus_write_registers(pParentWnd->m_modbusCtx, kAxisStartX1, kAxisCount, x1Regs.data()) == -1) {
+                writeError.Format(_T("寫入 X1 路徑失敗: %S"), modbus_strerror(errno));
+            }
+            else if (modbus_write_registers(pParentWnd->m_modbusCtx, kAxisStartY, kAxisCount, yRegs.data()) == -1) {
+                writeError.Format(_T("寫入 Y 路徑失敗: %S"), modbus_strerror(errno));
+            }
+            else if (modbus_write_registers(pParentWnd->m_modbusCtx, kAxisStartX2, kAxisCount, x2Regs.data()) == -1) {
+                writeError.Format(_T("寫入 X2 路徑失敗: %S"), modbus_strerror(errno));
+            }
         }
 
-        // 寫入 Y 軸
-        if (modbus_write_registers(pParentWnd->m_modbusCtx, kAxisStartY, kAxisCount, yRegs.data()) == -1) {
-            CString err;
-            err.Format(_T("寫入 Y 路徑失敗: %S"), modbus_strerror(errno));
-            AfxMessageBox(err);
-            return;
-        }
-
-        // 寫入 X2 軸
-        if (modbus_write_registers(pParentWnd->m_modbusCtx, kAxisStartX2, kAxisCount, x2Regs.data()) == -1) {
-            CString err;
-            err.Format(_T("寫入 X2 路徑失敗: %S"), modbus_strerror(errno));
-            AfxMessageBox(err);
-            return;
-        }
     } // 離開 Scope 自動釋放 Lock
+
+    if (!writeError.IsEmpty()) {
+        AfxMessageBox(writeError, MB_ICONERROR);
+        return;
+    }
 
     // 10. 完成提示
     CString doneMsg;
-    doneMsg.Format(_T("HMI 路徑已成功透過 Modbus TCP 傳送。點數=%u (最大限制 %d)。"), static_cast<unsigned>(pointCount), kAxisCount);
+    doneMsg.Format(_T("HMI 路徑已成功透過 Modbus TCP 傳送。\n路徑描述點數=%u\nHMI 傳送筆數=%d (第 26~30 筆重複最後描述點)"),
+                   static_cast<unsigned>(pointCount), kAxisCount);
     AfxMessageBox(doneMsg);
+    }
+    catch (const std::system_error& ex) {
+        CString err;
+        err.Format(_T("送入 HMI 時發生系統錯誤：%S"), ex.what());
+        AfxMessageBox(err, MB_ICONERROR);
+    }
+    catch (const std::exception& ex) {
+        CString err;
+        err.Format(_T("送入 HMI 時發生例外：%S"), ex.what());
+        AfxMessageBox(err, MB_ICONERROR);
+    }
 }
 
 void WorkTab::ToolPathTransform32(ToolPath ToolPapath_Ori, uint16_t* m_ToolPathData)
@@ -2833,6 +2892,16 @@ inline void AppendPointSafe(uint16_t* data, size_t& idx, size_t capacity,
 
 
 void WorkTab::ToolPathTransform32A(ToolPath pathOri, uint16_t* outData, size_t outCapacity, float z_Machining, float zRetract) {
+    // 功能：將工具路徑從像素座標轉換為世界座標，並封裝成 HMI 可讀取的格式
+    // 輸入：pathOri - 原始路徑（像素座標）
+    //       outData - 輸出緩衝區
+    //       outCapacity - 輸出緩衝區容量（uint16_t 數量）
+    //       z_Machining - 加工高度 (mm)
+    //       zRetract - 抬起高度 (mm)
+    // 輸出：每筆資料包含 (X, Y, Z)，每個座標佔 2 個 uint16_t (低位+高位)
+    //       因此每筆資料佔 6 個 uint16_t
+    //       HMI 應該按照「筆數」來計算，而非 register 數量
+
     if (!outData || pathOri.Path.empty() || pathOri.Path.size() != pathOri.numClusters.size()) {
         throw std::invalid_argument("Invalid input in ToolPathTransform32A");
         return;
@@ -2909,9 +2978,16 @@ void WorkTab::ToolPathTransform32A(ToolPath pathOri, uint16_t* outData, size_t o
         debugOutput += "\n--- ToolPathTransform32A(ToolPath ToolPath_Ori, float z_Machining, float zRetract)  ---\n";
 
         // 每個點由 6 個 uint16_t 組成
+        // 注意：這裡的 numPoints 就是 HMI 應該認知的「資料筆數」
+        // 每筆資料包含 (X, Y, Z)，不應該以 register 數量來計算
         size_t numPoints = idx / 6;
 
         char buffer[256];
+
+        snprintf(buffer, sizeof(buffer), "總資料筆數 (Total Data Records): %zu 筆\n", numPoints);
+        debugOutput += buffer;
+        snprintf(buffer, sizeof(buffer), "總 Register 數量: %zu 個 (每筆 6 個)\n\n", idx);
+        debugOutput += buffer;
 
         for (size_t i = 0; i < numPoints; ++i) {
             size_t offset = i * 6;
@@ -2936,7 +3012,7 @@ void WorkTab::ToolPathTransform32A(ToolPath pathOri, uint16_t* outData, size_t o
 
             // 使用 snprintf 格式化（比 std::stringstream 更快且不會有 locale 問題）
             int len = snprintf(buffer, sizeof(buffer),
-                "Point %zu: X=%.3f mm (%d), Y=%.3f mm (%d), Z=%.3f mm (%d)\n",
+                "資料筆數 %zu: X=%.3f mm (%d), Y=%.3f mm (%d), Z=%.3f mm (%d)\n",
                 i, x_mm, x_int32, y_mm, y_int32, z_mm, z_int32);
 
             if (len > 0) {
@@ -3022,6 +3098,8 @@ void WorkTab::SendToolPathData(uint16_t *m_ToolPathData, int sizeOfArray, int st
 
 void WorkTab::SendToolPathDataA(uint16_t* m_ToolPathData, int sizeOfArray, int stationID)
 {
+    // sizeOfArray: 資料筆數，每筆包含 (X, Y, Z) 三個座標，每個座標佔 2 個 uint16_t (低位+高位)
+    // 因此實際傳輸的 register 數量 = sizeOfArray * 6
     const int maxBatchSize = 100;
     const int maxModbusBatchSize = MODBUS_MAX_WRITE_REGISTERS; // 123
     const int regsPerPointPerAxis = 2;
@@ -3045,7 +3123,9 @@ void WorkTab::SendToolPathDataA(uint16_t* m_ToolPathData, int sizeOfArray, int s
         std::lock_guard<std::mutex> lock(pParentWnd->m_modbusMutex);
         modbus_set_slave(pParentWnd->m_modbusCtx, stationID);
 
-        // write total count to PLC address 40026 (preserve original intent)
+        // 寫入總資料筆數到 PLC address 40026
+        // 注意：這裡寫入的是筆數，不是 register 數量
+        // 每筆包含 (X, Y, Z)，所以 HMI 應該讀取這個值作為點位數量
         int rc = modbus_write_register(pParentWnd->m_modbusCtx, 40026, sizeOfArray);
         if (rc == -1) {
             CString err;
