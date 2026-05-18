@@ -109,11 +109,11 @@ struct SystemConfigA  // For AX-3 PLC, SP Shoe Last Machine
 
 enum class SystemFunctionAddress : int
 {
-    ImageBinary = 139,
-    Grab = 140,
-    DiplayPath = 141,
-    DisplayROI = 142,
-    DisplayRefLine = 143,
+    Grab = 139,
+    ImageBinary = 140,
+    DisplayROI = 141,
+    DisplayRefLine = 142,
+    DiplayPath = 143,
     TabStatus = 144
 };
 
@@ -122,11 +122,11 @@ struct SystemFunction
     static constexpr int StartAddress = 139;
     static constexpr int RegisterCount = 6;
 
-    int ImageBinary = 0;     // Register 139, value = 0 or 1
-    int Grab = 0;            // Register 140, value = 0 or 1
-    int DiplayPath = 0;      // Register 141, value = 0 or 1
-    int DisplayROI = 0;      // Register 142, value = 0 or 1
-    int DisplayRefLine = 0;  // Register 143, value = 0 or 1
+    int Grab = 0;            // Register 139, value = 0 or 1
+    int ImageBinary = 0;     // Register 140, reserved, value = 0 or 1
+    int DisplayROI = 0;      // Register 141, value = 0 or 1
+    int DisplayRefLine = 0;  // Register 142, value = 0 or 1
+    int DiplayPath = 0;      // Register 143, reserved, value = 0 or 1
     int TabStatus = 0;       // Register 144: 0=Working, 2=SystemPara, 4=Modbus TCP
 };
 

@@ -188,8 +188,10 @@ private:
 	UINT m_hmiSyncIntervalMs = 500;
 	bool m_hasSystemSyncBaseline = false;
 	bool m_hasMemSyncBaseline = false;
+	bool m_hasSystemFunctionBaseline = false;
 	SystemConfigA m_lastSyncedSystemPara{};
 	MemStruct_SP m_lastSyncedMemStruct{};
+	SystemFunction m_lastSyncedSystemFunction{};
 
 	void StartHmiSyncTimer();
 	void StopHmiSyncTimer();
@@ -200,10 +202,13 @@ private:
 	bool WriteHoldingRegistersBlock(int startAddress, const std::vector<uint16_t>& values, int stationID = 1);
 	void BuildSystemConfigRegisters(const SystemConfigA& src, std::vector<uint16_t>& outValues) const;
 	void ApplySystemConfigRegisters(const std::vector<uint16_t>& values, SystemConfigA& dst) const;
+	void ApplySystemFunctionRegisters(const std::vector<uint16_t>& values, SystemFunction& dst) const;
+	void HandleSystemFunctionChange(const SystemFunction& previousValue, const SystemFunction& currentValue);
 	void BuildMemStructRegisters(const MemStruct_SP& src, std::vector<uint16_t>& outValues) const;
 	void ApplyMemStructRegisters(const std::vector<uint16_t>& values, MemStruct_SP& dst) const;
 	bool IsSystemConfigDisplayDataValid(const SystemConfigA& value) const;
 	bool IsSystemConfigEqual(const SystemConfigA& lhs, const SystemConfigA& rhs) const;
+	bool IsSystemFunctionEqual(const SystemFunction& lhs, const SystemFunction& rhs) const;
 	bool IsMemStructEqual(const MemStruct_SP& lhs, const MemStruct_SP& rhs) const;
 
 	

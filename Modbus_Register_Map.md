@@ -1,25 +1,25 @@
 # Modbus Register Map
 
-## 1. SystemConfigA
+## 1. SystemFunction / SystemConfigA
 
 說明：
 - 啟動時由 `SystemConfig.ini` 載入到 `m_SystemPara`
-- `MachineTab::OpenModBus()` 連線成功後，將這一段寫入 HMI
-- `WorkTab::SyncHmiData()` 之後也會由 HMI 讀回主程式
+- Register 139~144 為 HMI SystemFunction 監控區，由 `WorkTab::SyncHmiData()` 讀取並觸發 UI 動作
+- `MachineTab::OpenModBus()` 連線成功後只初始化 Register 145~157，避免覆蓋 HMI 的 SystemFunction 控制值
 
 對應程式：
 - [MachineTab.cpp](/D:/Git%20Repository/chengyi-chung/SP-AX3/MachineTab.cpp)
 - [WorkTab.cpp](/D:/Git%20Repository/chengyi-chung/SP-AX3/WorkTab.cpp)
 - [UAX.cpp](/D:/Git%20Repository/chengyi-chung/SP-AX3/UAX/UAX.cpp)
 
-| Modbus Register | INI Key | `SystemConfigA` 成員 | 備註 |
+| Modbus Register | INI Key | 程式成員 | 備註 |
 |---|---|---|---|
-| 139 | `ImageBinary` | `ImageBinary` | `uint16_t` |
-| 140 | `CreateToolPath` | `CreateToolPath` | `uint16_t` |
-| 141 | `DispalyToolPath` | `DispalyToolPath` | 依原程式拼字 |
-| 142 | `DisplayROI` | `DisplayROI` | `uint16_t` |
-| 143 | `DisplayRefLine` | `DisplayRefLine` | `uint16_t` |
-| 144 | `TabWork` | `TabWork` | `uint16_t` |
+| 139 | - | `SystemFunction.Grab` | 0=Stop Grab, 1=Grab |
+| 140 | - | `SystemFunction.ImageBinary` | 預留，0/1 |
+| 141 | - | `SystemFunction.DisplayROI` | 0=隱藏 ROI, 1=顯示 ROI |
+| 142 | - | `SystemFunction.DisplayRefLine` | 0=隱藏 center cross, 1=顯示 center cross |
+| 143 | - | `SystemFunction.DiplayPath` | 預留，0/1 |
+| 144 | - | `SystemFunction.TabStatus` | 0=Working, 2=SystemPara, 4=Modbus TCP |
 | 145 | `OffsetValue` | `OffsetValue` | 寫入前 `lround()` |
 | 146 | `BinaryUpper` | `BinaryUpper` | `uint16_t` |
 | 147 | `BinaryLower` | `BinaryLower` | `uint16_t` |
@@ -32,6 +32,7 @@
 | 154 | `RefCenterX` | `RefCenterX` | `uint16_t` |
 | 155 | `RefCenterY` | `RefCenterY` | `uint16_t` |
 | 156 | `ImageFlip` | `ImageFlip` | `short -> uint16_t` |
+| 157 | `CreateToolPath` | `SystemConfigA.CreateToolPath` | CreatePath flag，1=建立路徑，完成後清回 0 |
 
 ## 2. SystemConfig.ini 有讀取但目前不寫入 HMI 的欄位
 
@@ -64,7 +65,7 @@
 
 | Modbus Register | `MemStruct_SP` 成員 | 備註 |
 |---|---|---|
-| 157 | `CreateToolPath` | `uint16_t` 控制是否建立工具路徑 |
+| 157 | - | 保留給 `SystemConfigA.CreateToolPath`，不屬於 `MemStruct_SP` 寫入區 |
 | 158 | `RecipeID` | `uint16_t` |
 | 159 | `CurrentProduction` | `uint16_t` |
 | 160 | `Set_temperature0` | `uint16_t` |

@@ -278,12 +278,15 @@ void SystemParaTab::UpdateControl()
 
 		CString liveSystemConfig;
 		liveSystemConfig.Format(
+			_T("SystemFunction (Register 139~144):\r\n")
+			_T("Grab: %d\r\n")
 			_T("ImageBinary: %d\r\n")
-			_T("CreateToolPath (Register 157): %d\r\n")
-			_T("DispalyToolPath: %d\r\n")
 			_T("DisplayROI: %d\r\n")
 			_T("DisplayRefLine: %d\r\n")
-			_T("TabWork: %d\r\n")
+			_T("DiplayPath: %d\r\n")
+			_T("TabStatus: %d\r\n\r\n")
+			_T("SystemPara (Register 145~157):\r\n")
+			_T("CreateToolPath (Register 157): %d\r\n")
 			_T("OffsetValue: %.3f\r\n")
 			_T("EntryPointX: %.3f\r\n")
 			_T("BinaryUpper: %d\r\n")
@@ -295,12 +298,13 @@ void SystemParaTab::UpdateControl()
 			_T("PLC_ID: %s\r\n")
 			_T("RefCenterX/Y: %d / %d\r\n")
 			_T("ImageFlip: %d"),
-			pParentWnd->m_SystemPara.ImageBinary,
+			pParentWnd->m_SystemFunction.Grab,
+			pParentWnd->m_SystemFunction.ImageBinary,
+			pParentWnd->m_SystemFunction.DisplayROI,
+			pParentWnd->m_SystemFunction.DisplayRefLine,
+			pParentWnd->m_SystemFunction.DiplayPath,
+			pParentWnd->m_SystemFunction.TabStatus,
 			pParentWnd->m_SystemPara.CreateToolPath,
-			pParentWnd->m_SystemPara.DispalyToolPath,
-			pParentWnd->m_SystemPara.DisplayROI,
-			pParentWnd->m_SystemPara.DisplayRefLine,
-			pParentWnd->m_SystemPara.TabWork,
 			pParentWnd->m_SystemPara.OffsetValue,
 			pParentWnd->m_SystemPara.EntryPointX,
 			pParentWnd->m_SystemPara.BinaryUpper,

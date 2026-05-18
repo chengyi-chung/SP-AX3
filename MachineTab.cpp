@@ -134,12 +134,15 @@ void MachineTab::OpenModBus()
 		return;
 	}
 
-	constexpr int kSystemConfigStart = 139;
+	constexpr int kSystemConfigStart = 145;
 	constexpr int kMemStructStart = 114;
 	std::vector<uint16_t> regs;
 
-	// 啟動時以 SystemConfig.ini 載入到 m_SystemPara 的值為準，直接寫入 HMI。
+	// 139~144 are HMI SystemFunction controls; initialize only SystemConfigA 145~157.
 	BuildSystemConfigRegisters(pParentWnd->m_SystemPara, regs);
+	if (regs.size() >= 6) {
+		regs.erase(regs.begin(), regs.begin() + 6);
+	}
 	if (!WriteHoldingRegistersBlock(kSystemConfigStart, regs, slaveId)) {
 		AfxMessageBox(_T("初始化寫入 SystemConfigA 到 Modbus 失敗。"));
 		return;
@@ -1164,8 +1167,8 @@ bool MachineTab::ReadRegisterStringBlock(int startAddress, int count, char* outB
 void MachineTab::BuildSystemConfigRegisters(const SystemConfigA& src, std::vector<uint16_t>& outValues) const
 {
 	outValues.assign(19, 0);
-	outValues[0] = static_cast<uint16_t>(src.ImageBinary);
-	outValues[1] = static_cast<uint16_t>(src.CreateToolPath);
+	outValues[0] = 0; // Register 139 is SystemFunction::Grab.
+	outValues[1] = static_cast<uint16_t>(src.ImageBinary);
 	outValues[2] = static_cast<uint16_t>(src.DispalyToolPath);
 	outValues[3] = static_cast<uint16_t>(src.DisplayROI);
 	outValues[4] = static_cast<uint16_t>(src.DisplayRefLine);
@@ -1191,8 +1194,7 @@ void MachineTab::ApplySystemConfigRegisters(const std::vector<uint16_t>& values,
 		return;
 	}
 
-	dst.ImageBinary = values[0];
-	dst.CreateToolPath = values[1];
+	dst.ImageBinary = values[1];
 	dst.DispalyToolPath = values[2];
 	dst.DisplayROI = values[3];
 	dst.DisplayRefLine = values[4];
@@ -1505,6 +1507,14 @@ void MachineTab::OnTimer(UINT_PTR nIDEvent)
 
 			std::vector<uint16_t> systemRegs;
 			if (ReadHoldingRegistersBlock(kSystemConfigStart, kSystemConfigCount, systemRegs, pParentWnd->m_SystemPara.StationID)) {
+				if (systemRegs.size() >= 6) {
+					systemRegs[0] = 0; // Register 139 is SystemFunction::Grab.
+					systemRegs[1] = static_cast<uint16_t>(pParentWnd->m_SystemPara.ImageBinary);
+					systemRegs[2] = static_cast<uint16_t>(pParentWnd->m_SystemPara.DispalyToolPath);
+					systemRegs[3] = static_cast<uint16_t>(pParentWnd->m_SystemPara.DisplayROI);
+					systemRegs[4] = static_cast<uint16_t>(pParentWnd->m_SystemPara.DisplayRefLine);
+					systemRegs[5] = static_cast<uint16_t>(pParentWnd->m_SystemPara.TabWork);
+				}
 				ApplySystemConfigRegisters(systemRegs, pParentWnd->m_SystemPara);
 				pParentWnd->RefreshSystemParaTabDisplay();
 			}

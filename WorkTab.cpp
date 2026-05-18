@@ -66,6 +66,29 @@ std::string GetToolDebugExportPath(const std::string& fileName)
     return appPath + fileName;
 }
 
+int ShowMessageBoxFor(CWnd* owner, LPCTSTR text, LPCTSTR caption, UINT type, DWORD timeoutMs)
+{
+#ifdef UNICODE
+    using MessageBoxTimeoutProc = int(WINAPI*)(HWND, LPCWSTR, LPCWSTR, UINT, WORD, DWORD);
+    constexpr char kProcName[] = "MessageBoxTimeoutW";
+#else
+    using MessageBoxTimeoutProc = int(WINAPI*)(HWND, LPCSTR, LPCSTR, UINT, WORD, DWORD);
+    constexpr char kProcName[] = "MessageBoxTimeoutA";
+#endif
+
+    HMODULE user32 = ::GetModuleHandle(_T("user32.dll"));
+    auto messageBoxTimeout = user32
+        ? reinterpret_cast<MessageBoxTimeoutProc>(::GetProcAddress(user32, kProcName))
+        : nullptr;
+
+    if (messageBoxTimeout) {
+        HWND ownerHwnd = owner ? owner->GetSafeHwnd() : nullptr;
+        return messageBoxTimeout(ownerHwnd, text, caption, type, 0, timeoutMs);
+    }
+
+    return AfxMessageBox(text, type);
+}
+
 cv::Mat ApplyConfiguredImageTransform(const cv::Mat& image, int flipCode, bool inverse)
 {
     if (image.empty()) {
@@ -631,6 +654,7 @@ BOOL WorkTab::OnInitDialog()
     m_hmiSyncIntervalMs = 500;
     m_lastSyncedSystemPara = pParentWnd->m_SystemPara;
     m_lastSyncedMemStruct = pParentWnd->m_MemStruct_SP;
+    m_lastSyncedSystemFunction = pParentWnd->m_SystemFunction;
     UpdateModbusSyncState(pParentWnd != nullptr && pParentWnd->m_modbusCtx != nullptr);
 
 
@@ -756,6 +780,7 @@ void WorkTab::UpdateModbusSyncState(bool connected)
         StopHmiSyncTimer();
         m_hasSystemSyncBaseline = false;
         m_hasMemSyncBaseline = false;
+        m_hasSystemFunctionBaseline = false;
     }
 }
 
@@ -810,8 +835,8 @@ bool WorkTab::WriteHoldingRegistersBlock(int startAddress, const std::vector<uin
 void WorkTab::BuildSystemConfigRegisters(const SystemConfigA& src, std::vector<uint16_t>& outValues) const
 {
     outValues.assign(19, 0);
-    outValues[0] = static_cast<uint16_t>(src.ImageBinary);
-    outValues[1] = static_cast<uint16_t>(src.CreateToolPath);
+    outValues[0] = 0; // Register 139 is SystemFunction::Grab.
+    outValues[1] = static_cast<uint16_t>(src.ImageBinary);
     outValues[2] = static_cast<uint16_t>(src.DispalyToolPath);
     outValues[3] = static_cast<uint16_t>(src.DisplayROI);
     outValues[4] = static_cast<uint16_t>(src.DisplayRefLine);
@@ -837,8 +862,7 @@ void WorkTab::ApplySystemConfigRegisters(const std::vector<uint16_t>& values, Sy
         return;
     }
 
-    dst.ImageBinary = values[0];
-    dst.CreateToolPath = values[1];
+    dst.ImageBinary = values[1];
     dst.DispalyToolPath = values[2];
     dst.DisplayROI = values[3];
     dst.DisplayRefLine = values[4];
@@ -856,6 +880,58 @@ void WorkTab::ApplySystemConfigRegisters(const std::vector<uint16_t>& values, Sy
     dst.RefCenterY = values[16];
     dst.ImageFlip = static_cast<short>(values[17]);
     dst.CreateToolPath = values[18];  // Register 157 belongs to SystemConfigA
+}
+
+void WorkTab::ApplySystemFunctionRegisters(const std::vector<uint16_t>& values, SystemFunction& dst) const
+{
+    if (values.size() < SystemFunction::RegisterCount) {
+        return;
+    }
+
+    dst.Grab = values[0] ? 1 : 0;
+    dst.ImageBinary = values[1] ? 1 : 0;
+    dst.DisplayROI = values[2] ? 1 : 0;
+    dst.DisplayRefLine = values[3] ? 1 : 0;
+    dst.DiplayPath = values[4] ? 1 : 0;
+    dst.TabStatus = values[5];
+}
+
+void WorkTab::HandleSystemFunctionChange(const SystemFunction& previousValue, const SystemFunction& currentValue)
+{
+    if (!m_hasSystemFunctionBaseline || previousValue.Grab != currentValue.Grab) {
+        if (currentValue.Grab == 1 && !m_bGrabThread) {
+            OnBnClickedWorkGrab();
+        }
+        else if (currentValue.Grab == 0 && m_bGrabThread) {
+            OnBnClickedWorkStopGrab();
+        }
+    }
+
+    bool needsRedraw = false;
+
+    if (!m_hasSystemFunctionBaseline || previousValue.DisplayROI != currentValue.DisplayROI) {
+        const UINT roiCheckState = (currentValue.DisplayROI == 1) ? BST_CHECKED : BST_UNCHECKED;
+        CheckDlgButton(IDC_CHECK_WORK_ROI, roiCheckState);
+        m_bROIMode = (currentValue.DisplayROI == 1);
+        needsRedraw = true;
+    }
+
+    if (!m_hasSystemFunctionBaseline || previousValue.DisplayRefLine != currentValue.DisplayRefLine) {
+        const UINT refLineCheckState = (currentValue.DisplayRefLine == 1) ? BST_CHECKED : BST_UNCHECKED;
+        CheckDlgButton(IDC_CHECK_WORK_CENTER, refLineCheckState);
+        flgCenter = (currentValue.DisplayRefLine == 1);
+        needsRedraw = true;
+    }
+
+    if (needsRedraw && !m_mat.empty()) {
+        ShowImageOnPictureControl(flgCenter, cv::Scalar(0, 0, 255, 255), 1, CrossStyle::Solid);
+    }
+
+    if (needsRedraw && pWnd && ::IsWindow(pWnd->GetSafeHwnd())) {
+        pWnd->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW | RDW_ERASE);
+    }
+
+    // ImageBinary and DiplayPath are monitored here and reserved for future behavior.
 }
 
 void WorkTab::BuildMemStructRegisters(const MemStruct_SP& src, std::vector<uint16_t>& outValues) const
@@ -951,6 +1027,16 @@ bool WorkTab::IsSystemConfigEqual(const SystemConfigA& lhs, const SystemConfigA&
         lhs.CameraSerialNumber == rhs.CameraSerialNumber;
 }
 
+bool WorkTab::IsSystemFunctionEqual(const SystemFunction& lhs, const SystemFunction& rhs) const
+{
+    return lhs.ImageBinary == rhs.ImageBinary &&
+        lhs.Grab == rhs.Grab &&
+        lhs.DiplayPath == rhs.DiplayPath &&
+        lhs.DisplayROI == rhs.DisplayROI &&
+        lhs.DisplayRefLine == rhs.DisplayRefLine &&
+        lhs.TabStatus == rhs.TabStatus;
+}
+
 bool WorkTab::IsSystemConfigDisplayDataValid(const SystemConfigA& value) const
 {
     if (value.MaskWidth <= 0 || value.MaskHeight <= 0) {
@@ -1016,12 +1102,14 @@ void WorkTab::ClearCreateToolPathRequest(int stationID)
     }
 
     pParent->m_SystemPara.CreateToolPath = 0;
+    pParent->m_SystemFunction.Grab = 0;
     m_autoCreateToolPathWaitingForImage = false;
     m_lastSyncedSystemPara = pParent->m_SystemPara;
+    m_lastSyncedSystemFunction = pParent->m_SystemFunction;
 
-    std::vector<uint16_t> values;
-    BuildSystemConfigRegisters(pParent->m_SystemPara, values);
+    std::vector<uint16_t> values(1, 0);
     WriteHoldingRegistersBlock(139, values, stationID);
+    WriteHoldingRegistersBlock(157, values, stationID);
     pParent->RefreshSystemParaTabDisplay();
 }
 
@@ -1096,12 +1184,43 @@ void WorkTab::SyncHmiData(int stationID)
 
     m_hmiSyncBusy = true;
 
+    constexpr int kSystemFunctionStart = SystemFunction::StartAddress;
     constexpr int kSystemConfigStart = 139;
     constexpr int kMemStructStart = 114;
 
     std::vector<uint16_t> regs;
+    SystemFunction remoteFunction = pParent->m_SystemFunction;
+    if (ReadHoldingRegistersBlock(kSystemFunctionStart, SystemFunction::RegisterCount, regs, stationID)) {
+        ApplySystemFunctionRegisters(regs, remoteFunction);
+        if (!IsSystemFunctionEqual(remoteFunction, m_lastSyncedSystemFunction)) {
+            const SystemFunction previousFunction = m_lastSyncedSystemFunction;
+            pParent->m_SystemFunction = remoteFunction;
+            HandleSystemFunctionChange(previousFunction, remoteFunction);
+            m_lastSyncedSystemFunction = remoteFunction;
+            pParent->RefreshSystemParaTabDisplay();
+        }
+        else if (!m_hasSystemFunctionBaseline) {
+            pParent->m_SystemFunction = remoteFunction;
+            HandleSystemFunctionChange(m_lastSyncedSystemFunction, remoteFunction);
+            m_lastSyncedSystemFunction = remoteFunction;
+        }
+        else {
+            pParent->m_SystemFunction = remoteFunction;
+            pParent->RefreshSystemParaTabDisplay();
+        }
+        m_hasSystemFunctionBaseline = true;
+    }
+
     SystemConfigA remoteSystem = pParent->m_SystemPara;
     if (ReadHoldingRegistersBlock(kSystemConfigStart, 19, regs, stationID)) {
+        if (regs.size() >= 6) {
+            regs[0] = 0; // Register 139 is SystemFunction::Grab.
+            regs[1] = static_cast<uint16_t>(pParent->m_SystemPara.ImageBinary);
+            regs[2] = static_cast<uint16_t>(pParent->m_SystemPara.DispalyToolPath);
+            regs[3] = static_cast<uint16_t>(pParent->m_SystemPara.DisplayROI);
+            regs[4] = static_cast<uint16_t>(pParent->m_SystemPara.DisplayRefLine);
+            regs[5] = static_cast<uint16_t>(pParent->m_SystemPara.TabWork);
+        }
         ApplySystemConfigRegisters(regs, remoteSystem);
         if (IsSystemConfigDisplayDataValid(remoteSystem)) {
             if (!IsSystemConfigEqual(remoteSystem, m_lastSyncedSystemPara)) {
@@ -1179,6 +1298,11 @@ void WorkTab::OnBnClickedWorkGrab()
 	}
     //Call the multi-threaded grabber
     AfxBeginThread(GrabThread, this);
+
+    if (CSPDlg* pParent = dynamic_cast<CSPDlg*>(GetParent()->GetParent())) {
+        pParent->m_SystemFunction.Grab = 1;
+        pParent->RefreshSystemParaTabDisplay();
+    }
 
     //Display  m_mat with cv::imshow
 
@@ -1809,6 +1933,11 @@ void WorkTab::OnBnClickedWorkStopGrab()
 	{
 		m_bGrabThread = false;
 	}
+
+    if (CSPDlg* pParent = dynamic_cast<CSPDlg*>(GetParent()->GetParent())) {
+        pParent->m_SystemFunction.Grab = 0;
+        pParent->RefreshSystemParaTabDisplay();
+    }
 }
 
 
@@ -2760,11 +2889,13 @@ void WorkTab::OnBnClickedIdcWorkGo()
         return;
     }
 
+    ClearCreateToolPathRequest(stationID);
+
     // 10. 完成提示
     CString doneMsg;
     doneMsg.Format(_T("HMI 路徑已成功透過 Modbus TCP 傳送。\n路徑描述點數=%u\nHMI 傳送筆數=%d (第 26~30 筆重複最後描述點)"),
                    static_cast<unsigned>(pointCount), kAxisCount);
-    AfxMessageBox(doneMsg);
+    ShowMessageBoxFor(this, doneMsg, _T("SP AX3"), MB_OK | MB_ICONWARNING, 5000);
     }
     catch (const std::system_error& ex) {
         CString err;
@@ -3210,6 +3341,12 @@ void WorkTab::OnBnClickedCheckWorkCenter()
     {
         flgCenter = false;
 	}
+
+    if (CSPDlg* pParent = dynamic_cast<CSPDlg*>(GetParent()->GetParent())) {
+        pParent->m_SystemFunction.DisplayRefLine = flgCenter ? 1 : 0;
+        pParent->RefreshSystemParaTabDisplay();
+    }
+
 	//觸發重繪
 	Invalidate();
     if (!m_mat.empty()) {
@@ -3428,12 +3565,13 @@ bool WorkTab::WriteSystemParaBatch_139_to_157(const std::vector<uint16_t>& inVal
     std::lock_guard<std::mutex> lock(pParent->m_modbusMutex);
     modbus_set_slave(pParent->m_modbusCtx, stationID);
 
-    const int START_ADDR = 139;
-    const int COUNT = 19;
+    const int START_ADDR = 145;
+    const int COUNT = 13;
+    std::vector<uint16_t> systemConfigValues(inValues.begin() + 6, inValues.end());
 
-    if (modbus_write_registers(pParent->m_modbusCtx, START_ADDR, COUNT, inValues.data()) == -1) {
+    if (modbus_write_registers(pParent->m_modbusCtx, START_ADDR, COUNT, systemConfigValues.data()) == -1) {
         CString err;
-        err.Format(_T("批量寫入 139~157 失敗：%S"), modbus_strerror(errno));
+        err.Format(_T("批量寫入 145~157 失敗：%S"), modbus_strerror(errno));
         AfxMessageBox(err);
         return false;
     }
@@ -3452,6 +3590,14 @@ bool WorkTab::SyncReadAndUpdateSystemPara(int stationID)
     CSPDlg* pParent = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
     if (!pParent) return false;
 
+    if (values.size() >= 6) {
+        values[0] = 0; // Register 139 is SystemFunction::Grab.
+        values[1] = static_cast<uint16_t>(pParent->m_SystemPara.ImageBinary);
+        values[2] = static_cast<uint16_t>(pParent->m_SystemPara.DispalyToolPath);
+        values[3] = static_cast<uint16_t>(pParent->m_SystemPara.DisplayROI);
+        values[4] = static_cast<uint16_t>(pParent->m_SystemPara.DisplayRefLine);
+        values[5] = static_cast<uint16_t>(pParent->m_SystemPara.TabWork);
+    }
     ApplySystemConfigRegisters(values, pParent->m_SystemPara);
     m_lastSyncedSystemPara = pParent->m_SystemPara;
 
@@ -3515,7 +3661,11 @@ void WorkTab::OnBnClickedCheckWorkRoi()
 	CButton* pCheckBox = (CButton*)GetDlgItem(IDC_CHECK_WORK_ROI);
     	if (pCheckBox) 
         {
-            		m_bROIMode = (pCheckBox->GetCheck() == BST_CHECKED);
+             		m_bROIMode = (pCheckBox->GetCheck() == BST_CHECKED);
+        }
+        if (CSPDlg* pParent = dynamic_cast<CSPDlg*>(GetParent()->GetParent())) {
+            pParent->m_SystemFunction.DisplayROI = m_bROIMode ? 1 : 0;
+            pParent->RefreshSystemParaTabDisplay();
         }
         Invalidate(); // 觸發重繪
         if (!m_mat.empty()) {
