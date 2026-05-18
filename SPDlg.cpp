@@ -386,6 +386,7 @@ BOOL CSPDlg::OnInitDialog()
 	// 2. 將 SystemConfig.ini 對應的 SystemConfigA 寫入 HMI
 	// 3. 讀回 HMI / PLC 執行期資料並刷新畫面
 	m_MachineTab.OpenModBus();
+	m_WorkTab.OnBnClickedWorkGrab();
 
 	return TRUE;  // return TRUE unless you set the focus to a control
 }

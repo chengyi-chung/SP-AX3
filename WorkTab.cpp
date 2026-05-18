@@ -1301,6 +1301,11 @@ void WorkTab::OnBnClickedWorkGrab()
 
     if (CSPDlg* pParent = dynamic_cast<CSPDlg*>(GetParent()->GetParent())) {
         pParent->m_SystemFunction.Grab = 1;
+        m_lastSyncedSystemFunction = pParent->m_SystemFunction;
+        if (pParent->m_modbusCtx) {
+            std::vector<uint16_t> values(1, 1);
+            WriteHoldingRegistersBlock(139, values, pParent->m_SystemPara.StationID);
+        }
         pParent->RefreshSystemParaTabDisplay();
     }
 
@@ -1936,6 +1941,11 @@ void WorkTab::OnBnClickedWorkStopGrab()
 
     if (CSPDlg* pParent = dynamic_cast<CSPDlg*>(GetParent()->GetParent())) {
         pParent->m_SystemFunction.Grab = 0;
+        m_lastSyncedSystemFunction = pParent->m_SystemFunction;
+        if (pParent->m_modbusCtx) {
+            std::vector<uint16_t> values(1, 0);
+            WriteHoldingRegistersBlock(139, values, pParent->m_SystemPara.StationID);
+        }
         pParent->RefreshSystemParaTabDisplay();
     }
 }
