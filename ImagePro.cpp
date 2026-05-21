@@ -24,7 +24,7 @@ ImagePro::~ImagePro()
 
 void ImagePro::OnOK()
 {
-    // Prevent Enter key in child controls from closing the dialog.
+    CDialogEx::OnOK();
 }
 
 void ImagePro::DoDataExchange(CDataExchange* pDX)
@@ -33,6 +33,7 @@ void ImagePro::DoDataExchange(CDataExchange* pDX)
     DDX_Control(pDX, IDC_IMAGE_PRO_PICTURE_CTL, m_pictureCtl);
     DDX_Control(pDX, IDC_IDC_IMAGE_PRO_SLIDER_H, m_sliderHigh);
     DDX_Control(pDX, IDC_IDC_IMAGE_PRO_SLIDER_L, m_sliderLow);
+    DDX_Control(pDX, IDC_IDC_IMAGE_PRO_BINARY_CHK, m_binaryCheck);
 }
 
 void ImagePro::SetImage(const cv::Mat& image)
@@ -63,6 +64,26 @@ void ImagePro::SetSliderValues(int lowValue, int highValue)
     }
 }
 
+void ImagePro::GetSliderValues(int& lowValue, int& highValue) const
+{
+    lowValue = m_sliderLowValue;
+    highValue = m_sliderHighValue;
+}
+
+void ImagePro::SetBinaryPreviewEnabled(bool enabled)
+{
+    m_binaryPreviewEnabled = enabled;
+    if (::IsWindow(m_binaryCheck.GetSafeHwnd())) {
+        m_binaryCheck.SetCheck(m_binaryPreviewEnabled ? BST_CHECKED : BST_UNCHECKED);
+        RenderImageZoomAll();
+    }
+}
+
+bool ImagePro::IsBinaryPreviewEnabled() const
+{
+    return m_binaryPreviewEnabled;
+}
+
 BOOL ImagePro::OnInitDialog()
 {
     CDialogEx::OnInitDialog();
@@ -75,6 +96,7 @@ BOOL ImagePro::OnInitDialog()
     m_sliderLow.SetPageSize(1);
     m_sliderLow.SetLineSize(1);
     m_sliderLow.SetPos(m_sliderLowValue);
+    m_binaryCheck.SetCheck(m_binaryPreviewEnabled ? BST_CHECKED : BST_UNCHECKED);
     UpdateSliderText();
     RenderImageZoomAll();
     return TRUE;
@@ -109,6 +131,7 @@ void ImagePro::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
             }
         }
         UpdateSliderText();
+        RenderImageZoomAll();
     }
 }
 
@@ -120,6 +143,12 @@ void ImagePro::OnEnChangeImageProHeight()
 void ImagePro::OnEnChangeImageProLow()
 {
     UpdateSliderFromEdit(IDC_IDC_IMAGE_PRO_LOW, false);
+}
+
+void ImagePro::OnBnClickedImageProBinaryChk()
+{
+    m_binaryPreviewEnabled = (m_binaryCheck.GetCheck() == BST_CHECKED);
+    RenderImageZoomAll();
 }
 
 void ImagePro::UpdateSliderText()
@@ -163,6 +192,7 @@ void ImagePro::UpdateSliderFromEdit(UINT editControlId, bool isHighValue)
     }
 
     UpdateSliderText();
+    RenderImageZoomAll();
 }
 
 void ImagePro::RenderImageZoomAll()
@@ -180,7 +210,22 @@ void ImagePro::RenderImageZoomAll()
     }
 
     cv::Mat src;
-    if (m_image.channels() == 1) {
+    if (m_binaryPreviewEnabled) {
+        cv::Mat gray;
+        if (m_image.channels() == 1) {
+            gray = m_image;
+        }
+        else if (m_image.channels() == 4) {
+            cv::cvtColor(m_image, gray, cv::COLOR_BGRA2GRAY);
+        }
+        else {
+            cv::cvtColor(m_image, gray, cv::COLOR_BGR2GRAY);
+        }
+        cv::Mat binary;
+        cv::inRange(gray, cv::Scalar(m_sliderLowValue), cv::Scalar(m_sliderHighValue), binary);
+        cv::cvtColor(binary, src, cv::COLOR_GRAY2BGR);
+    }
+    else if (m_image.channels() == 1) {
         cv::cvtColor(m_image, src, cv::COLOR_GRAY2BGR);
     }
     else if (m_image.channels() == 4) {
@@ -244,6 +289,7 @@ void ImagePro::RenderImageZoomAll()
 BEGIN_MESSAGE_MAP(ImagePro, CDialogEx)
     ON_EN_CHANGE(IDC_IDC_IMAGE_PRO_HEIGHT, &ImagePro::OnEnChangeImageProHeight)
     ON_EN_CHANGE(IDC_IDC_IMAGE_PRO_LOW, &ImagePro::OnEnChangeImageProLow)
+    ON_BN_CLICKED(IDC_IDC_IMAGE_PRO_BINARY_CHK, &ImagePro::OnBnClickedImageProBinaryChk)
     ON_WM_HSCROLL()
     ON_WM_SIZE()
 END_MESSAGE_MAP()

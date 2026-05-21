@@ -2750,7 +2750,8 @@ void WorkTab::OnBnClickedIdcWorkGo()
 {
     try {
     // 1. 取得全域資源與父視窗指標
-    CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
+    CWnd* parent = GetParent();
+    CSPDlg* pParentWnd = (parent != nullptr) ? dynamic_cast<CSPDlg*>(parent->GetParent()) : nullptr;
     if (!pParentWnd) {
         AfxMessageBox(_T("無法獲取父視窗資源。"));
         return;
@@ -3375,9 +3376,22 @@ void WorkTab::OnBnClickedWorkImageProcess()
         return;
     }
 
+    CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
     ImagePro dlg(this);
     dlg.SetImage(m_mat);
-    dlg.DoModal();
+    if (pParentWnd != nullptr) {
+        dlg.SetSliderValues(pParentWnd->m_SystemPara.BinaryLower, pParentWnd->m_SystemPara.BinaryUpper);
+        dlg.SetBinaryPreviewEnabled(pParentWnd->m_SystemPara.ImageBinary != 0);
+    }
+
+    if (dlg.DoModal() == IDOK && pParentWnd != nullptr) {
+        int binaryLower = 0;
+        int binaryUpper = 255;
+        dlg.GetSliderValues(binaryLower, binaryUpper);
+        pParentWnd->m_SystemPara.BinaryLower = binaryLower;
+        pParentWnd->m_SystemPara.BinaryUpper = binaryUpper;
+        pParentWnd->m_SystemPara.ImageBinary = dlg.IsBinaryPreviewEnabled() ? 1 : 0;
+    }
 
 }
 

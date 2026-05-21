@@ -13,6 +13,9 @@ public:
     virtual ~ImagePro();
     void SetImage(const cv::Mat& image);
     void SetSliderValues(int lowValue, int highValue);
+    void GetSliderValues(int& lowValue, int& highValue) const;
+    void SetBinaryPreviewEnabled(bool enabled);
+    bool IsBinaryPreviewEnabled() const;
     virtual void OnOK() override;
 
 #ifdef AFX_DESIGN_TIME
@@ -26,6 +29,7 @@ protected:
     afx_msg void OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar);
     afx_msg void OnEnChangeImageProHeight();
     afx_msg void OnEnChangeImageProLow();
+    afx_msg void OnBnClickedImageProBinaryChk();
     void RenderImageZoomAll();
     void UpdateSliderText();
     void UpdateSliderFromEdit(UINT editControlId, bool isHighValue);
@@ -37,8 +41,10 @@ private:
     CStatic m_pictureCtl;
     CSliderCtrl m_sliderHigh;
     CSliderCtrl m_sliderLow;
+    CButton m_binaryCheck;
     CBitmap m_displayBitmap;
     int m_sliderLowValue = 0;
     int m_sliderHighValue = 255;
+    bool m_binaryPreviewEnabled = false;
     bool m_isUpdatingSliderText = false;
 };
