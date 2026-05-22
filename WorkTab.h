@@ -63,6 +63,7 @@ public:
 	cv::Mat m_mat;
 	cv::Mat m_matTemp;
 	cv::Mat m_pathDisplayMat;
+	cv::Mat m_calibratedDisplayMat;
 	CImage m_image;
 	CDC* pDC;
 	CWnd* pWnd;
@@ -122,6 +123,7 @@ public:
 	void DisplayGrayImageInControl(uint8_t* pImage, int width, int height, CStatic& pictureControl);
 	void ShowImageWithOpenCV(cv::Mat m_mat, int ScreenHeight, int ScreenWidth);
 	void GetToolPathData(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpath);
+	cv::Mat BuildCalibratedDisplayImage(const cv::Mat& displayImage);
 
 	CStatic m_PicCtl_Display;
 	CMFCButton m_Work_Grab;           // MFC Button
@@ -185,6 +187,7 @@ private:
 	bool m_hmiSyncBusy = false;
 	bool m_autoCreateToolPathBusy = false;
 	bool m_autoCreateToolPathWaitingForImage = false;
+	int m_currentImageFlip = 0;
 	UINT m_hmiSyncIntervalMs = 500;
 	bool m_hasSystemSyncBaseline = false;
 	bool m_hasMemSyncBaseline = false;
@@ -210,6 +213,7 @@ private:
 	bool IsSystemConfigEqual(const SystemConfigA& lhs, const SystemConfigA& rhs) const;
 	bool IsSystemFunctionEqual(const SystemFunction& lhs, const SystemFunction& rhs) const;
 	bool IsMemStructEqual(const MemStruct_SP& lhs, const MemStruct_SP& rhs) const;
+	bool RefreshImageFlipFromSystemConfig();
 
 	
 

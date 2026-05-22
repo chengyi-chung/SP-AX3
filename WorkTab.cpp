@@ -95,6 +95,10 @@ cv::Mat ApplyConfiguredImageTransform(const cv::Mat& image, int flipCode, bool i
         return image;
     }
 
+    if (flipCode == 2) {
+        flipCode = 180;
+    }
+
     if (flipCode == 1 || flipCode == -1) {
         cv::Mat flipped;
         cv::flip(image, flipped, flipCode);
@@ -138,6 +142,10 @@ cv::Mat ApplyInverseConfiguredFlip(const cv::Mat& image, int flipCode)
 
 bool HasConfiguredImageTransform(int flipCode)
 {
+    if (flipCode == 2) {
+        flipCode = 180;
+    }
+
     return flipCode == 1 || flipCode == -1 ||
         flipCode == 90 || flipCode == 180 || flipCode == 270 || flipCode == -90;
 }
@@ -149,6 +157,10 @@ cv::Point2d ApplyConfiguredFlipToPoint(const cv::Point2d& pt, const cv::Size& im
     }
 
     cv::Point2d flipped = pt;
+    if (flipCode == 2) {
+        flipCode = 180;
+    }
+
     switch (flipCode) {
     case 1:
         flipped.x = (imageSize.width - 1) - pt.x;
@@ -651,6 +663,7 @@ BOOL WorkTab::OnInitDialog()
 	CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
 
 	imgFlip = pParentWnd->m_SystemPara.ImageFlip;
+    RefreshImageFlipFromSystemConfig();
     m_hmiSyncIntervalMs = 500;
     m_lastSyncedSystemPara = pParentWnd->m_SystemPara;
     m_lastSyncedMemStruct = pParentWnd->m_MemStruct_SP;
@@ -1094,6 +1107,33 @@ bool WorkTab::IsMemStructEqual(const MemStruct_SP& lhs, const MemStruct_SP& rhs)
         lhs.p19 == rhs.p19;
 }
 
+bool WorkTab::RefreshImageFlipFromSystemConfig()
+{
+    CWnd* parent = GetParent();
+    CSPDlg* pParent = (parent != nullptr) ? dynamic_cast<CSPDlg*>(parent->GetParent()) : nullptr;
+    if (pParent != nullptr) {
+        imgFlip = pParent->m_SystemPara.ImageFlip;
+    }
+
+    std::string configPath = GetAppPath();
+    if (!configPath.empty() && configPath.back() != '\\' && configPath.back() != '/') {
+        configPath += "\\";
+    }
+    configPath += "SystemConfig.ini";
+
+    SystemConfigA config{};
+    if (ReadSystemConfig_SP(configPath, config) != 0) {
+        return false;
+    }
+
+    imgFlip = config.ImageFlip;
+    if (pParent != nullptr) {
+        pParent->m_SystemPara.ImageFlip = config.ImageFlip;
+        m_lastSyncedSystemPara.ImageFlip = config.ImageFlip;
+    }
+    return true;
+}
+
 void WorkTab::ClearCreateToolPathRequest(int stationID)
 {
     CSPDlg* pParent = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
@@ -1125,6 +1165,7 @@ void WorkTab::HandleAutoCreateToolPathRequest(int stationID)
     if (!m_autoCreateToolPathWaitingForImage && !m_bGrabThread) {
         m_mat.release();
         m_pathDisplayMat.release();
+        m_calibratedDisplayMat.release();
         toolPath.Path.clear();
         m_OptimizedGluePath.PathLeft.clear();
         m_OptimizedGluePath.PathRight.clear();
@@ -1221,6 +1262,9 @@ void WorkTab::SyncHmiData(int stationID)
             regs[4] = static_cast<uint16_t>(pParent->m_SystemPara.DisplayRefLine);
             regs[5] = static_cast<uint16_t>(pParent->m_SystemPara.TabWork);
         }
+        if (regs.size() >= 18) {
+            regs[17] = static_cast<uint16_t>(pParent->m_SystemPara.ImageFlip);
+        }
         ApplySystemConfigRegisters(regs, remoteSystem);
         if (IsSystemConfigDisplayDataValid(remoteSystem)) {
             if (!IsSystemConfigEqual(remoteSystem, m_lastSyncedSystemPara)) {
@@ -1287,7 +1331,9 @@ void WorkTab::OnBnClickedWorkGrab()
 {
 	// TODO: 在此加入控制項告知處理常式程式碼
     // If the grab thread is not running, start it
-  
+    RefreshImageFlipFromSystemConfig();
+    m_currentImageFlip = imgFlip;
+
     if (!m_bGrabThread)
 	{
 		m_bGrabThread = true;
@@ -1386,7 +1432,8 @@ UINT WorkTab::GrabThread(LPVOID pParam)
                 // 使用 ShowImageOnPictureControl使用下式
 				pWorkTab->m_mat = cv::Mat(ptrGrabResult->GetHeight(), ptrGrabResult->GetWidth(), CV_8UC1, (void*)pWorkTab->pImageBuffer).clone();
 
-                pWorkTab->m_mat = ApplyConfiguredFlip(pWorkTab->m_mat, pWorkTab->imgFlip);
+                pWorkTab->m_mat = ApplyConfiguredFlip(pWorkTab->m_mat, pWorkTab->m_currentImageFlip);
+                pWorkTab->m_calibratedDisplayMat = pWorkTab->BuildCalibratedDisplayImage(pWorkTab->m_mat);
                 pWorkTab->m_pathDisplayMat.release();
                 pWorkTab->toolPath.Path.clear();
                 pWorkTab->m_OptimizedGluePath.PathLeft.clear();
@@ -1749,15 +1796,36 @@ void WorkTab::ShowImageOnPictureCtl()
     ResizeGrayImage(pImageBuffer, oriImageWidth, oriImageHeight, pResizedImage, targetWidth, targetHeight);
 
     // Display the image in the Picture Control
-    DisplayGrayImageInControl(pResizedImage, targetWidth, targetHeight, m_PicCtl_Display);  
+    DisplayGrayImageInControl(pResizedImage, targetWidth, targetHeight, m_PicCtl_Display);
 
+}
+
+cv::Mat WorkTab::BuildCalibratedDisplayImage(const cv::Mat& displayImage)
+{
+    if (displayImage.empty() || !m_vision.isCalibrated()) {
+        return cv::Mat();
+    }
+
+    try {
+        const int currentImageFlip = m_currentImageFlip;
+        cv::Mat rawOrientationImage = ApplyInverseConfiguredFlip(displayImage, currentImageFlip);
+        cv::Mat undistortedRaw = m_vision.undistortImage(rawOrientationImage);
+        if (undistortedRaw.empty()) {
+            return cv::Mat();
+        }
+
+        return ApplyConfiguredFlip(undistortedRaw, currentImageFlip);
+    }
+    catch (const cv::Exception&) {
+        return cv::Mat();
+    }
 }
 
 void WorkTab::ShowImageOnPictureControl(bool flgCenter, cv::Scalar crossColor, int lineThickness, CrossStyle style)
 {
     const cv::Mat& sourceMat = !m_factorPreviewMat.empty()
         ? m_factorPreviewMat
-        : (!m_pathDisplayMat.empty() ? m_pathDisplayMat : m_mat);
+        : (!m_pathDisplayMat.empty() ? m_pathDisplayMat : (!m_calibratedDisplayMat.empty() ? m_calibratedDisplayMat : m_mat));
     if (sourceMat.empty() || pWnd == nullptr || !::IsWindow(pWnd->GetSafeHwnd())) return;
 
     CRect rect;
@@ -2464,6 +2532,8 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
     // 2. 獲取父視窗參數
     CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
     if (!pParentWnd) return;
+    RefreshImageFlipFromSystemConfig();
+    const int currentImageFlip = m_currentImageFlip;
 
     // 3. ROI 範圍安全檢查 (修正 X/Y 與 Width/Height 的對應)
     if (MaskX < 0 || MaskY < 0 ||
@@ -2498,14 +2568,14 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
         try {
             // m_mat 在取像後可能已依 imgFlip 翻轉；校正參數通常是以原始相機方向建立。
             // 因此在原始方向做去畸變與路徑提取，最後再把點座標翻回目前顯示座標。
-			cv::Mat rawOrientationImage = ApplyInverseConfiguredFlip(m_mat, imgFlip); // 把 m_mat 翻回校正參數對應的原始相機方向，這樣去畸變後的影像才會和校正參數對齊。
+			cv::Mat rawOrientationImage = ApplyInverseConfiguredFlip(m_mat, currentImageFlip); // 把 m_mat 翻回校正參數對應的原始相機方向，這樣去畸變後的影像才會和校正參數對齊。
 			cv::Mat undistortedRaw = m_vision.undistortImage(rawOrientationImage); // 去畸變後的影像仍然是原始相機方向，這樣提取路徑才會和校正參數對齊。
             if (!undistortedRaw.empty()) {
-				correctedImage = ApplyConfiguredFlip(undistortedRaw, imgFlip); // 把去畸變後的影像翻回目前顯示的方向，這樣 correctedImage 就是校正後且符合目前顯示方向的影像，可以直接用來顯示。
+				correctedImage = ApplyConfiguredFlip(undistortedRaw, currentImageFlip); // 把去畸變後的影像翻回目前顯示的方向，這樣 correctedImage 就是校正後且符合目前顯示方向的影像，可以直接用來顯示。
                 pathSourceImage = undistortedRaw;
 
 				//ApplyInverseConfiguredFlip() 會把 mask 轉回原始相機方向，確保 pathMask 與 pathSourceImage 在同一個座標系統下對齊。
-                pathMask = ApplyInverseConfiguredFlip(mask, imgFlip);
+                pathMask = ApplyInverseConfiguredFlip(mask, currentImageFlip);
                 usedCalibrationCorrection = true;
             }
         }
@@ -2544,7 +2614,7 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
     /*
      if (usedCalibrationCorrection) {
 		// 把 toolPath 中的點座標翻回 pathSourceImage 的顯示方向，這樣後續優化與繪圖就不需要再考慮翻轉了。
-        ApplyConfiguredFlipToToolPath(this->toolPath, pathSourceImage.size(), imgFlip);
+        ApplyConfiguredFlipToToolPath(this->toolPath, pathSourceImage.size(), currentImageFlip);
     }
 
     if (this->toolPath.Path.empty()) {
@@ -2682,6 +2752,7 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
 void WorkTab::OnBnClickedIdcWorkLoadImg()
 {
     // TODO: 在此加入控制項告知處理常式
+    RefreshImageFlipFromSystemConfig();
     // 載入新影像前先清除上一張圖的所有路徑資料，避免舊資料殘留。
     this->toolPath.Path.clear();
     this->m_OptimizedGluePath.PathLeft.clear();
@@ -2701,11 +2772,14 @@ void WorkTab::OnBnClickedIdcWorkLoadImg()
 	CFileDialog dlg(TRUE, NULL, NULL, OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_HIDEREADONLY, strFilter, this);
 	if (dlg.DoModal() == IDOK)
 	{
+        m_currentImageFlip = 180;
 		CString strPath = dlg.GetPathName();
 		// Convert CString to std::string
 		std::string strPathA = CT2A(strPath);
 		// Load the image
 		m_mat = cv::imread(strPathA, cv::IMREAD_GRAYSCALE);
+        m_mat = ApplyConfiguredFlip(m_mat, m_currentImageFlip);
+        m_calibratedDisplayMat = BuildCalibratedDisplayImage(m_mat);
 		// Display the image
 		//ShowImageOnPictureControl();
         // 紅色實線
@@ -3377,8 +3451,11 @@ void WorkTab::OnBnClickedWorkImageProcess()
     }
 
     CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
+    RefreshImageFlipFromSystemConfig();
+    cv::Mat imageForImagePro = ApplyConfiguredFlip(m_mat, imgFlip);
+
     ImagePro dlg(this);
-    dlg.SetImage(m_mat);
+    dlg.SetImage(imageForImagePro);
     if (pParentWnd != nullptr) {
         dlg.SetSliderValues(pParentWnd->m_SystemPara.BinaryLower, pParentWnd->m_SystemPara.BinaryUpper);
         dlg.SetBinaryPreviewEnabled(pParentWnd->m_SystemPara.ImageBinary != 0);
@@ -3399,6 +3476,7 @@ void WorkTab::OnBnClickedMfcbtnWorkImgCalibrate()
 {
    // 開啟檔案對話框取得校正影像
 #ifdef _WIN32
+    RefreshImageFlipFromSystemConfig();
     try {
         std::vector<std::string> files = m_vision.selectCalibrationFiles();
         if (files.empty())
@@ -3441,6 +3519,15 @@ void WorkTab::OnBnClickedMfcbtnWorkImgCalibrate()
         {
             AfxMessageBox(L"校正資料儲存失敗");
             return;
+        }
+
+        if (!m_mat.empty()) {
+            m_calibratedDisplayMat = BuildCalibratedDisplayImage(m_mat);
+            m_pathDisplayMat.release();
+            ShowImageOnPictureControl(flgCenter, cv::Scalar(0, 0, 255, 255), 1, CrossStyle::Solid);
+            if (pWnd && ::IsWindow(pWnd->GetSafeHwnd())) {
+                pWnd->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW | RDW_ERASE);
+            }
         }
 
         std::wstring outFileW(outFile.begin(), outFile.end());
@@ -3787,6 +3874,7 @@ void WorkTab::OnBnClickedMfcbtnWorkImgFactor()
         AfxMessageBox(L"無法取得父視窗指標。");
         return;
     }
+    RefreshImageFlipFromSystemConfig();
 
     if (!m_vision.isCalibrated() && !m_vision.loadCalibrationData(GetCalibrationFilePath())) {
         AfxMessageBox(L"無法載入校正參數檔 calibration.yml。");
@@ -3800,7 +3888,7 @@ void WorkTab::OnBnClickedMfcbtnWorkImgFactor()
 
     CWaitCursor waitCursor;
 
-    cv::Mat rawOrientationImage = ApplyInverseConfiguredFlip(m_mat, imgFlip);
+    cv::Mat rawOrientationImage = ApplyInverseConfiguredFlip(m_mat, m_currentImageFlip);
     cv::Mat undistortedRaw;
     try {
         undistortedRaw = m_vision.undistortImage(rawOrientationImage);

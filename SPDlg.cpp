@@ -93,13 +93,13 @@ void CSPDlg::ScaleDialogTo1024x768()
 
 	CRect oldWindowRect;
 	GetWindowRect(&oldWindowRect);
-	SetWindowPos(
-		nullptr,
-		oldWindowRect.left,
-		oldWindowRect.top,
-		targetWindowWidth,
-		targetWindowHeight,
-		SWP_NOZORDER | SWP_NOACTIVATE);
+	// SetWindowPos(
+	// 	nullptr,
+	// 	oldWindowRect.left,
+	// 	oldWindowRect.top,
+	// 	targetWindowWidth,
+	// 	targetWindowHeight,
+	// 	SWP_NOZORDER | SWP_NOACTIVATE);
 
 	CRect newClientRect;
 	GetClientRect(&newClientRect);
