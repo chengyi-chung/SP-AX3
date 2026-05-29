@@ -1807,6 +1807,8 @@ void WriteConfigToFile_SP(const std::string& filename, const SystemConfigA& SysC
 	file << "[Binary]\n";
 	file << "BinaryUpper=" << SysConfig.BinaryUpper << "\n";
 	file << "BinaryLower=" << SysConfig.BinaryLower << "\n";
+	file << "Binary=" << SysConfig.Binary << "\n";
+	file << "SaveINI=" << SysConfig.SaveINI << "\n";
 
 	file << "[Tool]\n";
 	file << "CreateToolPath=" << SysConfig.CreateToolPath << "\n";
@@ -1846,6 +1848,8 @@ void InitialConfigA(const std::string& filename, SystemConfigA& SysConfig)
 	SysConfig.OffsetValue = 10.0f;
 	SysConfig.EntryPointX = 0.0f;
 	SysConfig.ImageFlip = 2;   
+	SysConfig.Binary = 0;
+	SysConfig.SaveINI = 0;
 	SysConfig.RefCenterX = 695.0f;
 	SysConfig.RefCenterY = 194.0f;
 	SysConfig.HMI_ID[0] = '\0';
@@ -2066,6 +2070,8 @@ int ReadSystemConfig_SP(const std::string& filename, SystemConfigA& SysConfig)
 
 			else if (key == "BinaryUpper")       SysConfig.BinaryUpper = std::stoi(val);
 			else if (key == "BinaryLower")       SysConfig.BinaryLower = std::stoi(val);
+			else if (key == "Binary")            SysConfig.Binary = std::stoi(val);
+			else if (key == "SaveINI")           SysConfig.SaveINI = std::stoi(val);
 
 			else if (key == "CreateToolPath")    SysConfig.CreateToolPath = std::stoi(val);
 			else if (key == "DispalyToolPath")   SysConfig.DispalyToolPath = std::stoi(val);

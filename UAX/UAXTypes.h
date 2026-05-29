@@ -87,15 +87,17 @@ struct SystemConfigA  // For AX-3 PLC, SP Shoe Last Machine
     int CameraWidth;
     int CameraHeight;
     float TransferFactor;
-    int ImageFlip;          // 0, 90, 180, others
+    int ImageFlip;               // 0, 90, 180, others
     int ImageBinary;
     int CreateToolPath;
     int DispalyToolPath;    // TODO: fix typo → DisplayToolPath
-    int DisplayROI;          // TODO: fix typo → DisplayROI
+    int DisplayROI;            // TODO: fix typo → DisplayROI
     int BinaryUpper;
     int BinaryLower;
-    int MaskX;              // ROI Mask X (TopX)
-    int MaskY;              // ROI Mask Y (TopY)
+    int Binary;
+    int SaveINI;
+    int MaskX;                 // ROI Mask X (TopX)
+    int MaskY;                 // ROI Mask Y (TopY)
     int MaskWidth;          // ROI Mask Width
     int MaskHeight;         // ROI Mask Height
     int RefCenterX;

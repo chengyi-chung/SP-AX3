@@ -57,6 +57,15 @@ std::string GetCalibrationFilePath()
     return appPath + "calibration.yml";
 }
 
+std::string GetSystemConfigFilePath()
+{
+    std::string appPath = GetAppPath();
+    if (!appPath.empty() && appPath.back() != '\\' && appPath.back() != '/') {
+        appPath += "\\";
+    }
+    return appPath + "SystemConfig.ini";
+}
+
 std::string GetToolDebugExportPath(const std::string& fileName)
 {
     std::string appPath = GetAppPath();
@@ -847,7 +856,7 @@ bool WorkTab::WriteHoldingRegistersBlock(int startAddress, const std::vector<uin
 
 void WorkTab::BuildSystemConfigRegisters(const SystemConfigA& src, std::vector<uint16_t>& outValues) const
 {
-    outValues.assign(19, 0);
+    outValues.assign(21, 0);
     outValues[0] = 0; // Register 139 is SystemFunction::Grab.
     outValues[1] = static_cast<uint16_t>(src.ImageBinary);
     outValues[2] = static_cast<uint16_t>(src.DispalyToolPath);
@@ -867,6 +876,8 @@ void WorkTab::BuildSystemConfigRegisters(const SystemConfigA& src, std::vector<u
     outValues[16] = static_cast<uint16_t>(src.RefCenterY);
     outValues[17] = static_cast<uint16_t>(src.ImageFlip);
     outValues[18] = static_cast<uint16_t>(src.CreateToolPath);  // Register 157
+    outValues[19] = static_cast<uint16_t>(src.Binary);          // Register 158
+    outValues[20] = static_cast<uint16_t>(src.SaveINI);         // Register 159
 }
 
 void WorkTab::ApplySystemConfigRegisters(const std::vector<uint16_t>& values, SystemConfigA& dst) const
@@ -893,6 +904,12 @@ void WorkTab::ApplySystemConfigRegisters(const std::vector<uint16_t>& values, Sy
     dst.RefCenterY = values[16];
     dst.ImageFlip = static_cast<short>(values[17]);
     dst.CreateToolPath = values[18];  // Register 157 belongs to SystemConfigA
+    if (values.size() > 19) {
+        dst.Binary = values[19] ? 1 : 0;
+    }
+    if (values.size() > 20) {
+        dst.SaveINI = values[20] ? 1 : 0;
+    }
 }
 
 void WorkTab::ApplySystemFunctionRegisters(const std::vector<uint16_t>& values, SystemFunction& dst) const
@@ -1024,6 +1041,8 @@ bool WorkTab::IsSystemConfigEqual(const SystemConfigA& lhs, const SystemConfigA&
         lhs.ImageFlip == rhs.ImageFlip &&
         lhs.ImageBinary == rhs.ImageBinary &&
         lhs.CreateToolPath == rhs.CreateToolPath &&
+        lhs.Binary == rhs.Binary &&
+        lhs.SaveINI == rhs.SaveINI &&
         lhs.DispalyToolPath == rhs.DispalyToolPath &&
         lhs.DisplayROI == rhs.DisplayROI &&
         lhs.BinaryUpper == rhs.BinaryUpper &&
@@ -1115,14 +1134,8 @@ bool WorkTab::RefreshImageFlipFromSystemConfig()
         imgFlip = pParent->m_SystemPara.ImageFlip;
     }
 
-    std::string configPath = GetAppPath();
-    if (!configPath.empty() && configPath.back() != '\\' && configPath.back() != '/') {
-        configPath += "\\";
-    }
-    configPath += "SystemConfig.ini";
-
     SystemConfigA config{};
-    if (ReadSystemConfig_SP(configPath, config) != 0) {
+    if (ReadSystemConfig_SP(GetSystemConfigFilePath(), config) != 0) {
         return false;
     }
 
@@ -1253,7 +1266,7 @@ void WorkTab::SyncHmiData(int stationID)
     }
 
     SystemConfigA remoteSystem = pParent->m_SystemPara;
-    if (ReadHoldingRegistersBlock(kSystemConfigStart, 19, regs, stationID)) {
+    if (ReadHoldingRegistersBlock(kSystemConfigStart, 21, regs, stationID)) {
         if (regs.size() >= 6) {
             regs[0] = 0; // Register 139 is SystemFunction::Grab.
             regs[1] = static_cast<uint16_t>(pParent->m_SystemPara.ImageBinary);
@@ -1266,6 +1279,11 @@ void WorkTab::SyncHmiData(int stationID)
             regs[17] = static_cast<uint16_t>(pParent->m_SystemPara.ImageFlip);
         }
         ApplySystemConfigRegisters(regs, remoteSystem);
+        const bool saveIniRequested = (remoteSystem.SaveINI == 1);
+        const bool binaryDisplayChanged =
+            remoteSystem.Binary != m_lastSyncedSystemPara.Binary ||
+            remoteSystem.BinaryUpper != m_lastSyncedSystemPara.BinaryUpper ||
+            remoteSystem.BinaryLower != m_lastSyncedSystemPara.BinaryLower;
         if (IsSystemConfigDisplayDataValid(remoteSystem)) {
             if (!IsSystemConfigEqual(remoteSystem, m_lastSyncedSystemPara)) {
                 pParent->m_SystemPara = remoteSystem;
@@ -1276,10 +1294,17 @@ void WorkTab::SyncHmiData(int stationID)
                 referenceX = pParent->m_SystemPara.RefCenterX;
                 referenceY = pParent->m_SystemPara.RefCenterY;
                 imgFlip = pParent->m_SystemPara.ImageFlip;
-                if (!m_bFactorSelectMode && (m_bROIMode || flgCenter)) {
+                if (!m_bFactorSelectMode && (m_bROIMode || flgCenter || binaryDisplayChanged)) {
                     ShowImageOnPictureControl(flgCenter, cv::Scalar(0, 0, 255, 255), 1, CrossStyle::Solid);
                 }
                 pParent->RefreshSystemParaTabDisplay();
+            }
+            if (saveIniRequested) {
+                pParent->m_SystemPara.SaveINI = 0;
+                WriteConfigToFile_SP(GetSystemConfigFilePath(), pParent->m_SystemPara);
+                std::vector<uint16_t> saveOkValue(1, 0);
+                WriteHoldingRegistersBlock(159, saveOkValue, stationID);
+                remoteSystem.SaveINI = 0;
             }
             m_lastSyncedSystemPara = remoteSystem;
             m_hasSystemSyncBaseline = true;
@@ -1828,12 +1853,35 @@ void WorkTab::ShowImageOnPictureControl(bool flgCenter, cv::Scalar crossColor, i
         : (!m_pathDisplayMat.empty() ? m_pathDisplayMat : (!m_calibratedDisplayMat.empty() ? m_calibratedDisplayMat : m_mat));
     if (sourceMat.empty() || pWnd == nullptr || !::IsWindow(pWnd->GetSafeHwnd())) return;
 
+    cv::Mat displaySource = sourceMat;
+    CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
+    if (pParentWnd != nullptr && pParentWnd->m_SystemPara.Binary == 1 && m_factorPreviewMat.empty()) {
+        cv::Mat gray;
+        if (sourceMat.channels() == 1) {
+            gray = sourceMat;
+        }
+        else if (sourceMat.channels() == 3) {
+            cv::cvtColor(sourceMat, gray, cv::COLOR_BGR2GRAY);
+        }
+        else if (sourceMat.channels() == 4) {
+            cv::cvtColor(sourceMat, gray, cv::COLOR_BGRA2GRAY);
+        }
+
+        if (!gray.empty()) {
+            const int lower = (std::max)(0, (std::min)(255, pParentWnd->m_SystemPara.BinaryLower));
+            const int upper = (std::max)(0, (std::min)(255, pParentWnd->m_SystemPara.BinaryUpper));
+            cv::Mat binary;
+            cv::inRange(gray, cv::Scalar(lower), cv::Scalar(upper), binary);
+            displaySource = binary;
+        }
+    }
+
     CRect rect;
     pWnd->GetClientRect(&rect);
     if (rect.Width() <= 0 || rect.Height() <= 0) return;
 
     cv::Mat resizedImage;
-    cv::resize(sourceMat, resizedImage, cv::Size(rect.Width(), rect.Height()));
+    cv::resize(displaySource, resizedImage, cv::Size(rect.Width(), rect.Height()));
 
     cv::Mat imageToShow;
     if (resizedImage.channels() == 1) {
@@ -2798,11 +2846,14 @@ void WorkTab::OnBnClickedIdcWorkSaveImg()
 	if (dlg.DoModal() == IDOK)
 	{
 		CString strPath = dlg.GetPathName();
-       
-		// Convert CString to std::string
-		std::string strPathA = CT2A(strPath);
+
+        // Convert CString to std::string
+        std::string strPathA = CT2A(strPath);
+        RefreshImageFlipFromSystemConfig();
+        cv::Mat imageForSave = ApplyConfiguredFlip(m_mat, imgFlip);
+
 		// Save the image
-		cv::imwrite(strPathA, m_mat);
+		cv::imwrite(strPathA, imageForSave.empty() ? m_mat : imageForSave);
 	}
 }
 
@@ -3458,7 +3509,7 @@ void WorkTab::OnBnClickedWorkImageProcess()
     dlg.SetImage(imageForImagePro);
     if (pParentWnd != nullptr) {
         dlg.SetSliderValues(pParentWnd->m_SystemPara.BinaryLower, pParentWnd->m_SystemPara.BinaryUpper);
-        dlg.SetBinaryPreviewEnabled(pParentWnd->m_SystemPara.ImageBinary != 0);
+        dlg.SetBinaryPreviewEnabled(pParentWnd->m_SystemPara.Binary != 0);
     }
 
     if (dlg.DoModal() == IDOK && pParentWnd != nullptr) {
@@ -3467,7 +3518,8 @@ void WorkTab::OnBnClickedWorkImageProcess()
         dlg.GetSliderValues(binaryLower, binaryUpper);
         pParentWnd->m_SystemPara.BinaryLower = binaryLower;
         pParentWnd->m_SystemPara.BinaryUpper = binaryUpper;
-        pParentWnd->m_SystemPara.ImageBinary = dlg.IsBinaryPreviewEnabled() ? 1 : 0;
+        pParentWnd->m_SystemPara.Binary = dlg.IsBinaryPreviewEnabled() ? 1 : 0;
+        ShowImageOnPictureControl(flgCenter, cv::Scalar(0, 0, 255, 255), 1, CrossStyle::Solid);
     }
 
 }
@@ -3646,12 +3698,12 @@ bool WorkTab::ReadSystemParaBatch_139_to_157(std::vector<uint16_t>& outValues, i
     modbus_set_slave(pParent->m_modbusCtx, stationID);
 
     const int START_ADDR = 139;
-    const int COUNT = 19;
+    const int COUNT = 21;
 
     outValues.resize(COUNT);
     if (modbus_read_registers(pParent->m_modbusCtx, START_ADDR, COUNT, outValues.data()) == -1) {
         CString err;
-        err.Format(_T("批量讀取 139~157 失敗：%S"), modbus_strerror(errno));
+        err.Format(_T("批量讀取 139~159 失敗：%S"), modbus_strerror(errno));
         AfxMessageBox(err);
         return false;
     }
@@ -3661,8 +3713,8 @@ bool WorkTab::ReadSystemParaBatch_139_to_157(std::vector<uint16_t>& outValues, i
 
 bool WorkTab::WriteSystemParaBatch_139_to_157(const std::vector<uint16_t>& inValues, int stationID)
 {
-    if (inValues.size() != 19) {
-        AfxMessageBox(_T("寫入資料必須正好 19 個值 (139~157)"));
+    if (inValues.size() != 21) {
+        AfxMessageBox(_T("寫入資料必須正好 21 個值 (139~159)"));
         return false;
     }
 
@@ -3677,12 +3729,12 @@ bool WorkTab::WriteSystemParaBatch_139_to_157(const std::vector<uint16_t>& inVal
     modbus_set_slave(pParent->m_modbusCtx, stationID);
 
     const int START_ADDR = 145;
-    const int COUNT = 13;
     std::vector<uint16_t> systemConfigValues(inValues.begin() + 6, inValues.end());
+    const int COUNT = static_cast<int>(systemConfigValues.size());
 
     if (modbus_write_registers(pParent->m_modbusCtx, START_ADDR, COUNT, systemConfigValues.data()) == -1) {
         CString err;
-        err.Format(_T("批量寫入 145~157 失敗：%S"), modbus_strerror(errno));
+        err.Format(_T("批量寫入 145~159 失敗：%S"), modbus_strerror(errno));
         AfxMessageBox(err);
         return false;
     }

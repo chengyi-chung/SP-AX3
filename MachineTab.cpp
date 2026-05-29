@@ -138,7 +138,7 @@ void MachineTab::OpenModBus()
 	constexpr int kMemStructStart = 114;
 	std::vector<uint16_t> regs;
 
-	// 139~144 are HMI SystemFunction controls; initialize only SystemConfigA 145~157.
+	// 139~144 are HMI SystemFunction controls; initialize only SystemConfigA 145~159.
 	BuildSystemConfigRegisters(pParentWnd->m_SystemPara, regs);
 	if (regs.size() >= 6) {
 		regs.erase(regs.begin(), regs.begin() + 6);
@@ -1166,7 +1166,7 @@ bool MachineTab::ReadRegisterStringBlock(int startAddress, int count, char* outB
 
 void MachineTab::BuildSystemConfigRegisters(const SystemConfigA& src, std::vector<uint16_t>& outValues) const
 {
-	outValues.assign(19, 0);
+	outValues.assign(21, 0);
 	outValues[0] = 0; // Register 139 is SystemFunction::Grab.
 	outValues[1] = static_cast<uint16_t>(src.ImageBinary);
 	outValues[2] = static_cast<uint16_t>(src.DispalyToolPath);
@@ -1186,6 +1186,8 @@ void MachineTab::BuildSystemConfigRegisters(const SystemConfigA& src, std::vecto
 	outValues[16] = static_cast<uint16_t>(src.RefCenterY);
 	outValues[17] = static_cast<uint16_t>(src.ImageFlip);
 	outValues[18] = static_cast<uint16_t>(src.CreateToolPath);  // Register 157
+	outValues[19] = static_cast<uint16_t>(src.Binary);          // Register 158
+	outValues[20] = static_cast<uint16_t>(src.SaveINI);         // Register 159
 }
 
 void MachineTab::ApplySystemConfigRegisters(const std::vector<uint16_t>& values, SystemConfigA& dst) const
@@ -1212,6 +1214,12 @@ void MachineTab::ApplySystemConfigRegisters(const std::vector<uint16_t>& values,
 	dst.RefCenterY = values[16];
 	dst.ImageFlip = static_cast<short>(values[17]);
 	dst.CreateToolPath = values[18];  // Register 157 belongs to SystemConfigA
+	if (values.size() > 19) {
+		dst.Binary = values[19] ? 1 : 0;
+	}
+	if (values.size() > 20) {
+		dst.SaveINI = values[20] ? 1 : 0;
+	}
 }
 
 void MachineTab::BuildMemStructRegisters(const MemStruct_SP& src, std::vector<uint16_t>& outValues) const
@@ -1501,7 +1509,7 @@ void MachineTab::OnTimer(UINT_PTR nIDEvent)
 			}
 
 			constexpr int kSystemConfigStart = 139;
-			constexpr int kSystemConfigCount = 19;
+			constexpr int kSystemConfigCount = 21;
 			constexpr int kMemStructStart = 114;
 			constexpr int kMemStructCount = 25;
 
