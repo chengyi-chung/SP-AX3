@@ -201,8 +201,10 @@ void SystemParaTab::UpdateControl()
 	{
 		CEdit* pSystemConfigEdit = reinterpret_cast<CEdit*>(GetDlgItem(IDC_EDIT_SYSTEM_CONFIG_LIVE));
 		CEdit* pMemStructEdit = reinterpret_cast<CEdit*>(GetDlgItem(IDC_EDIT_MEMSTRUCT_LIVE));
+		CEdit* pSystemDataEdit = reinterpret_cast<CEdit*>(GetDlgItem(IDC_EDIT_SYSTEM_DATA));
 		const int systemConfigFirstVisibleLine = pSystemConfigEdit ? pSystemConfigEdit->GetFirstVisibleLine() : 0;
 		const int memStructFirstVisibleLine = pMemStructEdit ? pMemStructEdit->GetFirstVisibleLine() : 0;
+		const int systemDataFirstVisibleLine = pSystemDataEdit ? pSystemDataEdit->GetFirstVisibleLine() : 0;
 
 		CString str;
 		
@@ -274,7 +276,14 @@ void SystemParaTab::UpdateControl()
 			);
 
 		// 將格式化後的文字設定到 IDC_EDIT_SYSTEM_DATA 控制項中
-		SetDlgItemText(IDC_EDIT_SYSTEM_DATA, displayText);
+		if (pSystemDataEdit) {
+			CString currentText;
+			pSystemDataEdit->GetWindowText(currentText);
+			if (currentText != displayText) {
+				pSystemDataEdit->SetWindowText(displayText);
+				pSystemDataEdit->LineScroll(systemDataFirstVisibleLine - pSystemDataEdit->GetFirstVisibleLine());
+			}
+		}
 
 		CString liveSystemConfig;
 		liveSystemConfig.Format(
