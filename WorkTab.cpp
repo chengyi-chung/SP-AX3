@@ -1284,6 +1284,36 @@ void WorkTab::SyncHmiData(int stationID)
             remoteSystem.Binary != m_lastSyncedSystemPara.Binary ||
             remoteSystem.BinaryUpper != m_lastSyncedSystemPara.BinaryUpper ||
             remoteSystem.BinaryLower != m_lastSyncedSystemPara.BinaryLower;
+        if (saveIniRequested) {
+            try {
+                remoteSystem.SaveINI = 0;
+                pParent->m_SystemPara = remoteSystem;
+                MaskX = pParent->m_SystemPara.MaskX;
+                MaskY = pParent->m_SystemPara.MaskY;
+                MaskWidth = pParent->m_SystemPara.MaskWidth;
+                MaskHeight = pParent->m_SystemPara.MaskHeight;
+                referenceX = pParent->m_SystemPara.RefCenterX;
+                referenceY = pParent->m_SystemPara.RefCenterY;
+                imgFlip = pParent->m_SystemPara.ImageFlip;
+                WriteConfigToFile_SP(GetSystemConfigFilePath(), pParent->m_SystemPara);
+
+                std::vector<uint16_t> saveOkValue(1, 0);
+                WriteHoldingRegistersBlock(159, saveOkValue, stationID);
+
+                m_lastSyncedSystemPara = remoteSystem;
+                m_hasSystemSyncBaseline = true;
+                if (!m_bFactorSelectMode && !m_mat.empty()) {
+                    ShowImageOnPictureControl(flgCenter, cv::Scalar(0, 0, 255, 255), 1, CrossStyle::Solid);
+                }
+                pParent->RefreshSystemParaTabDisplay();
+            }
+            catch (const std::exception& e) {
+                CString message;
+                message.Format(_T("SystemConfig.ini 儲存失敗：%S"), e.what());
+                AfxMessageBox(message);
+            }
+        }
+
         if (IsSystemConfigDisplayDataValid(remoteSystem)) {
             if (!IsSystemConfigEqual(remoteSystem, m_lastSyncedSystemPara)) {
                 pParent->m_SystemPara = remoteSystem;
@@ -1298,13 +1328,6 @@ void WorkTab::SyncHmiData(int stationID)
                     ShowImageOnPictureControl(flgCenter, cv::Scalar(0, 0, 255, 255), 1, CrossStyle::Solid);
                 }
                 pParent->RefreshSystemParaTabDisplay();
-            }
-            if (saveIniRequested) {
-                pParent->m_SystemPara.SaveINI = 0;
-                WriteConfigToFile_SP(GetSystemConfigFilePath(), pParent->m_SystemPara);
-                std::vector<uint16_t> saveOkValue(1, 0);
-                WriteHoldingRegistersBlock(159, saveOkValue, stationID);
-                remoteSystem.SaveINI = 0;
             }
             m_lastSyncedSystemPara = remoteSystem;
             m_hasSystemSyncBaseline = true;
