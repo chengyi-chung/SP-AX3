@@ -8,30 +8,31 @@
 
 #include "UAXVision.h"
 #include <algorithm>
+#include <cmath>
 #include <iostream>
 
 // Constructor (init)
 UAXVision::UAXVision() {
-    calibrationBoardSize = cv::Size(9, 6);
+    calibrationBoardSize = cv::Size(5, 7);
     calibrationSquareSize = 25.0f;
     calibrationROI = cv::Rect();
     lastCalibrationMessage = "Calibration not started.";
     // Initialize with identity / zeros
     cameraMatrix = cv::Mat::eye(3, 3, CV_64F);
     distCoeffs = cv::Mat::zeros(4, 1, CV_64F);   // 魚眼模型使用 4 個畸變係數
+    homographyMatrix.release();
+    calibrationPixelsPerSquare = 0.0;
+    calibrationMmPerPixel = 0.0;
 
     imageSize = cv::Size(0, 0);
 }
 
 // Check if calibration is actually set (not default)
 bool UAXVision::isCalibrated() const {
-    // In fisheye model fx/fy should be >1 and distCoeffs not all zero
-    if (cameraMatrix.at<double>(0, 0) <= 1.0001 &&
-        cameraMatrix.at<double>(1, 1) <= 1.0001 &&
-        cv::countNonZero(distCoeffs) == 0) {
-        return false;
-    }
-    return true;
+    return !homographyMatrix.empty() && homographyMatrix.rows == 3 &&
+        homographyMatrix.cols == 3 && cv::checkRange(homographyMatrix) &&
+        imageSize.width > 0 && imageSize.height > 0 &&
+        calibrationPixelsPerSquare > 0.0 && calibrationMmPerPixel > 0.0;
 }
 
 void UAXVision::setCalibrationPattern(const cv::Size& boardSize, float squareSize)
@@ -80,8 +81,8 @@ std::vector<std::string> UAXVision::selectCalibrationFiles()
     ofn.nMaxFile = static_cast<DWORD>(sizeof(fileBuffer));
     ofn.lpstrFilter = "Image Files\0*.jpg;*.jpeg;*.png;*.bmp\0All Files\0*.*\0";
     ofn.nFilterIndex = 1;
-    ofn.lpstrTitle = "Select calibration images (multi-select supported)";
-    ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_ALLOWMULTISELECT | OFN_EXPLORER;
+    ofn.lpstrTitle = "Select one full-ROI chessboard image";
+    ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_EXPLORER;
 
     if (GetOpenFileNameA(&ofn))
     {
@@ -112,16 +113,17 @@ std::vector<std::string> UAXVision::selectCalibrationFiles()
 }
 #endif // _WIN32
 
-// Fisheye camera calibration (fisheye model)
+// Single-image planar calibration. A chessboard covering the working ROI is
+// rectified to an ideal, equally spaced grid using a homography.
 double UAXVision::calibrate(const std::vector<std::string>& imagePaths)
 {
     try {
-        std::vector<cv::Size> candidates = {
-            calibrationBoardSize,
-            cv::Size(9, 6), cv::Size(8, 6), cv::Size(7, 6),
-            cv::Size(11, 8), cv::Size(10, 7), cv::Size(10, 8),
-            cv::Size(6, 4), cv::Size(5, 4)
-        };
+        if (imagePaths.size() != 1) {
+            lastCalibrationMessage = "Select exactly one chessboard image that covers the working ROI.";
+            return -1.0;
+        }
+
+        std::vector<cv::Size> candidates = { calibrationBoardSize };
 
         candidates.erase(std::remove_if(candidates.begin(), candidates.end(),
             [](const cv::Size& s) { return s.width <= 0 || s.height <= 0; }), candidates.end());
@@ -129,7 +131,7 @@ double UAXVision::calibrate(const std::vector<std::string>& imagePaths)
             [](const cv::Size& a, const cv::Size& b) { return a.width == b.width && a.height == b.height; }),
             candidates.end());
 
-        std::string lastFailureMessage = "Unable to detect a valid calibration grid in at least 3 images.";
+        std::string lastFailureMessage = "Unable to detect a complete chessboard in the selected ROI.";
         for (const auto& candidate : candidates) {
             double rms = calibrate(imagePaths, candidate, calibrationSquareSize);
             if (rms >= 0.0) {
@@ -157,205 +159,147 @@ double UAXVision::calibrate(const std::vector<std::string>& imagePaths,
     float squareSize)
 {
     try {
-        setCalibrationPattern(boardSize, squareSize);
-        lastCalibrationMessage = "Calibration started.";
-
-        std::vector<std::vector<cv::Point3f>> objectPoints;
-        std::vector<std::vector<cv::Point2f>> imagePoints;
-        std::vector<cv::Mat> previewTiles;
-        calibrationPreviewImage.release();
-
-        // Generate ideal 3D chessboard points (Z=0)
-        std::vector<cv::Point3f> obj;
-        for (int i = 0; i < boardSize.height; ++i) {
-            for (int j = 0; j < boardSize.width; ++j) {
-                obj.emplace_back(j * squareSize, i * squareSize, 0.0f);
-            }
-        }
-
-        cv::Size currentSize(0, 0);
-
-        for (const auto& path : imagePaths)
-        {
-            cv::Mat img = cv::imread(path, cv::IMREAD_GRAYSCALE);
-            cv::Mat color = cv::imread(path, cv::IMREAD_COLOR);
-            if (img.empty()) {
-                std::cerr << "Cannot read image: " << path << " -> skipped\n";
-                lastCalibrationMessage = "Cannot read one or more calibration images.";
-                continue;
-            }
-            if (color.empty()) {
-                cv::cvtColor(img, color, cv::COLOR_GRAY2BGR);
-            }
-
-            // Check size consistency
-            if (currentSize.area() > 0 && img.size() != currentSize) {
-                std::cerr << "Inconsistent size in " << path
-                    << " (expected " << currentSize << ", got " << img.size() << ") -> skipped\n";
-                lastCalibrationMessage = "Calibration images must all have the same size.";
-                continue;
-            }
-            if (currentSize.area() == 0) {
-                currentSize = img.size();
-            }
-
-            cv::Rect roi = calibrationROI & cv::Rect(0, 0, img.cols, img.rows);
-            cv::Mat searchImg = img;
-            if (roi.width > 0 && roi.height > 0) {
-                searchImg = img(roi);
-                cv::rectangle(color, roi, cv::Scalar(255, 255, 0), 2);
-            }
-
-            try {
-                std::vector<cv::Point2f> corners;
-                bool found = cv::findChessboardCornersSB(
-                    searchImg, boardSize, corners,
-                    cv::CALIB_CB_EXHAUSTIVE |
-                    cv::CALIB_CB_ACCURACY |
-                    cv::CALIB_CB_NORMALIZE_IMAGE);
-
-                if (!found) {
-                    found = cv::findChessboardCorners(
-                        searchImg, boardSize, corners,
-                        cv::CALIB_CB_ADAPTIVE_THRESH |
-                        cv::CALIB_CB_NORMALIZE_IMAGE);
-                }
-
-                if (found)
-                {
-                    cv::cornerSubPix(
-                        searchImg, corners,
-                        cv::Size(11, 11), cv::Size(-1, -1),
-                        cv::TermCriteria(cv::TermCriteria::EPS | cv::TermCriteria::MAX_ITER, 40, 0.001));
-
-                    if (roi.width > 0 && roi.height > 0) {
-                        for (auto& pt : corners) {
-                            pt.x += static_cast<float>(roi.x);
-                            pt.y += static_cast<float>(roi.y);
-                        }
-                    }
-
-                    imagePoints.push_back(corners);
-                    objectPoints.push_back(obj);
-
-                    cv::drawChessboardCorners(color, boardSize, corners, true);
-                    cv::putText(color, "FOUND", cv::Point(20, 40),
-                        cv::FONT_HERSHEY_SIMPLEX, 1.0, cv::Scalar(0, 255, 0), 2);
-                    previewTiles.push_back(color);
-                }
-                else
-                {
-                    cv::putText(color, "NOT FOUND", cv::Point(20, 40),
-                        cv::FONT_HERSHEY_SIMPLEX, 1.0, cv::Scalar(0, 0, 255), 2);
-                    previewTiles.push_back(color);
-                    std::cerr << "Chessboard not found in: " << path << " -> skipped\n";
-                }
-            }
-            catch (const cv::Exception& e) {
-                cv::putText(color, "OPENCV ERROR", cv::Point(20, 40),
-                    cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 2);
-                previewTiles.push_back(color);
-                std::cerr << "OpenCV error in calibration image " << path << ": " << e.what() << "\n";
-            }
-        }
-
-        if (imagePoints.size() < 3) {
-            std::cerr << "Error: Not enough valid images (need at least 3)\n";
-            if (calibrationROI.width > 0 && calibrationROI.height > 0) {
-                lastCalibrationMessage = "Not enough valid calibration images inside the selected ROI. Need at least 3 images with detected corners.";
-            }
-            else {
-                lastCalibrationMessage = "Not enough valid calibration images. Need at least 3 images with detected corners.";
-            }
+        if (imagePaths.size() != 1 || boardSize.width < 2 || boardSize.height < 2 || squareSize <= 0.0f) {
+            lastCalibrationMessage = "Homography calibration requires one image, a valid board size, and a positive square size.";
             return -1.0;
         }
 
-        std::vector<cv::Mat> rvecs, tvecs;
+        setCalibrationPattern(boardSize, squareSize);
+        lastCalibrationMessage = "Homography calibration started.";
+        calibrationPreviewImage.release();
+        cv::Mat gray = cv::imread(imagePaths.front(), cv::IMREAD_GRAYSCALE);
+        cv::Mat color = cv::imread(imagePaths.front(), cv::IMREAD_COLOR);
+        if (gray.empty()) {
+            lastCalibrationMessage = "Cannot read the calibration image.";
+            return -1.0;
+        }
+        if (color.empty()) cv::cvtColor(gray, color, cv::COLOR_GRAY2BGR);
 
-        // Reset intrinsics and distortion
+        cv::Rect imageRect(0, 0, gray.cols, gray.rows);
+        cv::Rect roi = calibrationROI & imageRect;
+        if (roi.width <= 0 || roi.height <= 0) roi = imageRect;
+        cv::Mat search = gray(roi);
+
+        std::vector<cv::Point2f> sourceCorners;
+        bool found = cv::findChessboardCornersSB(search, boardSize, sourceCorners,
+            cv::CALIB_CB_EXHAUSTIVE | cv::CALIB_CB_ACCURACY | cv::CALIB_CB_NORMALIZE_IMAGE);
+        if (!found) {
+            found = cv::findChessboardCorners(search, boardSize, sourceCorners,
+                cv::CALIB_CB_ADAPTIVE_THRESH | cv::CALIB_CB_NORMALIZE_IMAGE);
+            if (found) {
+                cv::cornerSubPix(search, sourceCorners, cv::Size(11, 11), cv::Size(-1, -1),
+                    cv::TermCriteria(cv::TermCriteria::EPS | cv::TermCriteria::MAX_ITER, 40, 0.001));
+            }
+        }
+        if (!found || sourceCorners.size() != static_cast<size_t>(boardSize.area())) {
+            lastCalibrationMessage = "The complete chessboard was not detected inside the ROI.";
+            return -1.0;
+        }
+        for (auto& p : sourceCorners) {
+            p.x += static_cast<float>(roi.x);
+            p.y += static_cast<float>(roi.y);
+        }
+
+        std::vector<double> spacings;
+        for (int row = 0; row < boardSize.height; ++row)
+            for (int col = 0; col + 1 < boardSize.width; ++col)
+                spacings.push_back(cv::norm(sourceCorners[row * boardSize.width + col + 1] -
+                    sourceCorners[row * boardSize.width + col]));
+        for (int row = 0; row + 1 < boardSize.height; ++row)
+            for (int col = 0; col < boardSize.width; ++col)
+                spacings.push_back(cv::norm(sourceCorners[(row + 1) * boardSize.width + col] -
+                    sourceCorners[row * boardSize.width + col]));
+        if (spacings.empty()) {
+            lastCalibrationMessage = "Unable to measure chessboard spacing.";
+            return -1.0;
+        }
+        std::nth_element(spacings.begin(), spacings.begin() + spacings.size() / 2, spacings.end());
+        const double pixelsPerSquare = spacings[spacings.size() / 2];
+        if (!std::isfinite(pixelsPerSquare) || pixelsPerSquare < 5.0) {
+            lastCalibrationMessage = "Chessboard squares are too small or invalid.";
+            return -1.0;
+        }
+
+        cv::Point2f sourceCenter(0, 0);
+        for (const auto& p : sourceCorners) sourceCenter += p;
+        sourceCenter *= 1.0f / static_cast<float>(sourceCorners.size());
+        // Preserve the chessboard orientation seen in the grabbed image. OpenCV's
+        // board width is the first corner-index direction; for a portrait board
+        // that direction can be vertical. Mapping it unconditionally to +X rotates
+        // the corrected image by 90 degrees.
+        cv::Point2f sourceColumnAxis(0, 0);
+        cv::Point2f sourceRowAxis(0, 0);
+        for (int row = 0; row < boardSize.height; ++row) {
+            sourceColumnAxis += sourceCorners[row * boardSize.width + boardSize.width - 1] -
+                sourceCorners[row * boardSize.width];
+        }
+        for (int col = 0; col < boardSize.width; ++col) {
+            sourceRowAxis += sourceCorners[(boardSize.height - 1) * boardSize.width + col] -
+                sourceCorners[col];
+        }
+
+        cv::Point2f idealColumnAxis;
+        cv::Point2f idealRowAxis;
+        if (std::abs(sourceColumnAxis.x) >= std::abs(sourceColumnAxis.y)) {
+            idealColumnAxis = cv::Point2f(sourceColumnAxis.x >= 0.0f ? 1.0f : -1.0f, 0.0f);
+            idealRowAxis = cv::Point2f(0.0f, sourceRowAxis.y >= 0.0f ? 1.0f : -1.0f);
+        }
+        else {
+            idealColumnAxis = cv::Point2f(0.0f, sourceColumnAxis.y >= 0.0f ? 1.0f : -1.0f);
+            idealRowAxis = cv::Point2f(sourceRowAxis.x >= 0.0f ? 1.0f : -1.0f, 0.0f);
+        }
+
+        std::vector<cv::Point2f> idealCorners;
+        idealCorners.reserve(sourceCorners.size());
+        const float centerCol = static_cast<float>(boardSize.width - 1) * 0.5f;
+        const float centerRow = static_cast<float>(boardSize.height - 1) * 0.5f;
+        for (int row = 0; row < boardSize.height; ++row) {
+            for (int col = 0; col < boardSize.width; ++col) {
+                const float colOffset = static_cast<float>((col - centerCol) * pixelsPerSquare);
+                const float rowOffset = static_cast<float>((row - centerRow) * pixelsPerSquare);
+                idealCorners.emplace_back(sourceCenter +
+                    idealColumnAxis * colOffset + idealRowAxis * rowOffset);
+            }
+        }
+
+        cv::Mat inlierMask;
+        cv::Mat candidateH = cv::findHomography(sourceCorners, idealCorners, cv::RANSAC, 2.0, inlierMask);
+        if (candidateH.empty() || !cv::checkRange(candidateH) || std::abs(cv::determinant(candidateH)) < 1e-12) {
+            lastCalibrationMessage = "Unable to compute a stable homography.";
+            return -1.0;
+        }
+
+        std::vector<cv::Point2f> projected;
+        cv::perspectiveTransform(sourceCorners, projected, candidateH);
+        double squaredError = 0.0;
+        for (size_t i = 0; i < projected.size(); ++i) {
+            const double error = cv::norm(projected[i] - idealCorners[i]);
+            squaredError += error * error;
+        }
+        const double rms = std::sqrt(squaredError / projected.size());
+        if (!std::isfinite(rms) || rms > 3.0) {
+            lastCalibrationMessage = "Homography reprojection error is too high.";
+            return -1.0;
+        }
+
+        homographyMatrix = candidateH.clone();
+        imageSize = gray.size();
+        calibrationPixelsPerSquare = pixelsPerSquare;
+        calibrationMmPerPixel = static_cast<double>(squareSize) / pixelsPerSquare;
         cameraMatrix = cv::Mat::eye(3, 3, CV_64F);
         distCoeffs = cv::Mat::zeros(4, 1, CV_64F);
 
-        int baseFlags = cv::fisheye::CALIB_RECOMPUTE_EXTRINSIC |
-            cv::fisheye::CALIB_FIX_SKEW;
-        int strictFlags = baseFlags | cv::fisheye::CALIB_CHECK_COND;
-
-        double rms = -1.0;
-        bool usedRelaxedCalibration = false;
-        try {
-            rms = cv::fisheye::calibrate(
-                objectPoints, imagePoints, currentSize,
-                cameraMatrix, distCoeffs, rvecs, tvecs,
-                strictFlags,
-                cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 100, 1e-6));
-        }
-        catch (const cv::Exception& e) {
-            const std::string errorText = e.what();
-            if (errorText.find("CALIB_CHECK_COND") == std::string::npos &&
-                errorText.find("ill-conditioned") == std::string::npos) {
-                throw;
-            }
-
-            cameraMatrix = cv::Mat::eye(3, 3, CV_64F);
-            distCoeffs = cv::Mat::zeros(4, 1, CV_64F);
-            rvecs.clear();
-            tvecs.clear();
-
-            rms = cv::fisheye::calibrate(
-                objectPoints, imagePoints, currentSize,
-                cameraMatrix, distCoeffs, rvecs, tvecs,
-                baseFlags,
-                cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 100, 1e-6));
-            usedRelaxedCalibration = true;
-        }
-
-        imageSize = currentSize;
-        if (!previewTiles.empty()) {
-            size_t previewCount = std::min<size_t>(previewTiles.size(), 4);
-            int cellWidth = 0;
-            int cellHeight = 0;
-            for (size_t i = 0; i < previewCount; ++i) {
-                cellWidth = std::max(cellWidth, previewTiles[i].cols);
-                cellHeight = std::max(cellHeight, previewTiles[i].rows);
-            }
-
-            int columns = previewCount > 1 ? 2 : 1;
-            int rows = static_cast<int>((previewCount + columns - 1) / columns);
-            calibrationPreviewImage = cv::Mat::zeros(rows * cellHeight, columns * cellWidth, CV_8UC3);
-
-            for (size_t i = 0; i < previewCount; ++i) {
-                cv::Mat resized;
-                if (previewTiles[i].cols != cellWidth || previewTiles[i].rows != cellHeight) {
-                    cv::resize(previewTiles[i], resized, cv::Size(cellWidth, cellHeight));
-                }
-                else {
-                    resized = previewTiles[i];
-                }
-
-                int row = static_cast<int>(i) / columns;
-                int col = static_cast<int>(i) % columns;
-                resized.copyTo(calibrationPreviewImage(cv::Rect(col * cellWidth, row * cellHeight, cellWidth, cellHeight)));
-            }
-        }
-
-        std::cout << "Fisheye calibration completed.\n"
-            << "RMS reprojection error: " << rms << " pixels\n";
-        if (rms > 0.8) {
-            std::cout << "  [Warning] RMS > 0.8 -> consider more images or better poses\n";
-        }
-        lastCalibrationMessage = "Calibration completed successfully.";
-        if (usedRelaxedCalibration) {
-            lastCalibrationMessage += " Condition check was relaxed because the image set is ill-conditioned; add more varied board poses for a more stable result.";
-        }
-
+        cv::warpPerspective(color, calibrationPreviewImage, homographyMatrix, imageSize,
+            cv::INTER_LINEAR, cv::BORDER_CONSTANT);
+        cv::drawChessboardCorners(calibrationPreviewImage, boardSize, idealCorners, true);
+        cv::rectangle(calibrationPreviewImage, roi, cv::Scalar(255, 255, 0), 2);
+        cv::putText(calibrationPreviewImage, "HOMOGRAPHY OK", cv::Point(20, 40),
+            cv::FONT_HERSHEY_SIMPLEX, 1.0, cv::Scalar(0, 255, 0), 2);
+        lastCalibrationMessage = "Single-image homography calibration completed successfully.";
         return rms;
     }
     catch (const cv::Exception& e) {
-        lastCalibrationMessage = std::string("OpenCV calibration failed: ") + e.what();
-        if (std::string(e.what()).find("InitExtrinsics") != std::string::npos) {
-            lastCalibrationMessage +=
-                " The detected chessboard points are likely inconsistent for this board size or the calibration images do not provide enough pose variation.";
-        }
+        lastCalibrationMessage = std::string("OpenCV homography calibration failed: ") + e.what();
         calibrationPreviewImage.release();
         return -1.0;
     }
@@ -371,7 +315,8 @@ std::string UAXVision::getLastCalibrationMessage() const
     return lastCalibrationMessage;
 }
 
-// 去畸變（支援 balance 參數控制黑邊與視場取捨）
+// Keep the historical API name for callers; planar correction now uses the
+// saved homography and preserves the original canvas size.
 cv::Mat UAXVision::undistortImage(const cv::Mat& inputImage, double balance) const
 {
     if (!isCalibrated()) {
@@ -384,13 +329,13 @@ cv::Mat UAXVision::undistortImage(const cv::Mat& inputImage, double balance) con
         return cv::Mat();
     }
 
-    cv::Mat newK;
-    cv::fisheye::estimateNewCameraMatrixForUndistortRectify(
-        cameraMatrix, distCoeffs, inputImage.size(),
-        cv::Matx33d::eye(), newK, balance);
-
     cv::Mat output;
-    cv::fisheye::undistortImage(inputImage, output, cameraMatrix, distCoeffs, newK);
+    if (inputImage.size() != imageSize) {
+        std::cerr << "[Warning] Homography image size mismatch.\n";
+        return cv::Mat();
+    }
+    cv::warpPerspective(inputImage, output, homographyMatrix, imageSize,
+        cv::INTER_LINEAR, cv::BORDER_CONSTANT);
 
     return output;
 }
@@ -446,6 +391,15 @@ cv::Mat UAXVision::matchFeatures(const cv::Mat& img1, const cv::Mat& img2)
 cv::Mat UAXVision::getCameraMatrix() const { return cameraMatrix.clone(); }
 cv::Mat UAXVision::getDistCoeffs()   const { return distCoeffs.clone(); }
 cv::Size UAXVision::getImageSize()   const { return imageSize; }
+double UAXVision::getCalibrationMmPerPixel() const { return calibrationMmPerPixel; }
+cv::Point2d UAXVision::transformPoint(const cv::Point2d& point) const
+{
+    if (!isCalibrated()) return point;
+    std::vector<cv::Point2f> source{ cv::Point2f(static_cast<float>(point.x), static_cast<float>(point.y)) };
+    std::vector<cv::Point2f> destination;
+    cv::perspectiveTransform(source, destination, homographyMatrix);
+    return destination.empty() ? point : cv::Point2d(destination.front());
+}
 
 // Save calibration data (包含 imageSize)
 bool UAXVision::saveCalibrationData(const std::string& filename) const
@@ -456,10 +410,20 @@ bool UAXVision::saveCalibrationData(const std::string& filename) const
         return false;
     }
 
-    fs << "cameraMatrix" << cameraMatrix;
-    fs << "distCoeffs" << distCoeffs;
+    if (!isCalibrated()) return false;
+    fs << "model" << "homography_v1";
+    fs << "homographyMatrix" << homographyMatrix;
     fs << "imageWidth" << imageSize.width;
     fs << "imageHeight" << imageSize.height;
+    fs << "boardWidth" << calibrationBoardSize.width;
+    fs << "boardHeight" << calibrationBoardSize.height;
+    fs << "squareSizeMm" << calibrationSquareSize;
+    fs << "pixelsPerSquare" << calibrationPixelsPerSquare;
+    fs << "mmPerPixel" << calibrationMmPerPixel;
+    fs << "roiX" << calibrationROI.x;
+    fs << "roiY" << calibrationROI.y;
+    fs << "roiWidth" << calibrationROI.width;
+    fs << "roiHeight" << calibrationROI.height;
 
     fs.release();
     std::cout << "Calibration saved to: " << filename << "\n";
@@ -475,8 +439,15 @@ bool UAXVision::loadCalibrationData(const std::string& filename)
         return false;
     }
 
-    fs["cameraMatrix"] >> cameraMatrix;
-    fs["distCoeffs"] >> distCoeffs;
+    std::string model;
+    fs["model"] >> model;
+    if (model != "homography_v1") {
+        std::cerr << "Unsupported legacy calibration model in " << filename << "\n";
+        fs.release();
+        homographyMatrix.release();
+        return false;
+    }
+    fs["homographyMatrix"] >> homographyMatrix;
 
     int w = 0, h = 0;
     fs["imageWidth"] >> w;
@@ -484,10 +455,21 @@ bool UAXVision::loadCalibrationData(const std::string& filename)
     if (w > 0 && h > 0) {
         imageSize = cv::Size(w, h);
     }
+    int boardWidth = 0, boardHeight = 0;
+    fs["boardWidth"] >> boardWidth;
+    fs["boardHeight"] >> boardHeight;
+    if (boardWidth > 1 && boardHeight > 1) calibrationBoardSize = cv::Size(boardWidth, boardHeight);
+    fs["squareSizeMm"] >> calibrationSquareSize;
+    fs["pixelsPerSquare"] >> calibrationPixelsPerSquare;
+    fs["mmPerPixel"] >> calibrationMmPerPixel;
+    fs["roiX"] >> calibrationROI.x;
+    fs["roiY"] >> calibrationROI.y;
+    fs["roiWidth"] >> calibrationROI.width;
+    fs["roiHeight"] >> calibrationROI.height;
 
     fs.release();
 
-    if (cameraMatrix.empty() || distCoeffs.empty() || distCoeffs.total() != 4) {
+    if (!isCalibrated()) {
         std::cerr << "Invalid calibration data loaded from " << filename << "\n";
         return false;
     }

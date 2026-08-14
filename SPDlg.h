@@ -123,6 +123,8 @@ public:
     void InitButtonStyle();   // 初始化按鈕樣式
     void ApplyButtonStyle();  // 套用按鈕樣式
     void UpdateModbusStatusDisplay(bool connected);
+    void UpdateImageSizeStatusDisplay(int width, int height);
+    void UpdateImageCalibrationStatusDisplay(bool calibrated, bool hasImage = true);
     void RefreshSystemParaTabDisplay();
     void ScaleDialogTo1024x768();
     void ScaleChildWindows(CWnd* pParent, double scaleX, double scaleY);

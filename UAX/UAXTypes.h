@@ -90,6 +90,7 @@ struct SystemConfigA  // For AX-3 PLC, SP Shoe Last Machine
     int ImageFlip;               // 0, 90, 180, others
     int ImageBinary;
     int CreateToolPath;
+	int ToolPathType = 0;          // 0=legacy, 1=new algorithm 1, 2=new algorithm 2
     int DispalyToolPath;    // TODO: fix typo → DisplayToolPath
     int DisplayROI;            // TODO: fix typo → DisplayROI
     int BinaryUpper;

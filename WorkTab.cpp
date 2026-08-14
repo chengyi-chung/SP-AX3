@@ -12,6 +12,7 @@
 #include <fstream>
 #include <iomanip>
 #include <numeric>
+#include <stdexcept>
 #include <system_error>
 #include <tuple>
 #include <vector>
@@ -47,6 +48,64 @@ static const uint32_t c_countOfImagesToGrab = 3;
 namespace {
 constexpr size_t kToolPathDescriptionPoints = 25;
 constexpr size_t kHmiAxisBufferPoints = 30;
+constexpr UINT kCameraFrameSizeChangedMessage = WM_APP + 0x217;
+constexpr UINT kImageCalibrationStatusChangedMessage = WM_APP + 0x218;
+
+struct ImageDisplayLayout
+{
+    double scale = 1.0;
+    int offsetX = 0;
+    int offsetY = 0;
+    int displayWidth = 0;
+    int displayHeight = 0;
+};
+
+ImageDisplayLayout CalculateImageDisplayLayout(const cv::Size& imageSize, int controlWidth, int controlHeight)
+{
+    ImageDisplayLayout layout;
+    if (imageSize.width <= 0 || imageSize.height <= 0 || controlWidth <= 0 || controlHeight <= 0) {
+        return layout;
+    }
+
+    layout.scale = (std::min)(
+        static_cast<double>(controlWidth) / imageSize.width,
+        static_cast<double>(controlHeight) / imageSize.height);
+    layout.displayWidth = (std::max)(1, cvRound(imageSize.width * layout.scale));
+    layout.displayHeight = (std::max)(1, cvRound(imageSize.height * layout.scale));
+    layout.offsetX = (controlWidth - layout.displayWidth) / 2;
+    layout.offsetY = (controlHeight - layout.displayHeight) / 2;
+    return layout;
+}
+
+CPoint ClampToDisplayedImage(const CPoint& point, const ImageDisplayLayout& layout)
+{
+    const int pointX = static_cast<int>(point.x);
+    const int pointY = static_cast<int>(point.y);
+    return CPoint(
+        (std::max)(layout.offsetX, (std::min)(pointX, layout.offsetX + layout.displayWidth - 1)),
+        (std::max)(layout.offsetY, (std::min)(pointY, layout.offsetY + layout.displayHeight - 1)));
+}
+
+cv::Rect DisplayRectToImageRect(const CRect& displayRect, const ImageDisplayLayout& layout,
+    const cv::Size& imageSize)
+{
+    CRect normalized = displayRect;
+    normalized.NormalizeRect();
+    normalized.IntersectRect(normalized, CRect(
+        layout.offsetX, layout.offsetY,
+        layout.offsetX + layout.displayWidth,
+        layout.offsetY + layout.displayHeight));
+    if (normalized.IsRectEmpty() || layout.scale <= 0.0) {
+        return cv::Rect();
+    }
+
+    const int left = cvRound((normalized.left - layout.offsetX) / layout.scale);
+    const int top = cvRound((normalized.top - layout.offsetY) / layout.scale);
+    const int right = cvRound((normalized.right - layout.offsetX) / layout.scale);
+    const int bottom = cvRound((normalized.bottom - layout.offsetY) / layout.scale);
+    return cv::Rect(left, top, (std::max)(1, right - left), (std::max)(1, bottom - top))
+        & cv::Rect(0, 0, imageSize.width, imageSize.height);
+}
 
 std::string GetCalibrationFilePath()
 {
@@ -96,6 +155,42 @@ int ShowMessageBoxFor(CWnd* owner, LPCTSTR text, LPCTSTR caption, UINT type, DWO
     }
 
     return AfxMessageBox(text, type);
+}
+
+void ShowTimedNotification(CWnd* owner, LPCTSTR text, DWORD timeoutMs)
+{
+    const int width = 460;
+    const int height = 96;
+    RECT ownerRect = {};
+    HWND ownerHwnd = owner ? owner->GetSafeHwnd() : nullptr;
+    if (!ownerHwnd || !::GetWindowRect(ownerHwnd, &ownerRect)) {
+        ownerRect.left = 0;
+        ownerRect.top = 0;
+        ownerRect.right = ::GetSystemMetrics(SM_CXSCREEN);
+        ownerRect.bottom = ::GetSystemMetrics(SM_CYSCREEN);
+    }
+
+    const int x = ownerRect.left + ((ownerRect.right - ownerRect.left) - width) / 2;
+    const int y = ownerRect.top + ((ownerRect.bottom - ownerRect.top) - height) / 2;
+    HWND notification = ::CreateWindowEx(
+        WS_EX_TOPMOST | WS_EX_TOOLWINDOW,
+        _T("STATIC"), text,
+        WS_POPUP | WS_BORDER | SS_CENTER | SS_CENTERIMAGE,
+        x, y, width, height,
+        ownerHwnd, nullptr, AfxGetInstanceHandle(), nullptr);
+    if (!notification) {
+        return;
+    }
+
+    ::SendMessage(notification, WM_SETFONT,
+        reinterpret_cast<WPARAM>(::GetStockObject(DEFAULT_GUI_FONT)), TRUE);
+    ::ShowWindow(notification, SW_SHOWNOACTIVATE);
+    ::UpdateWindow(notification);
+    ::SetTimer(notification, 1, timeoutMs,
+        [](HWND hwnd, UINT, UINT_PTR timerId, DWORD) {
+            ::KillTimer(hwnd, timerId);
+            ::DestroyWindow(hwnd);
+        });
 }
 
 cv::Mat ApplyConfiguredImageTransform(const cv::Mat& image, int flipCode, bool inverse)
@@ -412,16 +507,23 @@ void ExportToolPathAsCSV(const ToolPath& toolPath, const std::string& fileName)
 class GridLengthInputDialog : public CDialogEx
 {
 public:
-    explicit GridLengthInputDialog(double defaultLengthMm, CWnd* pParent = nullptr)
-        : CDialogEx(IDD_DLG_IMAGE_PRO, pParent), m_lengthMm(defaultLengthMm) {}
+    explicit GridLengthInputDialog(double defaultLengthMm,
+        cv::Size defaultGridPoints = cv::Size(5, 7),
+        bool showGridPointInputs = true,
+        CWnd* pParent = nullptr)
+        : CDialogEx(IDD_DLG_IMAGE_PRO, pParent),
+        m_lengthMm(defaultLengthMm),
+        m_gridPoints(defaultGridPoints),
+        m_showGridPointInputs(showGridPointInputs) {}
 
     double GetLengthMm() const { return m_lengthMm; }
+    cv::Size GetGridPoints() const { return m_gridPoints; }
 
 protected:
     BOOL OnInitDialog() override
     {
         CDialogEx::OnInitDialog();
-        SetWindowTextW(L"Grid Length");
+        SetWindowTextW(L"Calibration Grid Parameters");
 
         CWnd* okButton = GetDlgItem(IDOK);
         CWnd* cancelButton = GetDlgItem(IDCANCEL);
@@ -443,6 +545,35 @@ protected:
         CString text;
         text.Format(L"%.3f", m_lengthMm);
         m_editLength.SetWindowTextW(text);
+
+        if (m_showGridPointInputs) {
+            m_staticGridX.Create(
+                L"X：水平格點數：",
+                WS_CHILD | WS_VISIBLE,
+                CRect(16, 82, 180, 102),
+                this);
+            m_editGridX.Create(
+                WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL | ES_NUMBER,
+                CRect(16, 106, 140, 126),
+                this,
+                20002);
+            text.Format(L"%d", m_gridPoints.width);
+            m_editGridX.SetWindowTextW(text);
+
+            m_staticGridY.Create(
+                L"Y：垂直格點數：",
+                WS_CHILD | WS_VISIBLE,
+                CRect(16, 140, 180, 160),
+                this);
+            m_editGridY.Create(
+                WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL | ES_NUMBER,
+                CRect(16, 164, 140, 184),
+                this,
+                20003);
+            text.Format(L"%d", m_gridPoints.height);
+            m_editGridY.SetWindowTextW(text);
+        }
+
         m_editLength.SetFocus();
         m_editLength.SetSel(0, -1);
         return FALSE;
@@ -466,13 +597,35 @@ protected:
         }
 
         m_lengthMm = value;
+
+        if (m_showGridPointInputs) {
+            CString gridXText;
+            CString gridYText;
+            m_editGridX.GetWindowTextW(gridXText);
+            m_editGridY.GetWindowTextW(gridYText);
+            gridXText.Trim();
+            gridYText.Trim();
+            const int gridX = _wtoi(gridXText);
+            const int gridY = _wtoi(gridYText);
+            if (gridX < 2 || gridY < 2) {
+                AfxMessageBox(L"水平與垂直格點數必須至少為 2。");
+                return;
+            }
+            m_gridPoints = cv::Size(gridX, gridY);
+        }
         CDialogEx::OnOK();
     }
 
 private:
     double m_lengthMm = 25.0;
+    cv::Size m_gridPoints = cv::Size(5, 7);
+    bool m_showGridPointInputs = true;
     CStatic m_staticPrompt;
+    CStatic m_staticGridX;
+    CStatic m_staticGridY;
     CEdit m_editLength;
+    CEdit m_editGridX;
+    CEdit m_editGridY;
 };
 
 }
@@ -611,6 +764,8 @@ BEGIN_MESSAGE_MAP(WorkTab, CDialogEx)
     ON_BN_CLICKED(IDC_MFCBTN_WORK_IMG_Calibrate, &WorkTab::OnBnClickedMfcbtnWorkImgCalibrate)
     ON_BN_CLICKED(IDC_CHECK_WORK_ROI, &WorkTab::OnBnClickedCheckWorkRoi)
     ON_BN_CLICKED(IDC_MFCBTN_WORK_IMG_FACTOR, &WorkTab::OnBnClickedMfcbtnWorkImgFactor)
+	ON_MESSAGE(kCameraFrameSizeChangedMessage, &WorkTab::OnCameraFrameSizeChanged)
+	ON_MESSAGE(kImageCalibrationStatusChangedMessage, &WorkTab::OnImageCalibrationStatusChanged)
 END_MESSAGE_MAP()
 
 
@@ -672,6 +827,13 @@ BOOL WorkTab::OnInitDialog()
 	CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
 
 	imgFlip = pParentWnd->m_SystemPara.ImageFlip;
+	// Use the last persisted camera dimensions until a camera frame is
+	// successfully received. An offline camera must not erase the INI values.
+	if (pParentWnd->m_SystemPara.CameraWidth > 0 &&
+		pParentWnd->m_SystemPara.CameraHeight > 0) {
+		oriImageWidth = pParentWnd->m_SystemPara.CameraWidth;
+		oriImageHeight = pParentWnd->m_SystemPara.CameraHeight;
+	}
     RefreshImageFlipFromSystemConfig();
     m_hmiSyncIntervalMs = 500;
     m_lastSyncedSystemPara = pParentWnd->m_SystemPara;
@@ -1041,6 +1203,7 @@ bool WorkTab::IsSystemConfigEqual(const SystemConfigA& lhs, const SystemConfigA&
         lhs.ImageFlip == rhs.ImageFlip &&
         lhs.ImageBinary == rhs.ImageBinary &&
         lhs.CreateToolPath == rhs.CreateToolPath &&
+		lhs.ToolPathType == rhs.ToolPathType &&
         lhs.Binary == rhs.Binary &&
         lhs.SaveINI == rhs.SaveINI &&
         lhs.DispalyToolPath == rhs.DispalyToolPath &&
@@ -1130,21 +1293,70 @@ bool WorkTab::RefreshImageFlipFromSystemConfig()
 {
     CWnd* parent = GetParent();
     CSPDlg* pParent = (parent != nullptr) ? dynamic_cast<CSPDlg*>(parent->GetParent()) : nullptr;
-    if (pParent != nullptr) {
-        imgFlip = pParent->m_SystemPara.ImageFlip;
-    }
+    constexpr int kUserImageOrientation = 0;
+    imgFlip = kUserImageOrientation;
+    m_currentImageFlip = kUserImageOrientation;
 
     SystemConfigA config{};
     if (ReadSystemConfig_SP(GetSystemConfigFilePath(), config) != 0) {
         return false;
     }
 
-    imgFlip = config.ImageFlip;
+    const bool needsConfigUpdate = (config.ImageFlip != kUserImageOrientation);
+    config.ImageFlip = kUserImageOrientation;
     if (pParent != nullptr) {
-        pParent->m_SystemPara.ImageFlip = config.ImageFlip;
-        m_lastSyncedSystemPara.ImageFlip = config.ImageFlip;
+        pParent->m_SystemPara.ImageFlip = kUserImageOrientation;
+        m_lastSyncedSystemPara.ImageFlip = kUserImageOrientation;
+    }
+    if (needsConfigUpdate) {
+        WriteConfigToFile_SP(GetSystemConfigFilePath(), config);
     }
     return true;
+}
+
+void WorkTab::GenerateLegacyToolPath(cv::Mat& image, const cv::Mat& mask, double offsetPixel,
+	ToolPath& output, const SystemConfigA& config)
+{
+	GetToolPath_CurvatureOptimized_Mask(
+		image,
+		mask,
+		offsetPixel,
+		output,
+		0.0008,
+		config.BinaryUpper,
+		config.BinaryLower,
+		false);
+}
+
+void WorkTab::GenerateToolPathNewAlgorithm1(cv::Mat& image, const cv::Mat& mask, double offsetPixel,
+	ToolPath& output, const SystemConfigA& config)
+{
+	// Reserved extension point. Keep production behavior until algorithm 1 is implemented.
+	GenerateLegacyToolPath(image, mask, offsetPixel, output, config);
+}
+
+void WorkTab::GenerateToolPathNewAlgorithm2(cv::Mat& image, const cv::Mat& mask, double offsetPixel,
+	ToolPath& output, const SystemConfigA& config)
+{
+	// Reserved extension point. Keep production behavior until algorithm 2 is implemented.
+	GenerateLegacyToolPath(image, mask, offsetPixel, output, config);
+}
+
+void WorkTab::GenerateToolPathByType(cv::Mat& image, const cv::Mat& mask, double offsetPixel,
+	ToolPath& output, const SystemConfigA& config)
+{
+	switch (config.ToolPathType) {
+	case 1:
+		GenerateToolPathNewAlgorithm1(image, mask, offsetPixel, output, config);
+		break;
+	case 2:
+		GenerateToolPathNewAlgorithm2(image, mask, offsetPixel, output, config);
+		break;
+	case 0:
+	default:
+		GenerateLegacyToolPath(image, mask, offsetPixel, output, config);
+		break;
+	}
 }
 
 void WorkTab::ClearCreateToolPathRequest(int stationID)
@@ -1380,7 +1592,7 @@ void WorkTab::OnBnClickedWorkGrab()
 	// TODO: 在此加入控制項告知處理常式程式碼
     // If the grab thread is not running, start it
     RefreshImageFlipFromSystemConfig();
-    m_currentImageFlip = imgFlip;
+    m_currentImageFlip = 0;
 
     if (!m_bGrabThread)
 	{
@@ -1443,6 +1655,9 @@ UINT WorkTab::GrabThread(LPVOID pParam)
 
         // This smart pointer will receive the grab result data.
         CGrabResultPtr ptrGrabResult;
+		int lastReportedWidth = 0;
+		int lastReportedHeight = 0;
+		int lastReportedCalibrationState = -1;
 
         // Camera.StopGrabbing() is called automatically by the RetrieveResult() method
         // when c_countOfImagesToGrab images have been retrieved.
@@ -1466,9 +1681,22 @@ UINT WorkTab::GrabThread(LPVOID pParam)
 
 				//(uint8_t*)ptrGrabResult->GetBuffer() 資料型態是 uint8_t* 傳到 pImageBuffer
                 pWorkTab->pImageBuffer = (uint8_t*)ptrGrabResult->GetBuffer();
-				// Get pWorkTab->pImageBuffer Height and Width
-				pWorkTab->oriImageWidth = ptrGrabResult->GetWidth();
-				pWorkTab->oriImageHeight = ptrGrabResult->GetHeight();
+				// Keep the current frame dimensions for image processing. Notify the UI
+				// thread only when they change; configuration persistence must not run
+				// on the high-frequency camera grab thread.
+				const int frameWidth = static_cast<int>(ptrGrabResult->GetWidth());
+				const int frameHeight = static_cast<int>(ptrGrabResult->GetHeight());
+				pWorkTab->oriImageWidth = frameWidth;
+				pWorkTab->oriImageHeight = frameHeight;
+				if (frameWidth > 0 && frameHeight > 0 &&
+					(frameWidth != lastReportedWidth || frameHeight != lastReportedHeight)) {
+					lastReportedWidth = frameWidth;
+					lastReportedHeight = frameHeight;
+					pWorkTab->PostMessage(
+						kCameraFrameSizeChangedMessage,
+						static_cast<WPARAM>(frameWidth),
+						static_cast<LPARAM>(frameHeight));
+				}
                 
                 //cout << "Gray value of first pixel: " << (uint32_t)pImageBuffer[0] << endl << endl;
 
@@ -1478,11 +1706,29 @@ UINT WorkTab::GrabThread(LPVOID pParam)
                 //pWorkTab->m_mat = openCvImage.clone();
                 
                 // 使用 ShowImageOnPictureControl使用下式
-				pWorkTab->m_mat = cv::Mat(ptrGrabResult->GetHeight(), ptrGrabResult->GetWidth(), CV_8UC1, (void*)pWorkTab->pImageBuffer).clone();
+                cv::Mat grabbedImage = cv::Mat(
+                    ptrGrabResult->GetHeight(),
+                    ptrGrabResult->GetWidth(),
+                    CV_8UC1,
+                    (void*)pWorkTab->pImageBuffer).clone();
+                // ImageFlip=0 is the canonical user-facing orientation.
+                cv::Mat calibratedImage = pWorkTab->BuildCalibratedDisplayImage(grabbedImage);
+				const int calibrationState = calibratedImage.empty() ? 0 : 1;
+				if (calibrationState != lastReportedCalibrationState) {
+					lastReportedCalibrationState = calibrationState;
+					pWorkTab->PostMessage(
+						kImageCalibrationStatusChangedMessage,
+						static_cast<WPARAM>(calibrationState), 0);
+				}
 
-                pWorkTab->m_mat = ApplyConfiguredFlip(pWorkTab->m_mat, pWorkTab->m_currentImageFlip);
-                pWorkTab->m_calibratedDisplayMat = pWorkTab->BuildCalibratedDisplayImage(pWorkTab->m_mat);
-                pWorkTab->m_pathDisplayMat.release();
+                // Publish the complete frame atomically. Save Image may run on the UI
+                // thread while continuous grabbing is replacing the current frame.
+                {
+                    std::lock_guard<std::mutex> imageLock(pWorkTab->m_matMutex);
+                    pWorkTab->m_mat = std::move(grabbedImage);
+                    pWorkTab->m_calibratedDisplayMat = std::move(calibratedImage);
+                    pWorkTab->m_pathDisplayMat.release();
+                }
                 pWorkTab->toolPath.Path.clear();
                 pWorkTab->m_OptimizedGluePath.PathLeft.clear();
                 pWorkTab->m_OptimizedGluePath.PathRight.clear();
@@ -1531,6 +1777,53 @@ UINT WorkTab::GrabThread(LPVOID pParam)
 	
     pWorkTab->m_bGrabThread = false;
     return exitCode;
+}
+
+LRESULT WorkTab::OnCameraFrameSizeChanged(WPARAM width, LPARAM height)
+{
+	const int frameWidth = static_cast<int>(width);
+	const int frameHeight = static_cast<int>(height);
+	if (frameWidth <= 0 || frameHeight <= 0) {
+		return 0;
+	}
+
+	CWnd* pTab = GetParent();
+	CSPDlg* pParentWnd = pTab ? dynamic_cast<CSPDlg*>(pTab->GetParent()) : nullptr;
+	if (!pParentWnd) {
+		return 0;
+	}
+
+	SystemConfigA& config = pParentWnd->m_SystemPara;
+	pParentWnd->UpdateImageSizeStatusDisplay(frameWidth, frameHeight);
+	if (config.CameraWidth == frameWidth && config.CameraHeight == frameHeight) {
+		return 0;
+	}
+
+	config.CameraWidth = frameWidth;
+	config.CameraHeight = frameHeight;
+
+	try {
+		WriteConfigToFile_SP(GetSystemConfigFilePath(), config);
+	}
+	catch (const std::exception& e) {
+		CString message;
+		message.Format(_T("相機尺寸已更新為 %d x %d，但 SystemConfig.ini 儲存失敗：%S"),
+			frameWidth, frameHeight, e.what());
+		AfxMessageBox(message, MB_ICONERROR);
+	}
+
+	pParentWnd->RefreshSystemParaTabDisplay();
+	return 0;
+}
+
+LRESULT WorkTab::OnImageCalibrationStatusChanged(WPARAM calibrated, LPARAM)
+{
+	CWnd* pTab = GetParent();
+	CSPDlg* pParentWnd = pTab ? dynamic_cast<CSPDlg*>(pTab->GetParent()) : nullptr;
+	if (pParentWnd) {
+		pParentWnd->UpdateImageCalibrationStatusDisplay(calibrated != 0);
+	}
+	return 0;
 }
 
 //Add a button IDC_WORK_STOP
@@ -1855,14 +2148,9 @@ cv::Mat WorkTab::BuildCalibratedDisplayImage(const cv::Mat& displayImage)
     }
 
     try {
-        const int currentImageFlip = m_currentImageFlip;
-        cv::Mat rawOrientationImage = ApplyInverseConfiguredFlip(displayImage, currentImageFlip);
-        cv::Mat undistortedRaw = m_vision.undistortImage(rawOrientationImage);
-        if (undistortedRaw.empty()) {
-            return cv::Mat();
-        }
-
-        return ApplyConfiguredFlip(undistortedRaw, currentImageFlip);
+        // Homography is created in the same displayed coordinate system as the
+        // selected ROI and calibration image; do not undo/reapply ImageFlip.
+        return m_vision.undistortImage(displayImage);
     }
     catch (const cv::Exception&) {
         return cv::Mat();
@@ -1903,18 +2191,29 @@ void WorkTab::ShowImageOnPictureControl(bool flgCenter, cv::Scalar crossColor, i
     pWnd->GetClientRect(&rect);
     if (rect.Width() <= 0 || rect.Height() <= 0) return;
 
+    const ImageDisplayLayout layout = CalculateImageDisplayLayout(
+        displaySource.size(), rect.Width(), rect.Height());
+    if (layout.displayWidth <= 0 || layout.displayHeight <= 0) return;
+
     cv::Mat resizedImage;
-    cv::resize(displaySource, resizedImage, cv::Size(rect.Width(), rect.Height()));
+    cv::resize(displaySource, resizedImage, cv::Size(layout.displayWidth, layout.displayHeight));
 
     cv::Mat imageToShow;
     if (resizedImage.channels() == 1) {
-        cv::cvtColor(resizedImage, imageToShow, cv::COLOR_GRAY2BGRA);
+        cv::Mat converted;
+        cv::cvtColor(resizedImage, converted, cv::COLOR_GRAY2BGRA);
+        imageToShow = cv::Mat(rect.Height(), rect.Width(), CV_8UC4, cv::Scalar(0, 0, 0, 255));
+        converted.copyTo(imageToShow(cv::Rect(layout.offsetX, layout.offsetY, layout.displayWidth, layout.displayHeight)));
     }
     else if (resizedImage.channels() == 3) {
-        cv::cvtColor(resizedImage, imageToShow, cv::COLOR_BGR2BGRA);
+        cv::Mat converted;
+        cv::cvtColor(resizedImage, converted, cv::COLOR_BGR2BGRA);
+        imageToShow = cv::Mat(rect.Height(), rect.Width(), CV_8UC4, cv::Scalar(0, 0, 0, 255));
+        converted.copyTo(imageToShow(cv::Rect(layout.offsetX, layout.offsetY, layout.displayWidth, layout.displayHeight)));
     }
     else if (resizedImage.channels() == 4) {
-        imageToShow = resizedImage.clone();
+        imageToShow = cv::Mat(rect.Height(), rect.Width(), CV_8UC4, cv::Scalar(0, 0, 0, 255));
+        resizedImage.copyTo(imageToShow(cv::Rect(layout.offsetX, layout.offsetY, layout.displayWidth, layout.displayHeight)));
     }
     else {
         return;
@@ -1930,17 +2229,10 @@ void WorkTab::ShowImageOnPictureControl(bool flgCenter, cv::Scalar crossColor, i
      // Calculate scale factors
      // Draw the rectangle if MaskWidth and MaskHeight are greater than 0
         if (MaskWidth > 0 && MaskHeight > 0) {
-            double scaleX = static_cast<double>(rect.Width()) / sourceMat.cols;
-            double scaleY = static_cast<double>(rect.Height()) / sourceMat.rows;
-           
-
-            //double scaleX = static_cast<double>(imageToShow.cols) / rect.Width();
-            //double scaleY = static_cast<double>(imageToShow.rows) / rect.Height();
-
-            int x = static_cast<int>(std::lround(MaskX * scaleX));
-            int y = static_cast<int>(std::lround(MaskY * scaleY));
-            int w = static_cast<int>(std::lround(MaskWidth * scaleX));
-            int h = static_cast<int>(std::lround(MaskHeight * scaleY));
+            int x = layout.offsetX + cvRound(MaskX * layout.scale);
+            int y = layout.offsetY + cvRound(MaskY * layout.scale);
+            int w = cvRound(MaskWidth * layout.scale);
+            int h = cvRound(MaskHeight * layout.scale);
 
             x = (std::max)(0, (std::min)(x, imageToShow.cols - 1));
             y = (std::max)(0, (std::min)(y, imageToShow.rows - 1));
@@ -1959,10 +2251,8 @@ void WorkTab::ShowImageOnPictureControl(bool flgCenter, cv::Scalar crossColor, i
     if (flgCenter)
     {
 
-        double scaleX = static_cast<double>(rect.Width()) / sourceMat.cols;
-        double scaleY = static_cast<double>(rect.Height()) / sourceMat.rows;
-        int centerX = static_cast<int>(std::lround(referenceX * scaleX));
-        int centerY = static_cast<int>(std::lround(referenceY * scaleY));
+        int centerX = layout.offsetX + cvRound(referenceX * layout.scale);
+        int centerY = layout.offsetY + cvRound(referenceY * layout.scale);
         centerX = (std::max)(0, (std::min)(centerX, imageToShow.cols - 1));
         centerY = (std::max)(0, (std::min)(centerY, imageToShow.rows - 1));
 
@@ -2025,12 +2315,11 @@ void WorkTab::ShowImageOnPictureControl(bool flgCenter, cv::Scalar crossColor, i
     }
 
     if (m_factorPreviewMat.empty()) {
-        const double scaleX = static_cast<double>(rect.Width()) / sourceMat.cols;
-        const double scaleY = static_cast<double>(rect.Height()) / sourceMat.rows;
-
         auto toDisplayPoint = [&](const cv::Point2d& pt) {
-            const int x = (std::max)(0, (std::min)(cvRound(pt.x * scaleX), imageToShow.cols - 1));
-            const int y = (std::max)(0, (std::min)(cvRound(pt.y * scaleY), imageToShow.rows - 1));
+            const int x = (std::max)(layout.offsetX, (std::min)(
+                layout.offsetX + cvRound(pt.x * layout.scale), layout.offsetX + layout.displayWidth - 1));
+            const int y = (std::max)(layout.offsetY, (std::min)(
+                layout.offsetY + cvRound(pt.y * layout.scale), layout.offsetY + layout.displayHeight - 1));
             return cv::Point(x, y);
             };
 
@@ -2118,11 +2407,9 @@ BOOL WorkTab::PreTranslateMessage(MSG* pMsg)
         if (!picRectScreen.IsRectEmpty() && picRectScreen.PtInRect(pMsg->pt)) {
             const int localX = static_cast<int>(pMsg->pt.x - picRectScreen.left);
             const int localY = static_cast<int>(pMsg->pt.y - picRectScreen.top);
-            const int maxLocalX = picRectScreen.Width() - 1;
-            const int maxLocalY = picRectScreen.Height() - 1;
-            const CPoint localPoint(
-                (std::max)(0, (std::min)(localX, maxLocalX)),
-                (std::max)(0, (std::min)(localY, maxLocalY)));
+            const ImageDisplayLayout layout = CalculateImageDisplayLayout(
+                m_factorPreviewMat.size(), picRectScreen.Width(), picRectScreen.Height());
+            const CPoint localPoint = ClampToDisplayedImage(CPoint(localX, localY), layout);
 
             switch (pMsg->message) {
             case WM_LBUTTONDOWN:
@@ -2147,8 +2434,6 @@ BOOL WorkTab::PreTranslateMessage(MSG* pMsg)
                     m_ROICurrent = localPoint;
                     m_bROIConfirmed = true;
 
-                    const double scaleX = static_cast<double>(m_factorPreviewMat.cols) / picRectScreen.Width();
-                    const double scaleY = static_cast<double>(m_factorPreviewMat.rows) / picRectScreen.Height();
                     CRect roiRect(m_ROIStart, m_ROICurrent);
                     roiRect.NormalizeRect();
                     if (roiRect.Width() <= 1 || roiRect.Height() <= 1) {
@@ -2158,12 +2443,8 @@ BOOL WorkTab::PreTranslateMessage(MSG* pMsg)
                         return TRUE;
                     }
 
-                    cv::Rect imageRoi(
-                        cvRound(roiRect.left * scaleX),
-                        cvRound(roiRect.top * scaleY),
-                        (std::max)(1, cvRound(roiRect.Width() * scaleX)),
-                        (std::max)(1, cvRound(roiRect.Height() * scaleY)));
-                    imageRoi &= cv::Rect(0, 0, m_factorPreviewMat.cols, m_factorPreviewMat.rows);
+                    cv::Rect imageRoi = DisplayRectToImageRect(
+                        roiRect, layout, m_factorPreviewMat.size());
 
                     int minCol = m_factorBoardSize.width;
                     int maxCol = -1;
@@ -2303,11 +2584,9 @@ void WorkTab::OnMouseMove(UINT nFlags, CPoint point)
         if (picRect.PtInRect(point)) {
             const int localX = static_cast<int>(point.x - picRect.left);
             const int localY = static_cast<int>(point.y - picRect.top);
-            const int maxLocalX = picRect.Width() - 1;
-            const int maxLocalY = picRect.Height() - 1;
-            m_ROICurrent = CPoint(
-                (std::max)(0, (std::min)(localX, maxLocalX)),
-                (std::max)(0, (std::min)(localY, maxLocalY)));
+            const ImageDisplayLayout layout = CalculateImageDisplayLayout(
+                m_factorPreviewMat.size(), picRect.Width(), picRect.Height());
+            m_ROICurrent = ClampToDisplayedImage(CPoint(localX, localY), layout);
             ShowImageOnPictureControl(flgCenter, cv::Scalar(0, 0, 255, 255), 1, CrossStyle::Solid);
         }
     }
@@ -2324,7 +2603,10 @@ void WorkTab::OnLButtonDown(UINT nFlags, CPoint point)
         if (picRect.PtInRect(point)) {
             m_bDrawingROI = true;
             m_bROIConfirmed = false;
-            m_ROIStart = CPoint(point.x - picRect.left, point.y - picRect.top);
+            const ImageDisplayLayout layout = CalculateImageDisplayLayout(
+                m_factorPreviewMat.size(), picRect.Width(), picRect.Height());
+            m_ROIStart = ClampToDisplayedImage(
+                CPoint(point.x - picRect.left, point.y - picRect.top), layout);
             m_ROICurrent = m_ROIStart;
             ShowImageOnPictureControl(flgCenter, cv::Scalar(0, 0, 255, 255), 1, CrossStyle::Solid);
             return;
@@ -2344,11 +2626,9 @@ void WorkTab::OnLButtonUp(UINT nFlags, CPoint point)
 
         const int localX = static_cast<int>(point.x - picRect.left);
         const int localY = static_cast<int>(point.y - picRect.top);
-        const int maxLocalX = picRect.Width() - 1;
-        const int maxLocalY = picRect.Height() - 1;
-        CPoint endPoint(
-            (std::max)(0, (std::min)(localX, maxLocalX)),
-            (std::max)(0, (std::min)(localY, maxLocalY)));
+        const ImageDisplayLayout layout = CalculateImageDisplayLayout(
+            m_factorPreviewMat.size(), picRect.Width(), picRect.Height());
+        CPoint endPoint = ClampToDisplayedImage(CPoint(localX, localY), layout);
         m_ROICurrent = endPoint;
         m_bROIConfirmed = true;
 
@@ -2361,14 +2641,8 @@ void WorkTab::OnLButtonUp(UINT nFlags, CPoint point)
             return;
         }
 
-        const double scaleX = static_cast<double>(m_factorPreviewMat.cols) / picRect.Width();
-        const double scaleY = static_cast<double>(m_factorPreviewMat.rows) / picRect.Height();
-        cv::Rect imageRoi(
-            cvRound(roiRect.left * scaleX),
-            cvRound(roiRect.top * scaleY),
-            (std::max)(1, cvRound(roiRect.Width() * scaleX)),
-            (std::max)(1, cvRound(roiRect.Height() * scaleY)));
-        imageRoi &= cv::Rect(0, 0, m_factorPreviewMat.cols, m_factorPreviewMat.rows);
+        cv::Rect imageRoi = DisplayRectToImageRect(
+            roiRect, layout, m_factorPreviewMat.size());
 
         int minCol = m_factorBoardSize.width;
         int maxCol = -1;
@@ -2594,11 +2868,21 @@ void WorkTab::OnBnClickedWorkMatchTemp()
 
 void WorkTab::OnBnClickedIdcWorkToolPath() 
 {
-    // 1. 影像檢查
-    if (m_mat.empty()) {
-        AfxMessageBox(_T("Source image is empty."));
-        return;
-    }
+	// 1. Freeze one complete frame for the entire generation operation. The
+	// camera thread may continue publishing newer frames to m_mat, but ROI,
+	// calibration and path extraction below must all use this same snapshot.
+	cv::Mat sourceFrame;
+	{
+		std::lock_guard<std::mutex> imageLock(m_matMutex);
+		if (!m_mat.empty()) {
+			sourceFrame = m_mat.clone();
+		}
+	}
+	if (sourceFrame.empty()) {
+		AfxMessageBox(_T("Source image is empty."));
+		return;
+	}
+	m_hasGeneratedEffectiveReference = false;
 
     // 2. 獲取父視窗參數
     CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
@@ -2608,8 +2892,9 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
 
     // 3. ROI 範圍安全檢查 (修正 X/Y 與 Width/Height 的對應)
     if (MaskX < 0 || MaskY < 0 ||
-        MaskX + MaskWidth > m_mat.cols ||
-        MaskY + MaskHeight > m_mat.rows) {
+		MaskWidth <= 0 || MaskHeight <= 0 ||
+		MaskX + MaskWidth > sourceFrame.cols ||
+		MaskY + MaskHeight > sourceFrame.rows) {
         AfxMessageBox(_T("ROI exceeds image dimensions."));
         return;
     }
@@ -2622,14 +2907,16 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
     const double offsetPixel = (factor > 0.0) ? (OffsetValue / factor) : 0.0;
 
     // 5. 準備 Mask
-    cv::Mat mask = cv::Mat::zeros(m_mat.size(), CV_8UC1);
+	cv::Mat mask = cv::Mat::zeros(sourceFrame.size(), CV_8UC1);
     cv::Rect roiRect(MaskX, MaskY, MaskWidth, MaskHeight);
     mask(roiRect) = cv::Scalar(255);
 
     // 6. 提取原始工具路徑前，先做影像校正
-	cv::Mat correctedImage = m_mat;  // 預設為原始影像，如果校正失敗或未校正，則繼續使用原始影像提取路徑
-	cv::Mat pathSourceImage = m_mat; // 用於路徑提取的影像，通常是校正後的影像，但如果校正失敗則回退為原始影像
+	cv::Mat correctedImage = sourceFrame;  // 預設為原始影像，如果校正失敗或未校正，則繼續使用原始影像提取路徑
+	cv::Mat pathSourceImage = sourceFrame; // 用於路徑提取的影像，通常是校正後的影像，但如果校正失敗則回退為原始影像
     cv::Mat pathMask = mask.clone();
+    cv::Rect effectiveRoiRect = roiRect;
+    cv::Point2d effectiveReference(referenceX, referenceY);
     if (!m_vision.isCalibrated()) {
         m_vision.loadCalibrationData(GetCalibrationFilePath());
     }
@@ -2637,45 +2924,44 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
     bool usedCalibrationCorrection = false;
     if (m_vision.isCalibrated()) {
         try {
-            // m_mat 在取像後可能已依 imgFlip 翻轉；校正參數通常是以原始相機方向建立。
-            // 因此在原始方向做去畸變與路徑提取，最後再把點座標翻回目前顯示座標。
-			cv::Mat rawOrientationImage = ApplyInverseConfiguredFlip(m_mat, currentImageFlip); // 把 m_mat 翻回校正參數對應的原始相機方向，這樣去畸變後的影像才會和校正參數對齊。
-			cv::Mat undistortedRaw = m_vision.undistortImage(rawOrientationImage); // 去畸變後的影像仍然是原始相機方向，這樣提取路徑才會和校正參數對齊。
-            if (!undistortedRaw.empty()) {
-				correctedImage = ApplyConfiguredFlip(undistortedRaw, currentImageFlip); // 把去畸變後的影像翻回目前顯示的方向，這樣 correctedImage 就是校正後且符合目前顯示方向的影像，可以直接用來顯示。
-                pathSourceImage = undistortedRaw;
-
-				//ApplyInverseConfiguredFlip() 會把 mask 轉回原始相機方向，確保 pathMask 與 pathSourceImage 在同一個座標系統下對齊。
-                pathMask = ApplyInverseConfiguredFlip(mask, currentImageFlip);
+			cv::Mat rectifiedImage = m_vision.undistortImage(sourceFrame);
+            cv::Mat rectifiedMask = m_vision.undistortImage(mask);
+            if (!rectifiedImage.empty() && !rectifiedMask.empty()) {
+                correctedImage = rectifiedImage;
+                pathSourceImage = rectifiedImage;
+                cv::threshold(rectifiedMask, pathMask, 127, 255, cv::THRESH_BINARY);
+                std::vector<cv::Point> nonZeroMaskPoints;
+                cv::findNonZero(pathMask, nonZeroMaskPoints);
+                if (!nonZeroMaskPoints.empty()) {
+                    effectiveRoiRect = cv::boundingRect(nonZeroMaskPoints);
+                }
+                effectiveReference = m_vision.transformPoint(cv::Point2d(referenceX, referenceY));
                 usedCalibrationCorrection = true;
             }
         }
         catch (const cv::Exception&) {
-            correctedImage = m_mat;
-            pathSourceImage = m_mat;
+			correctedImage = sourceFrame;
+			pathSourceImage = sourceFrame;
             pathMask = mask.clone();
         }
     }
+	pParentWnd->UpdateImageCalibrationStatusDisplay(usedCalibrationCorrection);
 
     // 7. 提取工具路徑 (直接操作成員變數)
 	// correctedImage: 顯示用影像，原點為左上角，單位為 pixel
 	// pathSourceImage / imgClone: 實際拿來取路徑的影像，原點為左上角，單位為 pixel
     this->toolPath.Path.clear();
     cv::Mat imgClone = pathSourceImage.clone();
-	cv::flip(imgClone, imgClone, -1); // 提取路徑前先將輸入影像旋轉 180 度。
 
 	//pParentWnd->m_SystemPara.BinaryUpper = 255;
 	//pParentWnd->m_SystemPara.BinaryLower = 210; 
 
-    GetToolPath_CurvatureOptimized_Mask(
-        imgClone,
-        pathMask,
-        offsetPixel,
-        this->toolPath,
-        0.0008,
-        pParentWnd->m_SystemPara.BinaryUpper,
-        pParentWnd->m_SystemPara.BinaryLower,
-        false);
+    GenerateToolPathByType(
+		imgClone,
+		pathMask,
+		offsetPixel,
+		this->toolPath,
+		pParentWnd->m_SystemPara);
     m_pathDisplayMat = imgClone.clone();
 
 	// 此時 toolPath 中的點原本是基於 pathSourceImage 左上角的 pixel 座標。
@@ -2698,10 +2984,10 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
     // 8. 膠路同步優化 (核心步驟)
 	// 直接使用成員變數 MaskX/Y/Width/Height 和 referenceX/Y
     ROIMask roiOpt = {};
-    roiOpt.MaskX = MaskX; roiOpt.MaskY = MaskY;
-    roiOpt.MaskWidth = MaskWidth; roiOpt.MaskHeight = MaskHeight;
-    roiOpt.RefCenterX = this->referenceX;
-    roiOpt.RefCenterY = this->referenceY;
+    roiOpt.MaskX = effectiveRoiRect.x; roiOpt.MaskY = effectiveRoiRect.y;
+    roiOpt.MaskWidth = effectiveRoiRect.width; roiOpt.MaskHeight = effectiveRoiRect.height;
+    roiOpt.RefCenterX = effectiveReference.x;
+    roiOpt.RefCenterY = effectiveReference.y;
     const double entryTransferFactor =
         (pParentWnd && pParentWnd->m_SystemPara.TransferFactor > 0.0f)
         ? static_cast<double>(pParentWnd->m_SystemPara.TransferFactor)
@@ -2709,7 +2995,7 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
     const double entryPointXMm = pParentWnd
         ? static_cast<double>(pParentWnd->m_SystemPara.EntryPointX)
         : 0.0;
-    roiOpt.EntryPointX = static_cast<double>(this->referenceX) +
+    roiOpt.EntryPointX = effectiveReference.x +
         entryPointXMm / entryTransferFactor;
 
     // 直接傳入成員變數，避免重複拷貝
@@ -2730,17 +3016,21 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
 
     // 只保留 ROI 內的有效路徑點，並限制最多輸出路徑描述點數。
     // 25 是上限，若有效點數小於 25 則直接接受。
-    FilterGluePathByRoiAndLimit(finalPath, roiRect, kToolPathDescriptionPoints);
+    FilterGluePathByRoiAndLimit(finalPath, effectiveRoiRect, kToolPathDescriptionPoints);
     NormalizeGluePathPairCount(finalPath);
 
     // 9. 儲存或顯示結果
 	// m_OptimizedGluePath：原點為 correctedImage 左上角，單位為 pixel
-    this->m_OptimizedGluePath = finalPath; // 假設你有一個成員變數儲存最終結果
+	this->m_OptimizedGluePath = finalPath; // 假設你有一個成員變數儲存最終結果
+	if (!finalPath.PathLeft.empty() && !finalPath.PathRight.empty()) {
+		m_generatedEffectiveReference = effectiveReference;
+		m_hasGeneratedEffectiveReference = true;
+	}
 
 
     // 10. 重建顯示/輸出用座標
     // 依序產生：
-    ConvertToMachineCoordinates();
+    ConvertToMachineCoordinates(effectiveReference.x, effectiveReference.y);
 
 #ifdef _DEBUG
     //刪除CSV檔
@@ -2843,14 +3133,33 @@ void WorkTab::OnBnClickedIdcWorkLoadImg()
 	CFileDialog dlg(TRUE, NULL, NULL, OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_HIDEREADONLY, strFilter, this);
 	if (dlg.DoModal() == IDOK)
 	{
-        m_currentImageFlip = 180;
+        m_currentImageFlip = 0;
 		CString strPath = dlg.GetPathName();
 		// Convert CString to std::string
 		std::string strPathA = CT2A(strPath);
-		// Load the image
-		m_mat = cv::imread(strPathA, cv::IMREAD_GRAYSCALE);
-        m_mat = ApplyConfiguredFlip(m_mat, m_currentImageFlip);
-        m_calibratedDisplayMat = BuildCalibratedDisplayImage(m_mat);
+		// Load the image. A file image becomes the current runtime image size,
+		// but it must not overwrite the persisted camera resolution.
+		cv::Mat loadedImage = cv::imread(strPathA, cv::IMREAD_GRAYSCALE);
+		if (loadedImage.empty()) {
+			AfxMessageBox(_T("無法讀取影像檔。"), MB_ICONERROR);
+			return;
+		}
+
+		oriImageWidth = loadedImage.cols;
+		oriImageHeight = loadedImage.rows;
+		cv::Mat calibratedImage = BuildCalibratedDisplayImage(loadedImage);
+		{
+			std::lock_guard<std::mutex> imageLock(m_matMutex);
+			m_mat = std::move(loadedImage);
+			m_calibratedDisplayMat = std::move(calibratedImage);
+		}
+
+		CWnd* pTab = GetParent();
+		CSPDlg* pParentWnd = pTab ? dynamic_cast<CSPDlg*>(pTab->GetParent()) : nullptr;
+		if (pParentWnd) {
+			pParentWnd->UpdateImageSizeStatusDisplay(oriImageWidth, oriImageHeight);
+			pParentWnd->UpdateImageCalibrationStatusDisplay(!m_calibratedDisplayMat.empty());
+		}
 		// Display the image
 		//ShowImageOnPictureControl();
         // 紅色實線
@@ -2862,22 +3171,97 @@ void WorkTab::OnBnClickedIdcWorkLoadImg()
 
 void WorkTab::OnBnClickedIdcWorkSaveImg()
 {
-    // TODO: 在此加入控制項告知處理常式
-	//Add Dialog Box to save image
-	CString strFilter = _T("Image Files (*.bmp;*.jpg;*.jpeg;*.png;*.tif;*.tiff)|*.bmp;*.jpg;*.jpeg;*.png;*.tif;*.tiff|All Files (*.*)|*.*||");
-	CFileDialog dlg(FALSE, NULL, NULL, OFN_PATHMUSTEXIST | OFN_HIDEREADONLY, strFilter, this);
-	if (dlg.DoModal() == IDOK)
-	{
-		CString strPath = dlg.GetPathName();
+    cv::Mat imageForSave;
+    {
+        // m_mat is replaced by the camera grab thread. Clone it while holding the
+        // same lock so OpenCV never reads a partially replaced Mat header/buffer.
+        std::lock_guard<std::mutex> imageLock(m_matMutex);
+        if (!m_mat.empty()) {
+            imageForSave = m_mat.clone();
+        }
+    }
 
-        // Convert CString to std::string
-        std::string strPathA = CT2A(strPath);
-        RefreshImageFlipFromSystemConfig();
-        cv::Mat imageForSave = ApplyConfiguredFlip(m_mat, imgFlip);
+    if (imageForSave.empty()) {
+        AfxMessageBox(L"目前沒有可儲存的影像，請先取像或載入影像。", MB_ICONWARNING);
+        return;
+    }
 
-		// Save the image
-		cv::imwrite(strPathA, imageForSave.empty() ? m_mat : imageForSave);
-	}
+    CString strFilter = _T("PNG Image (*.png)|*.png|Bitmap Image (*.bmp)|*.bmp|JPEG Image (*.jpg;*.jpeg)|*.jpg;*.jpeg|TIFF Image (*.tif;*.tiff)|*.tif;*.tiff||");
+    CFileDialog dlg(FALSE, _T("png"), _T("Image.png"),
+        OFN_PATHMUSTEXIST | OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT,
+        strFilter, this);
+    if (dlg.DoModal() != IDOK) {
+        return;
+    }
+
+    CString strPath = dlg.GetPathName();
+    CString extension;
+    const int dotPosition = strPath.ReverseFind(_T('.'));
+    const int slashPosition = (std::max)(strPath.ReverseFind(_T('\\')), strPath.ReverseFind(_T('/')));
+    if (dotPosition > slashPosition) {
+        extension = strPath.Mid(dotPosition);
+    }
+    extension.MakeLower();
+    if (extension.IsEmpty()) {
+        strPath += _T(".png");
+        extension = _T(".png");
+    }
+
+    if (extension != _T(".png") && extension != _T(".bmp") &&
+        extension != _T(".jpg") && extension != _T(".jpeg") &&
+        extension != _T(".tif") && extension != _T(".tiff")) {
+        AfxMessageBox(L"不支援此影像格式。請使用 PNG、BMP、JPEG 或 TIFF。", MB_ICONWARNING);
+        return;
+    }
+
+    try {
+        // Encode in memory, then use the Unicode-aware Windows file API. Direct
+        // cv::imwrite with CT2A can fail for Chinese or other Unicode paths.
+        CT2A extensionA(extension, CP_UTF8);
+        std::vector<uchar> encodedImage;
+        if (!cv::imencode(static_cast<const char*>(extensionA), imageForSave, encodedImage) ||
+            encodedImage.empty()) {
+            throw std::runtime_error("OpenCV failed to encode the image.");
+        }
+
+        CFile outputFile;
+        CFileException fileError;
+        if (!outputFile.Open(strPath,
+            CFile::modeCreate | CFile::modeWrite | CFile::shareExclusive,
+            &fileError)) {
+            TCHAR errorText[512] = {};
+            fileError.GetErrorMessage(errorText, _countof(errorText));
+            CString message;
+            message.Format(L"無法建立影像檔：\n%s\n\n%s", strPath.GetString(), errorText);
+            AfxMessageBox(message, MB_ICONERROR);
+            return;
+        }
+
+        outputFile.Write(encodedImage.data(), static_cast<UINT>(encodedImage.size()));
+        outputFile.Close();
+
+        CString message;
+        message.Format(L"影像儲存完成：\n%s", strPath.GetString());
+        ShowTimedNotification(this, message, 1000);
+    }
+    catch (const cv::Exception& e) {
+        CString message;
+        message.Format(L"影像儲存失敗（OpenCV）：\n%S", e.what());
+        AfxMessageBox(message, MB_ICONERROR);
+    }
+    catch (CFileException* e) {
+        TCHAR errorText[512] = {};
+        e->GetErrorMessage(errorText, _countof(errorText));
+        e->Delete();
+        CString message;
+        message.Format(L"影像寫入失敗：\n%s", errorText);
+        AfxMessageBox(message, MB_ICONERROR);
+    }
+    catch (const std::exception& e) {
+        CString message;
+        message.Format(L"影像儲存失敗：\n%S", e.what());
+        AfxMessageBox(message, MB_ICONERROR);
+    }
 }
 
 //Get Tools Path from image
@@ -2916,7 +3300,14 @@ void WorkTab::OnBnClickedIdcWorkGo()
     //    -> m_HMIGluePath_temp -> m_HMIGluePath
     // HMI 最終要接收的是 m_HMIGluePath.PathRight / m_HMIGluePath.PathLeft，
     // 因此不能只靠 size 判斷是否重建，否則內容變了但筆數相同時會送出舊資料。
-    ConvertToMachineCoordinates();
+	if (m_hasGeneratedEffectiveReference) {
+		ConvertToMachineCoordinates(
+			m_generatedEffectiveReference.x,
+			m_generatedEffectiveReference.y);
+	}
+	else {
+		ConvertToMachineCoordinates();
+	}
 
     if (m_machineGluePath.PathLeft.empty() || m_machineGluePath.PathRight.empty() ||
         m_HMIGluePath.PathLeft.empty() || m_HMIGluePath.PathRight.empty()) {
@@ -3526,7 +3917,7 @@ void WorkTab::OnBnClickedWorkImageProcess()
 
     CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
     RefreshImageFlipFromSystemConfig();
-    cv::Mat imageForImagePro = ApplyConfiguredFlip(m_mat, imgFlip);
+    cv::Mat imageForImagePro = m_mat.clone();
 
     ImagePro dlg(this);
     dlg.SetImage(imageForImagePro);
@@ -3559,6 +3950,18 @@ void WorkTab::OnBnClickedMfcbtnWorkImgCalibrate()
             AfxMessageBox(L"未選取任何影像");
             return;
         }
+
+        GridLengthInputDialog lengthDlg(
+            m_vision.getCalibrationSquareSize(),
+            m_vision.getCalibrationBoardSize(),
+            true,
+            this);
+        if (lengthDlg.DoModal() != IDOK) {
+            return;
+        }
+        m_vision.setCalibrationPattern(
+            lengthDlg.GetGridPoints(),
+            static_cast<float>(lengthDlg.GetLengthMm()));
 
         if (MaskWidth > 0 && MaskHeight > 0) {
             m_vision.setCalibrationROI(cv::Rect(MaskX, MaskY, MaskWidth, MaskHeight));
@@ -3596,6 +3999,14 @@ void WorkTab::OnBnClickedMfcbtnWorkImgCalibrate()
             return;
         }
 
+        CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
+        const double mmPerPixel = m_vision.getCalibrationMmPerPixel();
+        if (pParentWnd != nullptr && mmPerPixel > 0.0) {
+            pParentWnd->m_SystemPara.TransferFactor = static_cast<float>(mmPerPixel);
+            WriteConfigToFile_SP(GetSystemConfigFilePath(), pParentWnd->m_SystemPara);
+            pParentWnd->RefreshSystemParaTabDisplay();
+        }
+
         if (!m_mat.empty()) {
             m_calibratedDisplayMat = BuildCalibratedDisplayImage(m_mat);
             m_pathDisplayMat.release();
@@ -3607,7 +4018,8 @@ void WorkTab::OnBnClickedMfcbtnWorkImgCalibrate()
 
         std::wstring outFileW(outFile.begin(), outFile.end());
         CString msg;
-        msg.Format(L"校正完成，RMS=%.3f px\n儲存於: %s", rms, outFileW.c_str());
+        msg.Format(L"單張 Homography 校正完成\nRMS=%.3f px\nTransferFactor=%.6f mm/pixel\n儲存於: %s",
+            rms, mmPerPixel, outFileW.c_str());
         AfxMessageBox(msg);
     }
     catch (const cv::Exception& e) {
@@ -3870,6 +4282,11 @@ void WorkTab::OnBnClickedCheckWorkRoi()
 // 5. m_HMIGluePath：將 HMI temp 直接取整數後得到最終 HMI 顯示座標
 void WorkTab::ConvertToMachineCoordinates()
 {
+    ConvertToMachineCoordinates(referenceX, referenceY);
+}
+
+void WorkTab::ConvertToMachineCoordinates(double effectiveReferenceX, double effectiveReferenceY)
+{
     CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
     NormalizeGluePathPairCount(m_OptimizedGluePath);
 
@@ -3892,14 +4309,14 @@ void WorkTab::ConvertToMachineCoordinates()
 
     constexpr double HMI_TEMP_SCALE = 10.0;
 
-    auto convertPoint = [this, transferFactor, HMI_TEMP_SCALE](const cv::Point2d& pt,
+    auto convertPoint = [effectiveReferenceX, effectiveReferenceY, transferFactor, HMI_TEMP_SCALE](const cv::Point2d& pt,
         std::vector<cv::Point2d>& machinePath,
         std::vector<cv::Point2d>& machineMmPath,
         std::vector<cv::Point2d>& hmiTempPath,
         std::vector<cv::Point2d>& hmiPath) {
             cv::Point2d machinePt;
-            machinePt.x = pt.x - referenceX;
-            machinePt.y = pt.y - referenceY;
+            machinePt.x = pt.x - effectiveReferenceX;
+            machinePt.y = pt.y - effectiveReferenceY;
             machinePath.push_back(machinePt);
 
             cv::Point2d machinePtMm;
@@ -3956,17 +4373,16 @@ void WorkTab::OnBnClickedMfcbtnWorkImgFactor()
         return;
     }
 
-    GridLengthInputDialog lengthDlg(25.0, this);
+    GridLengthInputDialog lengthDlg(25.0, cv::Size(), false, this);
     if (lengthDlg.DoModal() != IDOK) {
         return;
     }
 
     CWaitCursor waitCursor;
 
-    cv::Mat rawOrientationImage = ApplyInverseConfiguredFlip(m_mat, m_currentImageFlip);
     cv::Mat undistortedRaw;
     try {
-        undistortedRaw = m_vision.undistortImage(rawOrientationImage);
+        undistortedRaw = m_vision.undistortImage(m_mat);
     }
     catch (const cv::Exception& e) {
         CString msg;
@@ -3990,12 +4406,7 @@ void WorkTab::OnBnClickedMfcbtnWorkImgFactor()
 
     std::vector<cv::Point2f> corners;
     cv::Size boardSize = m_vision.getCalibrationBoardSize();
-    std::vector<cv::Size> candidates = {
-        boardSize,
-        cv::Size(9, 6), cv::Size(8, 6), cv::Size(7, 6),
-        cv::Size(11, 8), cv::Size(10, 7), cv::Size(10, 8),
-        cv::Size(6, 4), cv::Size(5, 4)
-    };
+    std::vector<cv::Size> candidates = { boardSize };
     candidates.erase(std::remove_if(candidates.begin(), candidates.end(),
         [](const cv::Size& s) { return s.width <= 0 || s.height <= 0; }), candidates.end());
     candidates.erase(std::unique(candidates.begin(), candidates.end(),

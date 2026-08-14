@@ -19,6 +19,11 @@
 #define new DEBUG_NEW
 #endif
 
+namespace {
+constexpr UINT kImageSizeStatusIndicator = 59145;
+constexpr UINT kImageCalibrationStatusIndicator = 59146;
+}
+
 
 // 對 App About 使用 CAboutDlg 對話方塊
 
@@ -91,15 +96,13 @@ void CSPDlg::ScaleDialogTo1024x768()
 		return;
 	}
 
-	CRect oldWindowRect;
-	GetWindowRect(&oldWindowRect);
-	// SetWindowPos(
-	// 	nullptr,
-	// 	oldWindowRect.left,
-	// 	oldWindowRect.top,
-	// 	targetWindowWidth,
-	// 	targetWindowHeight,
-	// 	SWP_NOZORDER | SWP_NOACTIVATE);
+	SetWindowPos(
+		nullptr,
+		0,
+		0,
+		targetWindowWidth,
+		targetWindowHeight,
+		SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
 
 	CRect newClientRect;
 	GetClientRect(&newClientRect);
@@ -214,9 +217,11 @@ void CSPDlg::LayoutStatusBar()
 	GetClientRect(&rect);
 	const int statusHeight = (std::max)(16, m_scaledStatusBarHeight);
 	m_Status_Bar.MoveWindow(rect.left, rect.bottom - statusHeight, rect.Width(), statusHeight);
-	m_Status_Bar.SetPaneInfo(0, ID_INDICATOR_FILE, SBPS_NORMAL, (std::max)(80, rect.Width() - static_cast<int>(std::lround(260.0 * m_dialogScaleX))));
+	m_Status_Bar.SetPaneInfo(0, ID_INDICATOR_FILE, SBPS_NORMAL, (std::max)(80, rect.Width() - static_cast<int>(std::lround(570.0 * m_dialogScaleX))));
 	m_Status_Bar.SetPaneInfo(1, ID_INDICATOR_TIME, SBPS_OWNERDRAW, static_cast<int>(std::lround(80.0 * m_dialogScaleX)));
 	m_Status_Bar.SetPaneInfo(2, ID_INDICATOR_MODBUS, SBPS_OWNERDRAW, static_cast<int>(std::lround(160.0 * m_dialogScaleX)));
+	m_Status_Bar.SetPaneInfo(3, kImageSizeStatusIndicator, SBPS_NORMAL, static_cast<int>(std::lround(210.0 * m_dialogScaleX)));
+	m_Status_Bar.SetPaneInfo(4, kImageCalibrationStatusIndicator, SBPS_NORMAL, static_cast<int>(std::lround(100.0 * m_dialogScaleX)));
 }
 
 void CSPDlg::DoDataExchange(CDataExchange* pDX)
@@ -296,20 +301,25 @@ BOOL CSPDlg::OnInitDialog()
 	GetMacAddress(m_SystemPara.MACKey);
 
 	//define indicators
-	UINT indicators[] = { ID_INDICATOR_FILE, ID_INDICATOR_TIME, ID_INDICATOR_MODBUS };
+	UINT indicators[] = { ID_INDICATOR_FILE, ID_INDICATOR_TIME, ID_INDICATOR_MODBUS,
+		kImageSizeStatusIndicator, kImageCalibrationStatusIndicator };
 
 	// Create the status bar
 	if (m_Status_Bar.Create(this))
 	{
-		m_Status_Bar.SetIndicators(indicators, 3);
-		m_Status_Bar.SetPaneInfo(0, ID_INDICATOR_FILE, SBPS_NORMAL, rect.Width() - 260);
+		m_Status_Bar.SetIndicators(indicators, 5);
+		m_Status_Bar.SetPaneInfo(0, ID_INDICATOR_FILE, SBPS_NORMAL, rect.Width() - 570);
 		m_Status_Bar.SetPaneInfo(1, ID_INDICATOR_TIME, SBPS_OWNERDRAW, 80);
 		m_Status_Bar.SetPaneInfo(2, ID_INDICATOR_MODBUS, SBPS_OWNERDRAW, 160);
+		m_Status_Bar.SetPaneInfo(3, kImageSizeStatusIndicator, SBPS_NORMAL, 210);
+		m_Status_Bar.SetPaneInfo(4, kImageCalibrationStatusIndicator, SBPS_NORMAL, 100);
 
 		//Add Status Bar Fime Name Data
 		m_Status_Bar.SetPaneText(0,_T("File Name :N/A"));
 		m_Status_Bar.SetPaneText(1, _T("--:--:--"));
 		UpdateModbusStatusDisplay(false);
+		UpdateImageSizeStatusDisplay(m_SystemPara.CameraWidth, m_SystemPara.CameraHeight);
+		UpdateImageCalibrationStatusDisplay(false, false);
 
 		// Resize the status bar
 		m_Status_Bar.MoveWindow(rect.left, rect.bottom - 20, rect.Width(), 20);
@@ -534,6 +544,34 @@ void CSPDlg::UpdateModbusStatusDisplay(bool connected)
 	m_Status_Bar.SetPaneText(2, connected ? _T("Modbus: Connected") : _T("Modbus: Not Connected"));
     m_Status_Bar.Invalidate();
     m_WorkTab.UpdateModbusSyncState(connected);
+}
+
+void CSPDlg::UpdateImageSizeStatusDisplay(int width, int height)
+{
+	if (!m_Status_Bar.m_hWnd) {
+		return;
+	}
+
+	CString text;
+	if (width > 0 && height > 0) {
+		text.Format(_T("W: %d  H: %d"), width, height);
+	}
+	else {
+		text = _T("W: N/A  H: N/A");
+	}
+	m_Status_Bar.SetPaneText(3, text);
+}
+
+void CSPDlg::UpdateImageCalibrationStatusDisplay(bool calibrated, bool hasImage)
+{
+	if (!m_Status_Bar.m_hWnd) {
+		return;
+	}
+
+	CString text = hasImage
+		? (calibrated ? _T("Calibrated") : _T("Raw"))
+		: _T("Image: N/A");
+	m_Status_Bar.SetPaneText(4, text);
 }
 
 void CSPDlg::OnBnClickedBtnWorking()

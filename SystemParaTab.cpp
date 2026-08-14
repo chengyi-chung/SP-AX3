@@ -296,6 +296,7 @@ void SystemParaTab::UpdateControl()
 			_T("TabStatus: %d\r\n\r\n")
 			_T("SystemPara (Register 145~159):\r\n")
 			_T("CreateToolPath (Register 157): %d\r\n")
+			_T("ToolPathType (INI): %d\r\n")
 			_T("Binary (Register 158): %d\r\n")
 			_T("SaveINI (Register 159): %d\r\n")
 			_T("OffsetValue: %.3f\r\n")
@@ -316,6 +317,7 @@ void SystemParaTab::UpdateControl()
 			pParentWnd->m_SystemFunction.DiplayPath,
 			pParentWnd->m_SystemFunction.TabStatus,
 			pParentWnd->m_SystemPara.CreateToolPath,
+			pParentWnd->m_SystemPara.ToolPathType,
 			pParentWnd->m_SystemPara.Binary,
 			pParentWnd->m_SystemPara.SaveINI,
 			pParentWnd->m_SystemPara.OffsetValue,

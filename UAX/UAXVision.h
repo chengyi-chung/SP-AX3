@@ -34,6 +34,8 @@ public:
     cv::Mat getCameraMatrix() const;
     cv::Mat getDistCoeffs() const;
     cv::Size getImageSize() const;
+    double getCalibrationMmPerPixel() const;
+    cv::Point2d transformPoint(const cv::Point2d& point) const;
 
     bool saveCalibrationData(const std::string& filename) const;
     bool loadCalibrationData(const std::string& filename);
@@ -44,7 +46,10 @@ private:
     cv::Rect calibrationROI;
     cv::Mat cameraMatrix;
     cv::Mat distCoeffs;
+    cv::Mat homographyMatrix;
     cv::Size imageSize;
+    double calibrationPixelsPerSquare;
+    double calibrationMmPerPixel;
     cv::Mat calibrationPreviewImage;
     std::string lastCalibrationMessage;
 };

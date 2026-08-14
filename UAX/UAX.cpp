@@ -1735,7 +1735,7 @@ void WriteConfigToFile(const std::string& filename, SystemConfig& SysConfig)
 	file << "GoldenKey=" << SysConfig.GoldenKey << "\n";
 	file << "CameraWidth=" << SysConfig.CameraWidth << "\n";
 	file << "CameraHeight=" << SysConfig.CameraHeight << "\n";
-	file << "TransferFactor=" << std::fixed << std::setprecision(4) << SysConfig.TransferFactor << "\n";
+	file << "TransferFactor=" << std::fixed << std::setprecision(6) << SysConfig.TransferFactor << "\n";
 	file << "ImageFlip=" << SysConfig.ImageFlip << "\n";
 	file << "CenterX=" << std::fixed << std::setprecision(2) << SysConfig.CenterX << "\n";
 	file << "CenterY=" << std::fixed << std::setprecision(2) << SysConfig.CenterY << "\n";
@@ -1779,7 +1779,7 @@ void WriteConfigToFile_SP(const std::string& filename, const SystemConfigA& SysC
 	file << std::fixed << std::setprecision(4);
 	file << "OffsetValue=" << SysConfig.OffsetValue << "\n";
 	file << "EntryPointX=" << SysConfig.EntryPointX << "\n";
-	file << "TransferFactor=" << SysConfig.TransferFactor << "\n";
+	file << "TransferFactor=" << std::fixed << std::setprecision(6) << SysConfig.TransferFactor << "\n";
 
 	file << "[Camera]\n";
 	file << "CameraID=" << SysConfig.CameraID << "\n";
@@ -1812,6 +1812,7 @@ void WriteConfigToFile_SP(const std::string& filename, const SystemConfigA& SysC
 
 	file << "[Tool]\n";
 	file << "CreateToolPath=" << SysConfig.CreateToolPath << "\n";
+	file << "ToolPathType=" << SysConfig.ToolPathType << "\n";
 	file << "DispalyToolPath=" << SysConfig.DispalyToolPath << "\n";
 	file << "DisplayRefLine=" << SysConfig.DisplayRefLine << "\n";  // NEW
 
@@ -1847,7 +1848,8 @@ void InitialConfigA(const std::string& filename, SystemConfigA& SysConfig)
 	SysConfig.MaskHeight = 870;	
 	SysConfig.OffsetValue = 10.0f;
 	SysConfig.EntryPointX = 0.0f;
-	SysConfig.ImageFlip = 2;   
+	SysConfig.ImageFlip = 0;   // Canonical user-facing camera orientation
+	SysConfig.ToolPathType = 0;
 	SysConfig.Binary = 0;
 	SysConfig.SaveINI = 0;
 	SysConfig.RefCenterX = 695.0f;
@@ -2025,6 +2027,8 @@ int ReadSystemConfig_SP(const std::string& filename, SystemConfigA& SysConfig)
 		};
 
 	SysConfig.EntryPointX = 0.0f;
+	SysConfig.ToolPathType = 0; // Default when the key is missing or empty.
+	bool toolPathTypeNeedsWrite = true;
 
 	std::string line;
 
@@ -2074,6 +2078,10 @@ int ReadSystemConfig_SP(const std::string& filename, SystemConfigA& SysConfig)
 			else if (key == "SaveINI")           SysConfig.SaveINI = std::stoi(val);
 
 			else if (key == "CreateToolPath")    SysConfig.CreateToolPath = std::stoi(val);
+			else if (key == "ToolPathType") {
+				SysConfig.ToolPathType = val.empty() ? 0 : std::stoi(val);
+				toolPathTypeNeedsWrite = val.empty();
+			}
 			else if (key == "DispalyToolPath")   SysConfig.DispalyToolPath = std::stoi(val);
 			else if (key == "DisplayRefLine")    SysConfig.DisplayRefLine = std::stoi(val);  // NEW
 
@@ -2083,6 +2091,19 @@ int ReadSystemConfig_SP(const std::string& filename, SystemConfigA& SysConfig)
 		}
 		catch (...) {
 			std::cerr << "Config parse error: " << line << std::endl;
+		}
+	}
+
+	if (SysConfig.ToolPathType < 0 || SysConfig.ToolPathType > 2) {
+		SysConfig.ToolPathType = 0;
+		toolPathTypeNeedsWrite = true;
+	}
+	if (toolPathTypeNeedsWrite) {
+		try {
+			WriteConfigToFile_SP(filename, SysConfig);
+		}
+		catch (const std::exception&) {
+			// Keep the in-memory default even if migration of the INI file fails.
 		}
 	}
 

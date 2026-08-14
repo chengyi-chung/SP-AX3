@@ -8,6 +8,7 @@
 #include "afxcmn.h"
 #include "afxbutton.h" // 加入 MFC Button 支援
 #include "UAXTypes.h"
+#include <mutex>
 
 using namespace Pylon;
 
@@ -61,6 +62,7 @@ public:
 	CBrush m_brush;
 	static UINT GrabThread(LPVOID pParam);
 	cv::Mat m_mat;
+	mutable std::mutex m_matMutex; // Protects m_mat while the grab thread publishes a new frame.
 	cv::Mat m_matTemp;
 	cv::Mat m_pathDisplayMat;
 	cv::Mat m_calibratedDisplayMat;
@@ -69,8 +71,8 @@ public:
 	CWnd* pWnd;
 	uint8_t* pImageBuffer = nullptr;
 	uint8_t* pResizedImage = nullptr;
-	int oriImageWidth;
-	int oriImageHeight;
+	int oriImageWidth = 0;
+	int oriImageHeight = 0;
 	int imgFlip;
 
 	
@@ -90,6 +92,7 @@ public:
 
 
 	void ConvertToMachineCoordinates();
+	void ConvertToMachineCoordinates(double effectiveReferenceX, double effectiveReferenceY);
 	//void convertToMachinePath(const GluePath& optimizedPath, GluePath& machinePath, const Point2d& machineOrigin);
 
 
@@ -187,6 +190,8 @@ private:
 	bool m_hmiSyncBusy = false;
 	bool m_autoCreateToolPathBusy = false;
 	bool m_autoCreateToolPathWaitingForImage = false;
+	bool m_hasGeneratedEffectiveReference = false;
+	cv::Point2d m_generatedEffectiveReference = cv::Point2d(0.0, 0.0);
 	int m_currentImageFlip = 0;
 	UINT m_hmiSyncIntervalMs = 500;
 	bool m_hasSystemSyncBaseline = false;
@@ -214,6 +219,14 @@ private:
 	bool IsSystemFunctionEqual(const SystemFunction& lhs, const SystemFunction& rhs) const;
 	bool IsMemStructEqual(const MemStruct_SP& lhs, const MemStruct_SP& rhs) const;
 	bool RefreshImageFlipFromSystemConfig();
+	void GenerateToolPathByType(cv::Mat& image, const cv::Mat& mask, double offsetPixel,
+		ToolPath& output, const SystemConfigA& config);
+	void GenerateLegacyToolPath(cv::Mat& image, const cv::Mat& mask, double offsetPixel,
+		ToolPath& output, const SystemConfigA& config);
+	void GenerateToolPathNewAlgorithm1(cv::Mat& image, const cv::Mat& mask, double offsetPixel,
+		ToolPath& output, const SystemConfigA& config);
+	void GenerateToolPathNewAlgorithm2(cv::Mat& image, const cv::Mat& mask, double offsetPixel,
+		ToolPath& output, const SystemConfigA& config);
 
 	
 
@@ -255,5 +268,7 @@ public:
 	afx_msg void OnBnClickedCheckWorkRoi();
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
 	afx_msg void OnBnClickedMfcbtnWorkImgFactor();
+	afx_msg LRESULT OnCameraFrameSizeChanged(WPARAM width, LPARAM height);
+	afx_msg LRESULT OnImageCalibrationStatusChanged(WPARAM calibrated, LPARAM unused);
 };
 
