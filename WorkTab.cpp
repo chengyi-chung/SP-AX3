@@ -480,6 +480,25 @@ void ExportGluePathAsToolCSV(const GluePath& gluePath, const std::string& fileNa
     }
 }
 
+bool ExportOptimizedPathData(const GluePath& gluePath)
+{
+    const size_t count = (std::min)(gluePath.PathLeft.size(), gluePath.PathRight.size());
+    std::ofstream out(GetToolDebugExportPath("PathDataOut.csv"), std::ios::trunc);
+    if (!out.is_open()) {
+        return false;
+    }
+
+    // Keep the same axis mapping used by the Modbus output: left=X1, right=X2.
+    out << "Y,X1,X2\n";
+    out << std::fixed << std::setprecision(3);
+    for (size_t i = 0; i < count; ++i) {
+        out << gluePath.PathLeft[i].y << ","
+            << gluePath.PathLeft[i].x << ","
+            << gluePath.PathRight[i].x << "\n";
+    }
+    return out.good();
+}
+
 void ExportToolPathAsCSV(const ToolPath& toolPath, const std::string& fileName)
 {
     std::ofstream out(GetToolDebugExportPath(fileName), std::ios::trunc);
@@ -1204,6 +1223,7 @@ bool WorkTab::IsSystemConfigEqual(const SystemConfigA& lhs, const SystemConfigA&
         lhs.ImageBinary == rhs.ImageBinary &&
         lhs.CreateToolPath == rhs.CreateToolPath &&
 		lhs.ToolPathType == rhs.ToolPathType &&
+		lhs.PathDataOut == rhs.PathDataOut &&
         lhs.Binary == rhs.Binary &&
         lhs.SaveINI == rhs.SaveINI &&
         lhs.DispalyToolPath == rhs.DispalyToolPath &&
@@ -3293,6 +3313,12 @@ void WorkTab::OnBnClickedIdcWorkGo()
     if (m_OptimizedGluePath.PathLeft.empty() || m_OptimizedGluePath.PathRight.empty()) {
         AfxMessageBox(_T("無效的路徑資料，請先執行路徑生成。"));
         return;
+    }
+
+    // IDC_IDC_WORK_GO 觸發時立即輸出，不受 Modbus TCP 連線狀態影響。
+    if (pParentWnd->m_SystemPara.PathDataOut == 1 &&
+        !ExportOptimizedPathData(m_OptimizedGluePath)) {
+        AfxMessageBox(_T("PathDataOut.csv 輸出失敗。"), MB_ICONWARNING);
     }
 
     // 3. 每次送出前都依最新的 m_OptimizedGluePath 重建衍生路徑：

@@ -108,6 +108,7 @@ struct SystemConfigA  // For AX-3 PLC, SP Shoe Last Machine
     int DisplayRefLine;                           // Tool Path
     int TabWork;                                     // ButtonTab: Working: 1 , SystemPara: 2, Modbus TCP: 4
     std::string CameraSerialNumber;     // Camera Serial Number
+    int PathDataOut = 1;              // 1=export optimized Y/X1/X2 data when WORK_GO is triggered
 };
 
 enum class SystemFunctionAddress : int

@@ -1813,6 +1813,7 @@ void WriteConfigToFile_SP(const std::string& filename, const SystemConfigA& SysC
 	file << "[Tool]\n";
 	file << "CreateToolPath=" << SysConfig.CreateToolPath << "\n";
 	file << "ToolPathType=" << SysConfig.ToolPathType << "\n";
+	file << "PathDataOut=" << SysConfig.PathDataOut << "\n";
 	file << "DispalyToolPath=" << SysConfig.DispalyToolPath << "\n";
 	file << "DisplayRefLine=" << SysConfig.DisplayRefLine << "\n";  // NEW
 
@@ -1850,6 +1851,7 @@ void InitialConfigA(const std::string& filename, SystemConfigA& SysConfig)
 	SysConfig.EntryPointX = 0.0f;
 	SysConfig.ImageFlip = 0;   // Canonical user-facing camera orientation
 	SysConfig.ToolPathType = 0;
+	SysConfig.PathDataOut = 1;
 	SysConfig.Binary = 0;
 	SysConfig.SaveINI = 0;
 	SysConfig.RefCenterX = 695.0f;
@@ -2028,7 +2030,9 @@ int ReadSystemConfig_SP(const std::string& filename, SystemConfigA& SysConfig)
 
 	SysConfig.EntryPointX = 0.0f;
 	SysConfig.ToolPathType = 0; // Default when the key is missing or empty.
+	SysConfig.PathDataOut = 1; // Default when the key is missing or invalid.
 	bool toolPathTypeNeedsWrite = true;
+	bool pathDataOutNeedsWrite = true;
 
 	std::string line;
 
@@ -2082,6 +2086,10 @@ int ReadSystemConfig_SP(const std::string& filename, SystemConfigA& SysConfig)
 				SysConfig.ToolPathType = val.empty() ? 0 : std::stoi(val);
 				toolPathTypeNeedsWrite = val.empty();
 			}
+			else if (key == "PathDataOut") {
+				SysConfig.PathDataOut = val.empty() ? 1 : std::stoi(val);
+				pathDataOutNeedsWrite = val.empty();
+			}
 			else if (key == "DispalyToolPath")   SysConfig.DispalyToolPath = std::stoi(val);
 			else if (key == "DisplayRefLine")    SysConfig.DisplayRefLine = std::stoi(val);  // NEW
 
@@ -2098,7 +2106,11 @@ int ReadSystemConfig_SP(const std::string& filename, SystemConfigA& SysConfig)
 		SysConfig.ToolPathType = 0;
 		toolPathTypeNeedsWrite = true;
 	}
-	if (toolPathTypeNeedsWrite) {
+	if (SysConfig.PathDataOut != 0 && SysConfig.PathDataOut != 1) {
+		SysConfig.PathDataOut = 1;
+		pathDataOutNeedsWrite = true;
+	}
+	if (toolPathTypeNeedsWrite || pathDataOutNeedsWrite) {
 		try {
 			WriteConfigToFile_SP(filename, SysConfig);
 		}
