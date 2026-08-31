@@ -322,7 +322,8 @@ GluePathOptimizer::GluePathOptimizer(const ROIMask& roi)
 void GluePathOptimizer::OptimizePath(
     const std::vector<cv::Point2d>& inputPath,
     GluePath& optimizedPath,
-    int shoeType)
+    int shoeType,
+    bool preserveSynchronizedEndpoints)
 {
     (void)shoeType;
 
@@ -376,17 +377,39 @@ void GluePathOptimizer::OptimizePath(
         return;
     }
 
-    if (!rightSmoothPts.empty() && !leftSmoothPts.empty()) {
-        rightSmoothPts.back() = FindBottomSidePoint(rightRaw, true);
-        leftSmoothPts.back() = FindBottomSidePoint(leftRaw, false);
-        leftSmoothPts.back().y = rightSmoothPts.back().y;
-    }
-
     optimizedPath.PathRight = rightSmoothPts;
     optimizedPath.PathLeft = leftSmoothPts;
+    if (!preserveSynchronizedEndpoints) {
+        ApplyLegacyBottomPoints(rightRaw, leftRaw, optimizedPath);
+    }
     for (size_t i = 0; i < optimizedPath.PathRight.size(); ++i) {
         optimizedPath.PathLeft[i].y = optimizedPath.PathRight[i].y;
     }
+}
+
+void GluePathOptimizer::ApplyLegacyBottomPoints(
+    const std::vector<cv::Point2d>& rightSource,
+    const std::vector<cv::Point2d>& leftSource,
+    GluePath& path)
+{
+    if (rightSource.empty() || leftSource.empty() ||
+        path.PathRight.empty() || path.PathLeft.empty()) {
+        return;
+    }
+
+    path.PathRight.back() = FindBottomSidePoint(rightSource, true);
+    path.PathLeft.back() = FindBottomSidePoint(leftSource, false);
+    path.PathLeft.back().y = path.PathRight.back().y;
+}
+
+void GluePathOptimizer::ApplyLegacyBottomPointsFromContour(
+    const std::vector<cv::Point2d>& contour,
+    GluePath& path)
+{
+    std::vector<cv::Point2d> rightRaw;
+    std::vector<cv::Point2d> leftRaw;
+    SplitByCenter(contour, rightRaw, leftRaw);
+    ApplyLegacyBottomPoints(rightRaw, leftRaw, path);
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -576,7 +599,7 @@ GluePathOptimizer::FilterByMask(const std::vector<cv::Point2d>& inputPath) const
 
 void GluePathOptimizer::SplitByCenter(const std::vector<cv::Point2d>& maskedPath,
     std::vector<cv::Point2d>& rightPts,
-    std::vector<cv::Point2d>& leftPts) const
+    std::vector<cv::Point2d>& leftPts)
 {
     rightPts.clear();
     leftPts.clear();

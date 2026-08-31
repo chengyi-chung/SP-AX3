@@ -11,6 +11,14 @@
 #include "UAX.h"
 #include <cmath>
 
+#ifndef IDC_EDIT_REF_PT_X
+#define IDC_EDIT_REF_PT_X IDC_EDIT_CCD_CENTER_X
+#endif
+
+#ifndef IDC_EDIT_REF_PT_Y
+#define IDC_EDIT_REF_PT_Y IDC_EDIT_CCD_CENTER_Y
+#endif
+
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
@@ -38,6 +46,7 @@ void SystemParaTab::DoDataExchange(CDataExchange* pDX)
 BEGIN_MESSAGE_MAP(SystemParaTab, CDialog)
 	ON_BN_CLICKED(IDC_SYSTEM_CREATE_DATA, &SystemParaTab::OnBnClickedSystemCreateData)
 	ON_EN_CHANGE(IDD_TAB_SYS_OFFSET_VALUE, &SystemParaTab::OnEnChangeTabSysOffsetValue)
+	ON_EN_KILLFOCUS(IDD_TAB_SYS_OFFSET_VALUE, &SystemParaTab::OnEnKillfocusTabSysOffsetValue)
 	ON_BN_CLICKED(IDC_MFCBTN_SAVE_SYSTEM, &SystemParaTab::OnBnClickedMfcbtnSaveSystem)
 	ON_WM_TIMER()
 END_MESSAGE_MAP()
@@ -165,6 +174,44 @@ void SystemParaTab::OnEnChangeTabSysOffsetValue()
 	
 }
 
+void SystemParaTab::OnEnKillfocusTabSysOffsetValue()
+{
+	CString text;
+	GetDlgItemText(IDD_TAB_SYS_OFFSET_VALUE, text);
+	text.Trim();
+	if (text.IsEmpty()) {
+		UpdateControl();
+		return;
+	}
+
+	const double value = _ttof(text);
+	if (!std::isfinite(value) || value < 0.0 || value > 65535.0) {
+		AfxMessageBox(_T("Offset Value 必須介於 0 到 65535。"), MB_ICONWARNING);
+		UpdateControl();
+		return;
+	}
+
+	CSPDlg* pParentWnd = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
+	if (pParentWnd == nullptr) {
+		return;
+	}
+
+	pParentWnd->m_SystemPara.OffsetValue = static_cast<float>(value);
+
+	try {
+		WriteConfigToFile_SP(
+			GetAppPath() + "\\SystemConfig.ini",
+			pParentWnd->m_SystemPara);
+	}
+	catch (const std::exception& e) {
+		CString message;
+		message.Format(_T("Offset Value 已更新，但 SystemConfig.ini 儲存失敗：%S"), e.what());
+		AfxMessageBox(message, MB_ICONWARNING);
+	}
+
+	UpdateControl();
+}
+
 void SystemParaTab::OnOK()
 {
 }
@@ -207,6 +254,12 @@ void SystemParaTab::UpdateControl()
 		const int systemDataFirstVisibleLine = pSystemDataEdit ? pSystemDataEdit->GetFirstVisibleLine() : 0;
 
 		CString str;
+		str.Format(_T("%d"), pParentWnd->m_SystemPara.RefCenterX);
+		SetDlgItemText(IDC_EDIT_REF_PT_X, str);
+		str.Format(_T("%d"), pParentWnd->m_SystemPara.RefCenterY);
+		SetDlgItemText(IDC_EDIT_REF_PT_Y, str);
+		str.Format(_T("%d"), pParentWnd->m_SystemPara.CameraToMachineAngle);
+		SetDlgItemText(IDC_EDIT_REF_PT_ANGLE, str);
 		
 	//	str.Format(_T("%0.4f"), pParentWnd->m_SystemPara.OffsetX);
 	//	SetDlgItemText(IDD_TAB_SYS_X_OFFSET, str);
@@ -218,8 +271,10 @@ void SystemParaTab::UpdateControl()
 	//	double offsetX = pParentWnd->m_SystemPara.OffsetX;
 	//	double offsetY = pParentWnd->m_SystemPara.OffsetY;
 		double offsetValue = pParentWnd->m_SystemPara.OffsetValue;
-		str.Format(_T("%0.3f"), offsetValue);
-		SetDlgItemText(IDD_TAB_SYS_OFFSET_VALUE, str);
+		if (GetFocus() != GetDlgItem(IDD_TAB_SYS_OFFSET_VALUE)) {
+			str.Format(_T("%0.3f"), offsetValue);
+			SetDlgItemText(IDD_TAB_SYS_OFFSET_VALUE, str);
+		}
 
 		// MACKey / GoldenKey 為 char[17]，轉為 CString 顯示
 		CString macKey(pParentWnd->m_SystemPara.MACKey);

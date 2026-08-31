@@ -113,6 +113,10 @@
 #define IDC_IDC_IMAGE_PRO_SLIDER        11009
 #define IDC_IDC_IMAGE_PRO_SLIDER_L      11009
 #define IDC_MFCBTN_EXAMPLE              11010
+#define IDC_EDIT_REF_PT_X               11010
+#define IDC_EDIT_REF_PT_Y               11011
+#define IDC_EDIT_REF_PT_ANGLE           11012
+#define IDC_EDIT5                       11013
 #define ID_INDICATOR_TIME               59142
 #define ID_INDICATOR_FILE               59143
 #define ID_INDICATOR_MODBUS             59144
@@ -123,7 +127,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        146
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         11010
+#define _APS_NEXT_CONTROL_VALUE         11014
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

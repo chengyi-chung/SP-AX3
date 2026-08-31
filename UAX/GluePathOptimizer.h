@@ -33,10 +33,22 @@ public:
  * @param inputPath     原始輸入點序列（通常來自影像邊緣或分割結果，可能包含雜訊）
  * @param optimizedPath 輸出結構，包含優化後的 PathLeft 與 PathRight
  * @param shoeType      鞋型：1=右腳（右側為主），2=左腳（左側為主），其他=自動依點數判斷
+ * @param preserveSynchronizedEndpoints 保留輸入路徑的同步端點，不以獨立底點覆寫最後一組
  */
     void OptimizePath(const std::vector<cv::Point2d>& inputPath,
         GluePath& optimizedPath,
-        int                              shoeType = 2);
+        int shoeType = 2,
+        bool preserveSynchronizedEndpoints = false);
+
+    // Apply the same legacy final-point rule used by ToolPathType 0:
+    // within the bottom band, X2 takes the rightmost point and X1 the leftmost.
+    static void ApplyLegacyBottomPoints(
+        const std::vector<cv::Point2d>& rightSource,
+        const std::vector<cv::Point2d>& leftSource,
+        GluePath& path);
+    static void ApplyLegacyBottomPointsFromContour(
+        const std::vector<cv::Point2d>& contour,
+        GluePath& path);
     // ── 新增這一行宣告 ──
    // std::vector<double> ComputeArcLengthParam(const std::vector<cv::Point2d>& pts);
     static std::vector<double> ComputeArcLengthParam(const std::vector<cv::Point2d>& pts);
@@ -46,9 +58,9 @@ private:
 
     // ── 步驟函式 ───────────────────────────────────────────────────────────
     std::vector<cv::Point2d> FilterByMask(const std::vector<cv::Point2d>& inputPath) const;
-    void SplitByCenter(const std::vector<cv::Point2d>& maskedPath,
+    static void SplitByCenter(const std::vector<cv::Point2d>& maskedPath,
         std::vector<cv::Point2d>& rightPts,
-        std::vector<cv::Point2d>& leftPts) const;
+        std::vector<cv::Point2d>& leftPts);
 
     static std::vector<cv::Point2d> SortByY(const std::vector<cv::Point2d>& pts);
 

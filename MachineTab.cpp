@@ -147,6 +147,12 @@ void MachineTab::OpenModBus()
 		AfxMessageBox(_T("初始化寫入 SystemConfigA 到 Modbus 失敗。"));
 		return;
 	}
+	if (!WriteHoldingRegistersBlock(186,
+		std::vector<uint16_t>(1, static_cast<uint16_t>(pParentWnd->m_SystemPara.CameraToMachineAngle)),
+		slaveId)) {
+		AfxMessageBox(_T("初始化寫入 CameraToMachineAngle 到 Modbus Address 186 失敗。"));
+		return;
+	}
 
 	// MemStruct_SP 視為 HMI/PLC 執行期資料來源，啟動後只讀回主程式，不主動覆蓋遠端。
 	MemStruct_SP remoteMem = pParentWnd->m_MemStruct_SP;
@@ -1524,6 +1530,10 @@ void MachineTab::OnTimer(UINT_PTR nIDEvent)
 					systemRegs[5] = static_cast<uint16_t>(pParentWnd->m_SystemPara.TabWork);
 				}
 				ApplySystemConfigRegisters(systemRegs, pParentWnd->m_SystemPara);
+				std::vector<uint16_t> angleReg;
+				if (ReadHoldingRegistersBlock(186, 1, angleReg, pParentWnd->m_SystemPara.StationID) && !angleReg.empty()) {
+					pParentWnd->m_SystemPara.CameraToMachineAngle = angleReg[0];
+				}
 				pParentWnd->RefreshSystemParaTabDisplay();
 			}
 

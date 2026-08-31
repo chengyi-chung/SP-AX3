@@ -480,7 +480,7 @@ void ExportGluePathAsToolCSV(const GluePath& gluePath, const std::string& fileNa
     }
 }
 
-bool ExportOptimizedPathData(const GluePath& gluePath)
+bool ExportPathData(const GluePath& gluePath)
 {
     const size_t count = (std::min)(gluePath.PathLeft.size(), gluePath.PathRight.size());
     std::ofstream out(GetToolDebugExportPath("PathDataOut.csv"), std::ios::trunc);
@@ -488,12 +488,14 @@ bool ExportOptimizedPathData(const GluePath& gluePath)
         return false;
     }
 
-    // Keep the same axis mapping used by the Modbus output: left=X1, right=X2.
+    // Machine-axis convention relative to RefCenter:
+    // X1 points left, so negate PathLeft; X2 points right, so keep PathRight signed.
+    // Do not use abs(): a path crossing the origin must retain its negative sign.
     out << "Y,X1,X2\n";
     out << std::fixed << std::setprecision(3);
     for (size_t i = 0; i < count; ++i) {
         out << gluePath.PathLeft[i].y << ","
-            << gluePath.PathLeft[i].x << ","
+            << -gluePath.PathLeft[i].x << ","
             << gluePath.PathRight[i].x << "\n";
     }
     return out.good();
@@ -926,6 +928,13 @@ BOOL WorkTab::OnInitDialog()
 	CheckDlgButton(IDC_CHECK_WORK_ROI, BST_CHECKED);
     m_bROIMode = (IsDlgButtonChecked(IDC_CHECK_WORK_ROI) == BST_CHECKED);
     flgCenter = (IsDlgButtonChecked(IDC_CHECK_WORK_CENTER) == BST_CHECKED);
+
+    // TransferFactor is now generated exclusively by Homography Calibration.
+    // Keep the legacy Factor control visible for layout compatibility, but
+    // prevent it from recalculating or overwriting the calibrated value.
+    if (CWnd* factorButton = GetDlgItem(IDC_MFCBTN_WORK_IMG_FACTOR)) {
+        factorButton->EnableWindow(FALSE);
+    }
     return TRUE;
 
 }
@@ -1225,6 +1234,7 @@ bool WorkTab::IsSystemConfigEqual(const SystemConfigA& lhs, const SystemConfigA&
 		lhs.ToolPathType == rhs.ToolPathType &&
 		lhs.PathDataOut == rhs.PathDataOut &&
         lhs.Binary == rhs.Binary &&
+        lhs.CameraToMachineAngle == rhs.CameraToMachineAngle &&
         lhs.SaveINI == rhs.SaveINI &&
         lhs.DispalyToolPath == rhs.DispalyToolPath &&
         lhs.DisplayROI == rhs.DisplayROI &&
@@ -1348,11 +1358,23 @@ void WorkTab::GenerateLegacyToolPath(cv::Mat& image, const cv::Mat& mask, double
 		false);
 }
 
-void WorkTab::GenerateToolPathNewAlgorithm1(cv::Mat& image, const cv::Mat& mask, double offsetPixel,
-	ToolPath& output, const SystemConfigA& config)
+void WorkTab::GenerateLegacyToolPath1(cv::Mat& image, const cv::Mat& mask, double offsetPixel,
+	ToolPath& output, const SystemConfigA& config, double entryPointXPixel)
 {
-	// Reserved extension point. Keep production behavior until algorithm 1 is implemented.
-	GenerateLegacyToolPath(image, mask, offsetPixel, output, config);
+	GetToolPath_Optimized_Mask(
+		image,
+		mask,
+		offsetPixel,
+		entryPointXPixel,
+		output,
+		config.BinaryUpper,
+		config.BinaryLower);
+}
+
+void WorkTab::GenerateToolPathNewAlgorithm1(cv::Mat& image, const cv::Mat& mask, double offsetPixel,
+	ToolPath& output, const SystemConfigA& config, double entryPointXPixel)
+{
+	GenerateLegacyToolPath1(image, mask, offsetPixel, output, config, entryPointXPixel);
 }
 
 void WorkTab::GenerateToolPathNewAlgorithm2(cv::Mat& image, const cv::Mat& mask, double offsetPixel,
@@ -1363,11 +1385,11 @@ void WorkTab::GenerateToolPathNewAlgorithm2(cv::Mat& image, const cv::Mat& mask,
 }
 
 void WorkTab::GenerateToolPathByType(cv::Mat& image, const cv::Mat& mask, double offsetPixel,
-	ToolPath& output, const SystemConfigA& config)
+	ToolPath& output, const SystemConfigA& config, double entryPointXPixel)
 {
 	switch (config.ToolPathType) {
 	case 1:
-		GenerateToolPathNewAlgorithm1(image, mask, offsetPixel, output, config);
+		GenerateToolPathNewAlgorithm1(image, mask, offsetPixel, output, config, entryPointXPixel);
 		break;
 	case 2:
 		GenerateToolPathNewAlgorithm2(image, mask, offsetPixel, output, config);
@@ -1511,6 +1533,10 @@ void WorkTab::SyncHmiData(int stationID)
             regs[17] = static_cast<uint16_t>(pParent->m_SystemPara.ImageFlip);
         }
         ApplySystemConfigRegisters(regs, remoteSystem);
+        std::vector<uint16_t> angleReg;
+        if (ReadHoldingRegistersBlock(186, 1, angleReg, stationID) && !angleReg.empty()) {
+            remoteSystem.CameraToMachineAngle = angleReg[0];
+        }
         const bool saveIniRequested = (remoteSystem.SaveINI == 1);
         const bool binaryDisplayChanged =
             remoteSystem.Binary != m_lastSyncedSystemPara.Binary ||
@@ -2976,12 +3002,21 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
 	//pParentWnd->m_SystemPara.BinaryUpper = 255;
 	//pParentWnd->m_SystemPara.BinaryLower = 210; 
 
+	const double pathEntryTransferFactor =
+		(pParentWnd->m_SystemPara.TransferFactor > 0.0f)
+		? static_cast<double>(pParentWnd->m_SystemPara.TransferFactor)
+		: 1.0;
+	const double entryPointXPixel = effectiveReference.x +
+		static_cast<double>(pParentWnd->m_SystemPara.EntryPointX) /
+		pathEntryTransferFactor;
+
     GenerateToolPathByType(
 		imgClone,
 		pathMask,
 		offsetPixel,
 		this->toolPath,
-		pParentWnd->m_SystemPara);
+		pParentWnd->m_SystemPara,
+		entryPointXPixel);
     m_pathDisplayMat = imgClone.clone();
 
 	// 此時 toolPath 中的點原本是基於 pathSourceImage 左上角的 pixel 座標。
@@ -3023,7 +3058,23 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
     GluePath finalPath;
 
 	// 分割成左、右兩條路徑優化，輸出的 finalPath 仍以影像左上角為原點、單位為 pixel。
-    OptimizeGluePath(this->toolPath.Path, roiOpt, finalPath, 2);
+	// Option 1 已直接輸出：[X2由入口到末端25點][X1由末端回入口25點]。
+	// 直接還原25組(Y,X1,X2)，避免二次分鏈或底點覆寫破壞輪廓交點。
+	constexpr size_t kOption1PointsPerSide = 25;
+	if (pParentWnd->m_SystemPara.ToolPathType == 1 &&
+		this->toolPath.Path.size() == kOption1PointsPerSide * 2) {
+		finalPath.PathRight.assign(
+			this->toolPath.Path.begin(),
+			this->toolPath.Path.begin() + kOption1PointsPerSide);
+		finalPath.PathLeft.reserve(kOption1PointsPerSide);
+		for (size_t i = 0; i < kOption1PointsPerSide; ++i) {
+			finalPath.PathLeft.push_back(
+				this->toolPath.Path[this->toolPath.Path.size() - 1 - i]);
+		}
+	}
+	else {
+		OptimizeGluePath(this->toolPath.Path, roiOpt, finalPath, 2, false);
+	}
     NormalizeGluePathPairCount(finalPath);
 
     // 校正後的 toolPath 已經透過 ApplyConfiguredFlipToToolPath(...)
@@ -3315,12 +3366,6 @@ void WorkTab::OnBnClickedIdcWorkGo()
         return;
     }
 
-    // IDC_IDC_WORK_GO 觸發時立即輸出，不受 Modbus TCP 連線狀態影響。
-    if (pParentWnd->m_SystemPara.PathDataOut == 1 &&
-        !ExportOptimizedPathData(m_OptimizedGluePath)) {
-        AfxMessageBox(_T("PathDataOut.csv 輸出失敗。"), MB_ICONWARNING);
-    }
-
     // 3. 每次送出前都依最新的 m_OptimizedGluePath 重建衍生路徑：
     //    m_OptimizedGluePath -> m_machineGluePath -> m_machineGluePath_mm
     //    -> m_HMIGluePath_temp -> m_HMIGluePath
@@ -3339,6 +3384,14 @@ void WorkTab::OnBnClickedIdcWorkGo()
         m_HMIGluePath.PathLeft.empty() || m_HMIGluePath.PathRight.empty()) {
         AfxMessageBox(_T("路徑座標轉換失敗，無法產生 Machine/HMI 路徑。"));
         return;
+    }
+
+    // IDC_IDC_WORK_GO 觸發時輸出已轉換的 HMI 路徑：
+    // X1 以向左為正，X2 以向右為正，跨越 RefCenter 時保留負值。
+    // 此動作不受後續 Modbus TCP 連線或傳送結果影響。
+    if (pParentWnd->m_SystemPara.PathDataOut == 1 &&
+        !ExportPathData(m_HMIGluePath)) {
+        AfxMessageBox(_T("PathDataOut.csv 輸出失敗。"), MB_ICONWARNING);
     }
 
     /*
@@ -3363,9 +3416,9 @@ void WorkTab::OnBnClickedIdcWorkGo()
     */
 
     // 4. 定義 HMI 暫存器位址 (對應 HMI 內部配置)
-    constexpr int kAxisStartX1 = 14; // 右手 X 軸路徑起始位址 (D14~D43)
+    constexpr int kAxisStartX1 = 14; // 左側 X1 軸路徑起始位址 (D14~D43)
     constexpr int kAxisStartY = 44; // 共有 Y 軸路徑起始位址 (D44~D73)
-    constexpr int kAxisStartX2 = 74; // 左手 X 軸路徑起始位址 (D74~D103)
+    constexpr int kAxisStartX2 = 74; // 右側 X2 軸路徑起始位址 (D74~D103)
     constexpr int kAxisCount = static_cast<int>(kHmiAxisBufferPoints); // HMI 陣列預留長度
     // 5. 計算路徑描述點數。HMI 固定收 30 筆，但路徑最多只用前 25 點描述。
     const size_t pointCount = (std::min)(
@@ -3382,12 +3435,13 @@ void WorkTab::OnBnClickedIdcWorkGo()
     std::vector<uint16_t> yRegs(kAxisCount, 0);
     std::vector<uint16_t> x2Regs(kAxisCount, 0);
 
-    // 內部 Lambda：處理座標轉換、四捨五入與 16-bit 數值限幅
-    auto toReg = [](double v) -> uint16_t {
-        long val = lround(v); // 四捨五入為長整數
-        if (val < 0) val = 0;
-        if (val > 65535) val = 65535; // 確保不超出 uint16 範圍
-        return static_cast<uint16_t>(val);
+    // PLC 運動座標為 16-bit signed integer。負值以 two's complement
+    // bit pattern 寫入 Modbus Holding Register，PLC 端應以 INT16 解讀。
+    auto toSignedReg = [](double v) -> uint16_t {
+        long val = lround(v);
+        if (val < -32768) val = -32768;
+        if (val > 32767) val = 32767;
+        return static_cast<uint16_t>(static_cast<int16_t>(val));
         };
 
   
@@ -3399,16 +3453,15 @@ void WorkTab::OnBnClickedIdcWorkGo()
         x2Regs[i] = toReg(m_OptimizedGluePath.PathLeft[i].x);
     }
     */
-    // 7. 資料轉換：將最終要送給 HMI 的路徑資料轉成寄存器格式。
-    //    左側路徑 -> X1 / Y
-    //    右側路徑 -> X2
-    //    依 HMI Data 定義，左右 X 軸送出前都轉為正值。
-    //    這裡使用的資料來源是 m_HMIGluePath.PathLeft / m_HMIGluePath.PathRight。
+    // 7. 資料轉換：與 PathDataOut.csv 使用完全相同的機械軸向。
+    //    X1 以向左為正：-m_HMIGluePath.PathLeft.x
+    //    X2 以向右為正： m_HMIGluePath.PathRight.x
+    //    跨越 RefCenter 時保留負值。
     for (size_t i = 0; i < pointCount; ++i) 
     {
-        x1Regs[i] = toReg(std::abs(m_HMIGluePath.PathLeft[i].x));
-        yRegs[i] = toReg(m_HMIGluePath.PathLeft[i].y);
-        x2Regs[i] = toReg(std::abs(m_HMIGluePath.PathRight[i].x));
+        x1Regs[i] = toSignedReg(-m_HMIGluePath.PathLeft[i].x);
+        yRegs[i] = toSignedReg(m_HMIGluePath.PathLeft[i].y);
+        x2Regs[i] = toSignedReg(m_HMIGluePath.PathRight[i].x);
     }
     for (size_t i = pointCount; i < kHmiAxisBufferPoints; ++i)
     {
@@ -4134,7 +4187,7 @@ void WorkTab::HMIReadHoldingRegistersTest(int stationID)
 // 在 WorkTab.cpp 中實作
 // ============================================================================
 
-bool WorkTab::ReadSystemParaBatch_139_to_157(std::vector<uint16_t>& outValues, int stationID)
+bool WorkTab::ReadSystemParaBatch_139_to_159(std::vector<uint16_t>& outValues, int stationID)
 {
     CSPDlg* pParent = dynamic_cast<CSPDlg*>(GetParent()->GetParent());
     if (!pParent) {
@@ -4172,7 +4225,7 @@ bool WorkTab::ReadSystemParaBatch_139_to_157(std::vector<uint16_t>& outValues, i
     return true;
 }
 
-bool WorkTab::WriteSystemParaBatch_139_to_157(const std::vector<uint16_t>& inValues, int stationID)
+bool WorkTab::WriteSystemParaBatch_139_to_159(const std::vector<uint16_t>& inValues, int stationID)
 {
     if (inValues.size() != 21) {
         AfxMessageBox(_T("寫入資料必須正好 21 個值 (139~159)"));
@@ -4207,7 +4260,7 @@ bool WorkTab::WriteSystemParaBatch_139_to_157(const std::vector<uint16_t>& inVal
 bool WorkTab::SyncReadAndUpdateSystemPara(int stationID)
 {
     std::vector<uint16_t> values;
-    if (!ReadSystemParaBatch_139_to_157(values, stationID)) {
+    if (!ReadSystemParaBatch_139_to_159(values, stationID)) {
         return false;
     }
 
@@ -4223,6 +4276,11 @@ bool WorkTab::SyncReadAndUpdateSystemPara(int stationID)
         values[5] = static_cast<uint16_t>(pParent->m_SystemPara.TabWork);
     }
     ApplySystemConfigRegisters(values, pParent->m_SystemPara);
+    std::vector<uint16_t> angleReg;
+    if (!ReadHoldingRegistersBlock(186, 1, angleReg, stationID) || angleReg.empty()) {
+        return false;
+    }
+    pParent->m_SystemPara.CameraToMachineAngle = angleReg[0];
     m_lastSyncedSystemPara = pParent->m_SystemPara;
 
     // 觸發 UI 更新（很重要！）
@@ -4240,7 +4298,12 @@ bool WorkTab::SyncWriteFromSystemPara(int stationID)
     std::vector<uint16_t> values;
     BuildSystemConfigRegisters(pParent->m_SystemPara, values);
 
-    return WriteSystemParaBatch_139_to_157(values, stationID);
+    if (!WriteSystemParaBatch_139_to_159(values, stationID)) {
+        return false;
+    }
+    return WriteHoldingRegistersBlock(186,
+        std::vector<uint16_t>(1, static_cast<uint16_t>(pParent->m_SystemPara.CameraToMachineAngle)),
+        stationID);
 }
 
 bool WorkTab::SyncReadAndUpdateMemStruct(int stationID)
@@ -4333,16 +4396,28 @@ void WorkTab::ConvertToMachineCoordinates(double effectiveReferenceX, double eff
         ? static_cast<double>(pParentWnd->m_SystemPara.TransferFactor)
         : 1.0;
 
+    // Register 186 is a WORD angle in degrees. Rotate camera-relative coordinates
+    // into the machine frame around the effective reference origin.
+    const double cameraToMachineAngleDeg = pParentWnd
+        ? static_cast<double>(pParentWnd->m_SystemPara.CameraToMachineAngle)
+        : 0.0;
+    const double cameraToMachineAngleRad = cameraToMachineAngleDeg * CV_PI / 180.0;
+    const double rotationCos = std::cos(cameraToMachineAngleRad);
+    const double rotationSin = std::sin(cameraToMachineAngleRad);
+
     constexpr double HMI_TEMP_SCALE = 10.0;
 
-    auto convertPoint = [effectiveReferenceX, effectiveReferenceY, transferFactor, HMI_TEMP_SCALE](const cv::Point2d& pt,
+    auto convertPoint = [effectiveReferenceX, effectiveReferenceY, transferFactor, rotationCos, rotationSin, HMI_TEMP_SCALE](const cv::Point2d& pt,
         std::vector<cv::Point2d>& machinePath,
         std::vector<cv::Point2d>& machineMmPath,
         std::vector<cv::Point2d>& hmiTempPath,
         std::vector<cv::Point2d>& hmiPath) {
+            const double cameraX = pt.x - effectiveReferenceX;
+            const double cameraY = pt.y - effectiveReferenceY;
+
             cv::Point2d machinePt;
-            machinePt.x = pt.x - effectiveReferenceX;
-            machinePt.y = pt.y - effectiveReferenceY;
+            machinePt.x = cameraX * rotationCos - cameraY * rotationSin;
+            machinePt.y = cameraX * rotationSin + cameraY * rotationCos;
             machinePath.push_back(machinePt);
 
             cv::Point2d machinePtMm;
@@ -4373,6 +4448,8 @@ void WorkTab::ConvertToMachineCoordinates(double effectiveReferenceX, double eff
             m_machineGluePath_mm.PathLeft,
             m_HMIGluePath_temp.PathLeft,
             m_HMIGluePath.PathLeft);
+        // X1 and X2 share one physical Y axis. Preserve the existing convention:
+        // PathRight (X2) supplies the common Y command for both paths.
         m_machineGluePath.PathLeft[i].y = m_machineGluePath.PathRight[i].y;
         m_machineGluePath_mm.PathLeft[i].y = m_machineGluePath_mm.PathRight[i].y;
         m_HMIGluePath_temp.PathLeft[i].y = m_HMIGluePath_temp.PathRight[i].y;
@@ -4382,6 +4459,10 @@ void WorkTab::ConvertToMachineCoordinates(double effectiveReferenceX, double eff
 
 void WorkTab::OnBnClickedMfcbtnWorkImgFactor()
 {
+    // Disabled legacy workflow: Calibration now calculates and persists
+    // TransferFactor together with the Homography matrix.
+    return;
+
     if (m_mat.empty()) {
         AfxMessageBox(L"請先載入影像。");
         return;

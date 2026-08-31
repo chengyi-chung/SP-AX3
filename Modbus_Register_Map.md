@@ -5,7 +5,7 @@
 說明：
 - 啟動時由 `SystemConfig.ini` 載入到 `m_SystemPara`
 - Register 139~144 為 HMI SystemFunction 監控區，由 `WorkTab::SyncHmiData()` 讀取並觸發 UI 動作
-- `MachineTab::OpenModBus()` 連線成功後只初始化 Register 145~157，避免覆蓋 HMI 的 SystemFunction 控制值
+- `MachineTab::OpenModBus()` 連線成功後初始化 Register 145~159，角度另寫入 Register 186
 
 對應程式：
 - [MachineTab.cpp](/D:/Git%20Repository/chengyi-chung/SP-AX3/MachineTab.cpp)
@@ -33,10 +33,13 @@
 | 155 | `RefCenterY` | `RefCenterY` | `uint16_t` |
 | 156 | `ImageFlip` | `ImageFlip` | `short -> uint16_t` |
 | 157 | `CreateToolPath` | `SystemConfigA.CreateToolPath` | CreatePath flag，1=建立路徑，完成後清回 0 |
+| 158 | `Binary` | `SystemConfigA.Binary` | 0/1 二值影像顯示 |
+| 159 | `SaveINI` | `SystemConfigA.SaveINI` | 1=儲存設定，完成後清回 0 |
+| 186 | `CameraToMachineAngle` | `SystemConfigA.CameraToMachineAngle` | WORD，單位為度；相機座標相對機械座標角度，預設 0 |
 
 ## 2. SystemConfig.ini 有讀取但目前不寫入 HMI 的欄位
 
-這些值會進入 `m_SystemPara`，但不在 `139~156` 這段 Modbus block 內：
+這些值會進入 `m_SystemPara`，但不在 `139~159` 與 `186` 的 Modbus 映射內：
 
 | INI Key | `SystemConfigA` 成員 |
 |---|---|
@@ -65,44 +68,42 @@
 
 | Modbus Register | `MemStruct_SP` 成員 | 備註 |
 |---|---|---|
-| 157 | - | 保留給 `SystemConfigA.CreateToolPath`，不屬於 `MemStruct_SP` 寫入區 |
-| 158 | `RecipeID` | `uint16_t` |
-| 159 | `CurrentProduction` | `uint16_t` |
-| 160 | `Set_temperature0` | `uint16_t` |
-| 161 | `Temperature0` | `uint16_t` |
-| 162 | `Set_Temperature1` | `uint16_t` |
-| 163 | `Temperature1` | `uint16_t` |
-| 164 | `Set_temperature2` | `uint16_t` |
-| 165 | `Temperature2` | `uint16_t` |
-| 166 | `Servo_ALE0` | `uint16_t` |
-| 167 | `Servo_ALE1` | `uint16_t` |
-| 168 | `Servo_ALE2` | `uint16_t` |
-| 169 | `Servo_ALE3` | `uint16_t` |
-| 170 | `i_ProcessingTimeCount` | `uint16_t` |
-| 171 | `i_SystemTimeCount` | `uint16_t` |
-| 172 | `MachineID` | `uint16_t` |
-| 173 | `MachineModel` | `uint16_t` |
-| 174 | `Alm_tem_not_reach` | `uint8_t` |
-| 175 | `flag_AL_overload` | `uint8_t` |
-| 176 | `Alm_airPressureLow` | `uint8_t` |
-| 177 | `flag_AL_emergency` | `uint8_t` |
-| 178 | `flag_AL_midside_sensor` | `uint8_t` |
-| 179 | `Alm_ManualY_GoOut` | `uint8_t` |
-| 180 | `MachineStatus` | `uint8_t` |
-| 181 | `WorkingMode` | `uint8_t` |
-| 182 | `p19` 高 16-bit | `float` 拆高位 |
-| 183 | `p19` 低 16-bit | `float` 拆低位 |
+| 114 | `RecipeID` | `uint16_t` |
+| 115 | `CurrentProduction` | `uint16_t` |
+| 116 | `Set_temperature0` | `uint16_t` |
+| 117 | `Temperature0` | `uint16_t` |
+| 118 | `Set_Temperature1` | `uint16_t` |
+| 119 | `Temperature1` | `uint16_t` |
+| 120 | `Set_temperature2` | `uint16_t` |
+| 121 | `Temperature2` | `uint16_t` |
+| 122 | `Servo_ALE0` | `uint16_t` |
+| 123 | `Servo_ALE1` | `uint16_t` |
+| 124 | `Servo_ALE2` | `uint16_t` |
+| 125 | `Servo_ALE3` | `uint16_t` |
+| 126 | `p19` | `值 x100，WORD` |
+| 127 | `i_ProcessingTimeCount` | `uint16_t` |
+| 128 | `i_SystemTimeCount` | `uint16_t` |
+| 129 | `MachineID` | `uint16_t` |
+| 130 | `MachineModel` | `uint16_t` |
+| 131 | `Alm_tem_not_reach` | `uint8_t` |
+| 132 | `flag_AL_overload` | `uint8_t` |
+| 133 | `Alm_airPressureLow` | `uint8_t` |
+| 134 | `flag_AL_emergency` | `uint8_t` |
+| 135 | `flag_AL_midside_sensor` | `uint8_t` |
+| 136 | `Alm_ManualY_GoOut` | `uint8_t` |
+| 137 | `MachineStatus` | `uint8_t` |
+| 138 | `WorkingMode` | `uint8_t` |
 
 ## 4. 目前同步方向
 
 | 區塊 | 位址 | 方向 | 說明 |
 |---|---|---|---|
-| `SystemConfigA` | `139~156` | `SystemConfig.ini -> HMI` | 啟動連線後寫入 |
-| `SystemConfigA` | `139~156` | `HMI -> 主程式` | timer 讀回更新 `m_SystemPara` |
-| `MemStruct_SP` | `157~182` | `HMI -> 主程式` | timer 讀回更新 `m_MemStruct_SP` |
-| `MemStruct_SP` | `157~182` | 啟動時不主動寫入 | 避免覆蓋執行期資料 |
+| `SystemConfigA` | `139~159`、`186` | `SystemConfig.ini -> HMI` | 啟動連線後寫入 |
+| `SystemConfigA` | `139~159`、`186` | `HMI -> 主程式` | timer 讀回更新 `m_SystemPara` |
+| `MemStruct_SP` | `114~138` | `HMI -> 主程式` | timer 讀回更新 `m_MemStruct_SP` |
+| `MemStruct_SP` | `114~138` | 啟動時不主動寫入 | 避免覆蓋執行期資料 |
 
 ## 5. 備註
 
 - `HMI_ID` / `PLC_ID` 目前保留在 `SystemConfigA` 與 `ini` 內，但 Modbus 讀寫已停用。
-- 先前規劃的 `HMI_ID = 160~185` 會和 `MemStruct_SP = 157~182` 重疊，因此目前不建議啟用。
+- Address 159 保留既有 `SaveINI` 觸發功能；座標角度參數配置於 Address 186。

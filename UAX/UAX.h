@@ -132,6 +132,17 @@ extern "C" UAX_API void GetToolPath_CurvatureOptimized_Mask(cv::Mat& ImgSrc,
     int binaryLower,
     bool enableCurvatureOptimization = true);   // ← 新增：是否啟用 Douglas-Peucker 簡化
 
+// Uses the same mask, threshold, erosion and contour extraction pipeline as
+// GetToolPath_CurvatureOptimized_Mask, then creates 25 shared Y levels and
+// samples one left/right X pair at every level (25 points per side).
+extern "C" UAX_API void GetToolPath_Optimized_Mask(cv::Mat& ImgSrc,
+    const cv::Mat& Mask,
+    double offsetPixel,
+    double entryPointX,
+    ToolPath& toolpath,
+    int binaryUpper,
+    int binaryLower);
+
 //extern "C" UAX_API void GetToolPath_CurvatureOptimized_Mask(cv::Mat& ImgSrc,
 //                                                                                                const cv::Mat& Mask,      // 新增：Mask 輸入
 //                                                                                                cv::Point2d Offset,
@@ -146,7 +157,16 @@ extern "C" UAX_API void GetToolPath_SymmetricOnly(cv::Mat& ImgSrc, cv::Point2d O
 // roi: 包含遮罩與中心資訊
 // optimizedPath: 輸出的結果（左右路徑）
 // shoeType: 1=左腳, 2=右腳
-extern "C" UAX_API void OptimizeGluePath(const std::vector<cv::Point2d>& inputPath, const ROIMask& roi, GluePath& optimizedPath, int shoeType = 1);
+extern "C" UAX_API void OptimizeGluePath(const std::vector<cv::Point2d>& inputPath,
+    const ROIMask& roi,
+    GluePath& optimizedPath,
+    int shoeType = 1,
+    bool preserveSynchronizedEndpoints = false);
+
+extern "C" UAX_API void ApplyLegacyBottomPoints(
+    const std::vector<cv::Point2d>& rightSource,
+    const std::vector<cv::Point2d>& leftSource,
+    GluePath& path);
 
 // Get Tool Path
 // Use Erosiong find the tool path

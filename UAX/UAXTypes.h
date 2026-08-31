@@ -96,7 +96,8 @@ struct SystemConfigA  // For AX-3 PLC, SP Shoe Last Machine
     int BinaryUpper;
     int BinaryLower;
     int Binary;
-    int SaveINI;
+    int CameraToMachineAngle = 0; // Register 186: camera axes relative to machine axes, degrees
+    int SaveINI;                  // Register 159: write 1 to persist SystemConfig.ini
     int MaskX;                 // ROI Mask X (TopX)
     int MaskY;                 // ROI Mask Y (TopY)
     int MaskWidth;          // ROI Mask Width

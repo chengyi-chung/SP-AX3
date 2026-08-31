@@ -34,6 +34,7 @@ public:
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
 	afx_msg void OnBnClickedSystemCreateData();
 	afx_msg void OnEnChangeTabSysOffsetValue();
+	afx_msg void OnEnKillfocusTabSysOffsetValue();
 	afx_msg void OnBnClickedMfcbtnSaveSystem();
 
 private:

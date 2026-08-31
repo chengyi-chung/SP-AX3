@@ -149,13 +149,13 @@ public:
 
 	void DrawPicToHDC(cv::Mat cvImg, UINT ID, bool bOnPaint);
 
-	// 一次讀取 139~159 共 21 個寄存器
-    // outValues 會被 resize 成 21 個元素，索引 0 對應 139，索引 20 對應 159
-	bool ReadSystemParaBatch_139_to_157(std::vector<uint16_t>& outValues, int stationID = 1);
+	// 一次讀取 139~159 共 21 個寄存器；角度另由 Address 186 讀取
+	// outValues 會被 resize 成 21 個元素，索引 20 對應 SaveINI 159
+	bool ReadSystemParaBatch_139_to_159(std::vector<uint16_t>& outValues, int stationID = 1);
 
-	// 一次寫入 139~159 共 21 個寄存器
-	// inValues 必須正好有 21 個元素，索引 0 寫入 139，索引 20 寫入 159
-	bool WriteSystemParaBatch_139_to_157(const std::vector<uint16_t>& inValues, int stationID = 1);
+	// 一次寫入 139~159 共 21 個寄存器；角度另寫入 Address 186
+	// inValues 必須正好有 21 個元素，索引 20 寫入 SaveINI 159
+	bool WriteSystemParaBatch_139_to_159(const std::vector<uint16_t>& inValues, int stationID = 1);
 
 	// 方便函數：讀取後自動更新到 pParent->m_SystemPara 的對應欄位
 	bool SyncReadAndUpdateSystemPara(int stationID = 1);
@@ -220,11 +220,13 @@ private:
 	bool IsMemStructEqual(const MemStruct_SP& lhs, const MemStruct_SP& rhs) const;
 	bool RefreshImageFlipFromSystemConfig();
 	void GenerateToolPathByType(cv::Mat& image, const cv::Mat& mask, double offsetPixel,
-		ToolPath& output, const SystemConfigA& config);
+		ToolPath& output, const SystemConfigA& config, double entryPointXPixel);
 	void GenerateLegacyToolPath(cv::Mat& image, const cv::Mat& mask, double offsetPixel,
 		ToolPath& output, const SystemConfigA& config);
+	void GenerateLegacyToolPath1(cv::Mat& image, const cv::Mat& mask, double offsetPixel,
+		ToolPath& output, const SystemConfigA& config, double entryPointXPixel);
 	void GenerateToolPathNewAlgorithm1(cv::Mat& image, const cv::Mat& mask, double offsetPixel,
-		ToolPath& output, const SystemConfigA& config);
+		ToolPath& output, const SystemConfigA& config, double entryPointXPixel);
 	void GenerateToolPathNewAlgorithm2(cv::Mat& image, const cv::Mat& mask, double offsetPixel,
 		ToolPath& output, const SystemConfigA& config);
 

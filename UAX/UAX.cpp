@@ -464,6 +464,347 @@ void GetToolPath_CurvatureOptimized_Mask(
 }
 
 
+/**
+ * @brief 使用 Mask 產生沿 Y 軸同步的左右工具路徑，每側固定 25 點。
+ *
+ * 前處理方式與 GetToolPath_CurvatureOptimized_Mask 相同：
+ * 1. 將輸入影像轉為灰階並套用 ROI Mask。
+ * 2. 使用 binaryLower、binaryUpper 進行二值化。
+ * 3. 依 offsetPixel 在 ROI 內向內腐蝕。
+ * 4. 提取外輪廓，並選擇面積最大的有效輪廓，避免串接不相連輪廓。
+ *    Mask 最外圈僅用來截取影像，不可作為 X1/X2 輪廓交點。
+ * 5. 由 EntryPointX 在右側內縮輪廓求出入口 Y，將入口 Y 到 ROI Bottom
+ *    Line 均分成 25 點（包含入口與 ROI Bottom Line）。
+ * 6. 第 1～24 點依各自 Y 與內縮輪廓求交；第 25 點固定取內縮輪廓
+ *    左右側邊與 ROI Bottom Line 的交點。若輪廓在底線上形成水平段，
+ *    保留該段的左右端點，不取水平段中間的點。
+ *    每個 Y 取得最左 X1 與最右 X2，共 25 組 (Y, X1, X2)。
+ * 7. 輸出順序為右側由入口到末端、左側由末端回入口，共 50 點。
+ *
+ * @param ImgSrc       輸入影像；Debug 模式會在影像上繪製輪廓與取樣點。
+ * @param Mask         ROI 遮罩；空遮罩表示使用整張影像。
+ * @param offsetPixel  向內腐蝕距離，單位為 pixel。
+ * @param entryPointX  入口點的影像 X 座標，單位為 pixel。
+ * @param toolpath     輸出的封閉工具路徑，正常輪廓包含左右各 25 點。
+ * @param binaryUpper  二值化灰階上限。
+ * @param binaryLower  二值化灰階下限。
+ */
+void GetToolPath_Optimized_Mask(
+	cv::Mat& ImgSrc,
+	const cv::Mat& Mask,
+	double offsetPixel,
+	double entryPointX,
+	ToolPath& toolpath,
+	int binaryUpper,
+	int binaryLower)
+{
+	if (ImgSrc.empty()) {
+		throw std::invalid_argument("Input image is empty.");
+	}
+
+	// Keep preprocessing identical to GetToolPath_CurvatureOptimized_Mask.
+	cv::Mat gray;
+	if (ImgSrc.channels() == 3) {
+		cv::cvtColor(ImgSrc, gray, cv::COLOR_BGR2GRAY);
+	}
+	else {
+		gray = ImgSrc.clone();
+	}
+
+	cv::Mat maskGray;
+	if (!Mask.empty()) {
+		if (Mask.channels() == 3) {
+			cv::cvtColor(Mask, maskGray, cv::COLOR_BGR2GRAY);
+		}
+		else {
+			maskGray = Mask.clone();
+		}
+		cv::threshold(maskGray, maskGray, 1, 255, cv::THRESH_BINARY);
+		if (maskGray.size() != gray.size()) {
+			cv::resize(maskGray, maskGray, gray.size(), 0, 0, cv::INTER_NEAREST);
+		}
+		cv::bitwise_and(gray, maskGray, gray);
+	}
+	else {
+		maskGray = cv::Mat(gray.size(), CV_8UC1, cv::Scalar(255));
+	}
+
+	// findContours closes an object that touches the ROI along the Mask border.
+	// That closing segment is not part of the inward object contour. Erode only
+	// the intersection-validity Mask by one pixel so border points cannot become
+	// X1/X2, while keeping the preprocessing Mask and offset behavior unchanged.
+	cv::Mat safeIntersectionMask;
+	constexpr int kIntersectionBoundaryMargin = 5;
+	const cv::Mat maskInsetKernel =
+		cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
+	// Explicitly treat pixels outside the image as background. OpenCV's default
+	// morphology border value for erosion behaves like foreground, so a Mask
+	// touching the image bottom would otherwise remain valid on that boundary.
+	cv::erode(
+		maskGray,
+		safeIntersectionMask,
+		maskInsetKernel,
+		cv::Point(-1, -1),
+		kIntersectionBoundaryMargin,
+		cv::BORDER_CONSTANT,
+		cv::Scalar(0));
+
+	int lowerBound = (std::max)(0, (std::min)(255, binaryLower));
+	int upperBound = (std::max)(0, (std::min)(255, binaryUpper));
+	if (lowerBound > upperBound) {
+		std::swap(lowerBound, upperBound);
+	}
+	cv::inRange(gray, cv::Scalar(lowerBound), cv::Scalar(upperBound), gray);
+	cv::bitwise_and(gray, maskGray, gray);
+
+	const int numPixelsToErode = static_cast<int>(std::lround(offsetPixel));
+	if (numPixelsToErode > 0) {
+		cv::Mat erodeInput = gray.clone();
+		erodeInput.setTo(255, maskGray == 0);
+		cv::Mat eroded;
+		const cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
+		cv::erode(erodeInput, eroded, kernel, cv::Point(-1, -1), numPixelsToErode);
+		cv::bitwise_and(eroded, maskGray, gray);
+	}
+
+	std::vector<std::vector<cv::Point>> contours;
+	cv::findContours(gray, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_TC89_L1);
+
+	toolpath.Path.clear();
+	toolpath.Offset = cv::Point2d(offsetPixel, 0.0);
+	if (contours.empty()) {
+		return;
+	}
+
+	// The downstream side splitter expects one continuous closed contour.
+	const auto largest = std::max_element(contours.begin(), contours.end(),
+		[](const std::vector<cv::Point>& lhs, const std::vector<cv::Point>& rhs) {
+			return std::abs(cv::contourArea(lhs)) < std::abs(cv::contourArea(rhs));
+		});
+	if (largest == contours.end() || largest->size() < 3) {
+		return;
+	}
+
+	constexpr size_t kSampleCountPerSide = 25;
+	const std::vector<cv::Point>& contour = *largest;
+	auto isInsideSafeMask = [&safeIntersectionMask](double x, double y) {
+		const int ix = cvRound(x);
+		const int iy = cvRound(y);
+		// Never accept findContours' artificial closing segment on the image edge.
+		return ix >= kIntersectionBoundaryMargin &&
+			ix < safeIntersectionMask.cols - kIntersectionBoundaryMargin &&
+			iy >= kIntersectionBoundaryMargin &&
+			iy < safeIntersectionMask.rows - kIntersectionBoundaryMargin &&
+			safeIntersectionMask.at<uchar>(iy, ix) != 0;
+	};
+
+	auto findSideIntersections = [&contour, &isInsideSafeMask](
+		double targetY, double& leftX, double& rightX) {
+		std::vector<double> intersections;
+		for (size_t i = 0; i < contour.size(); ++i) {
+			const cv::Point2d p0(contour[i]);
+			const cv::Point2d p1(contour[(i + 1) % contour.size()]);
+			const double edgeMinY = (std::min)(p0.y, p1.y);
+			const double edgeMaxY = (std::max)(p0.y, p1.y);
+			if (targetY < edgeMinY || targetY > edgeMaxY) {
+				continue;
+			}
+
+			const double dy = p1.y - p0.y;
+			if (std::abs(dy) <= 1e-9) {
+				if (std::abs(targetY - p0.y) <= 1e-6) {
+					if (isInsideSafeMask(p0.x, targetY)) {
+						intersections.push_back(p0.x);
+					}
+					if (isInsideSafeMask(p1.x, targetY)) {
+						intersections.push_back(p1.x);
+					}
+				}
+				continue;
+			}
+
+			const double t = (targetY - p0.y) / dy;
+			const double intersectionX = p0.x + t * (p1.x - p0.x);
+			if (isInsideSafeMask(intersectionX, targetY)) {
+				intersections.push_back(intersectionX);
+			}
+		}
+
+		if (intersections.empty()) {
+			return false;
+		}
+		const auto xRange = std::minmax_element(intersections.begin(), intersections.end());
+		leftX = *xRange.first;
+		rightX = *xRange.second;
+		return rightX > leftX + 1e-6;
+	};
+
+	// The final pair is defined by the intersections of the inward contour with
+	// the ROI Bottom Line. A contour clipped by the ROI forms a horizontal bottom
+	// segment; its two endpoints are precisely the left/right side intersections.
+	auto findRoiBottomIntersections = [&contour](
+		double targetY, double& leftX, double& rightX) {
+		std::vector<double> intersections;
+		for (size_t i = 0; i < contour.size(); ++i) {
+			const cv::Point2d p0(contour[i]);
+			const cv::Point2d p1(contour[(i + 1) % contour.size()]);
+			const double dy = p1.y - p0.y;
+			if (std::abs(dy) <= 1e-9) {
+				if (std::abs(targetY - p0.y) <= 1e-6) {
+					// Keep only the endpoints as candidates. min/max below select
+					// the two side intersections, never a point inside the segment.
+					intersections.push_back(p0.x);
+					intersections.push_back(p1.x);
+				}
+				continue;
+			}
+			const double edgeMinY = (std::min)(p0.y, p1.y);
+			const double edgeMaxY = (std::max)(p0.y, p1.y);
+			if (targetY < edgeMinY || targetY > edgeMaxY) {
+				continue;
+			}
+			const double t = (targetY - p0.y) / dy;
+			if (t >= -1e-9 && t <= 1.0 + 1e-9) {
+				intersections.push_back(p0.x + t * (p1.x - p0.x));
+			}
+		}
+		if (intersections.size() < 2) {
+			return false;
+		}
+		const auto xRange = std::minmax_element(intersections.begin(), intersections.end());
+		leftX = *xRange.first;
+		rightX = *xRange.second;
+		return rightX > leftX + 1e-6;
+	};
+
+	struct SideRow {
+		double y;
+		double leftX;
+		double rightX;
+	};
+	const cv::Rect bounds = cv::boundingRect(contour);
+	std::vector<SideRow> rows;
+	rows.reserve(static_cast<size_t>(bounds.height));
+	for (int y = bounds.y; y < bounds.y + bounds.height; ++y) {
+		double leftX = 0.0;
+		double rightX = 0.0;
+		if (findSideIntersections(static_cast<double>(y), leftX, rightX)) {
+			rows.push_back({ static_cast<double>(y), leftX, rightX });
+		}
+	}
+	if (rows.size() < kSampleCountPerSide) {
+		return;
+	}
+
+	// Find the Y of EntryPointX on the right inward contour. Use the first
+	// crossing from top to bottom; if no exact crossing exists, use the closest
+	// right-contour row without moving the point away from the contour.
+	double entryY = rows.front().y;
+	size_t entryRowIndex = 0;
+	bool foundEntryCrossing = false;
+	double nearestEntryDx = std::abs(rows.front().rightX - entryPointX);
+	for (size_t i = 1; i < rows.size(); ++i) {
+		const double currentDx = std::abs(rows[i].rightX - entryPointX);
+		if (currentDx < nearestEntryDx) {
+			nearestEntryDx = currentDx;
+			entryY = rows[i].y;
+			entryRowIndex = i;
+		}
+
+		if (rows[i].y - rows[i - 1].y > 1.0) {
+			continue;
+		}
+		const double x0 = rows[i - 1].rightX - entryPointX;
+		const double x1 = rows[i].rightX - entryPointX;
+		if (x0 == 0.0 || x1 == 0.0 ||
+			(x0 < 0.0 && x1 > 0.0) || (x0 > 0.0 && x1 < 0.0)) {
+			const double dx = rows[i].rightX - rows[i - 1].rightX;
+			const double t = std::abs(dx) > 1e-9
+				? (entryPointX - rows[i - 1].rightX) / dx
+				: 0.0;
+			entryY = rows[i - 1].y + t * (rows[i].y - rows[i - 1].y);
+			entryRowIndex = i - 1;
+			foundEntryCrossing = true;
+			break;
+		}
+	}
+
+	// Y25 is the ROI Bottom Line. Its X1/X2 values are obtained only from the
+	// inward contour. For a horizontal clipped segment, its min/max endpoints
+	// are the left/right intersections with the ROI Bottom Line.
+	std::vector<cv::Point> maskPoints;
+	cv::findNonZero(maskGray, maskPoints);
+	if (maskPoints.empty()) {
+		return;
+	}
+	const cv::Rect maskBounds = cv::boundingRect(maskPoints);
+	const double bottomY = static_cast<double>(maskBounds.y + maskBounds.height - 1);
+	if (bottomY <= entryY) {
+		return;
+	}
+	double bottomLeftX = 0.0;
+	double bottomRightX = 0.0;
+	if (!findRoiBottomIntersections(bottomY, bottomLeftX, bottomRightX)) {
+		return;
+	}
+
+	std::vector<cv::Point2d> leftPoints;
+	std::vector<cv::Point2d> rightPoints;
+	leftPoints.reserve(kSampleCountPerSide);
+	rightPoints.reserve(kSampleCountPerSide);
+	for (size_t sampleIndex = 0; sampleIndex < kSampleCountPerSide; ++sampleIndex) {
+		const double targetY = entryY + (bottomY - entryY) *
+			static_cast<double>(sampleIndex) /
+			static_cast<double>(kSampleCountPerSide - 1);
+		double leftX = 0.0;
+		double rightX = 0.0;
+		const bool isLastPoint = (sampleIndex + 1 == kSampleCountPerSide);
+		const bool foundIntersections = isLastPoint
+			? findRoiBottomIntersections(targetY, leftX, rightX)
+			: findSideIntersections(targetY, leftX, rightX);
+		if (!foundIntersections) {
+			toolpath.Path.clear();
+			return;
+		}
+		if (sampleIndex == 0 && foundEntryCrossing) {
+			rightX = entryPointX;
+		}
+		leftPoints.emplace_back(leftX, targetY);
+		rightPoints.emplace_back(rightX, targetY);
+	}
+
+	// ToolPathType 1 keeps its 25-point sampling, but its final pair must use
+	// exactly the ToolPathType 0 bottom-point rule with the ORIGINAL inward
+	// contour as source (not the already sampled 25 points).
+	std::vector<cv::Point2d> rawContour;
+	rawContour.reserve(contour.size());
+	for (const cv::Point& point : contour) {
+		rawContour.emplace_back(
+			static_cast<double>(point.x),
+			static_cast<double>(point.y));
+	}
+	GluePath sampledPath;
+	sampledPath.PathRight = rightPoints;
+	sampledPath.PathLeft = leftPoints;
+	GluePathOptimizer::ApplyLegacyBottomPointsFromContour(rawContour, sampledPath);
+	rightPoints = std::move(sampledPath.PathRight);
+	leftPoints = std::move(sampledPath.PathLeft);
+
+	// Preserve a closed-contour traversal for GluePathOptimizer::SplitByCenter.
+	toolpath.Path.reserve(kSampleCountPerSide * 2);
+	toolpath.Path.insert(toolpath.Path.end(), rightPoints.begin(), rightPoints.end());
+	toolpath.Path.insert(toolpath.Path.end(), leftPoints.rbegin(), leftPoints.rend());
+
+#ifdef _DEBUG
+	cv::drawContours(ImgSrc, contours, -1, cv::Scalar(0, 0, 255), 1);
+	for (const cv::Point2d& point : toolpath.Path) {
+		cv::circle(ImgSrc, point, 3, cv::Scalar(0, 255, 0), cv::FILLED);
+	}
+	std::cout << "[INFO] GetToolPath_Optimized_Mask: generated "
+		<< rightPoints.size() << " synchronized Y points per side" << std::endl;
+#endif
+}
+
 // ====================== Mode 2: Symmetric Path Generation ======================
 void GetToolPath_SymmetricOnly(cv::Mat& ImgSrc, cv::Point2d Offset, ToolPath& toolpath, double epsilonFactor)
 {
@@ -1808,6 +2149,7 @@ void WriteConfigToFile_SP(const std::string& filename, const SystemConfigA& SysC
 	file << "BinaryUpper=" << SysConfig.BinaryUpper << "\n";
 	file << "BinaryLower=" << SysConfig.BinaryLower << "\n";
 	file << "Binary=" << SysConfig.Binary << "\n";
+	file << "CameraToMachineAngle=" << SysConfig.CameraToMachineAngle << "\n";
 	file << "SaveINI=" << SysConfig.SaveINI << "\n";
 
 	file << "[Tool]\n";
@@ -1853,6 +2195,7 @@ void InitialConfigA(const std::string& filename, SystemConfigA& SysConfig)
 	SysConfig.ToolPathType = 0;
 	SysConfig.PathDataOut = 1;
 	SysConfig.Binary = 0;
+	SysConfig.CameraToMachineAngle = 0;
 	SysConfig.SaveINI = 0;
 	SysConfig.RefCenterX = 695.0f;
 	SysConfig.RefCenterY = 194.0f;
@@ -2031,8 +2374,10 @@ int ReadSystemConfig_SP(const std::string& filename, SystemConfigA& SysConfig)
 	SysConfig.EntryPointX = 0.0f;
 	SysConfig.ToolPathType = 0; // Default when the key is missing or empty.
 	SysConfig.PathDataOut = 1; // Default when the key is missing or invalid.
+	SysConfig.CameraToMachineAngle = 0; // Default when the key is missing or invalid.
 	bool toolPathTypeNeedsWrite = true;
 	bool pathDataOutNeedsWrite = true;
+	bool cameraToMachineAngleNeedsWrite = true;
 
 	std::string line;
 
@@ -2079,6 +2424,10 @@ int ReadSystemConfig_SP(const std::string& filename, SystemConfigA& SysConfig)
 			else if (key == "BinaryUpper")       SysConfig.BinaryUpper = std::stoi(val);
 			else if (key == "BinaryLower")       SysConfig.BinaryLower = std::stoi(val);
 			else if (key == "Binary")            SysConfig.Binary = std::stoi(val);
+			else if (key == "CameraToMachineAngle") {
+				SysConfig.CameraToMachineAngle = val.empty() ? 0 : std::stoi(val);
+				cameraToMachineAngleNeedsWrite = val.empty();
+			}
 			else if (key == "SaveINI")           SysConfig.SaveINI = std::stoi(val);
 
 			else if (key == "CreateToolPath")    SysConfig.CreateToolPath = std::stoi(val);
@@ -2110,7 +2459,7 @@ int ReadSystemConfig_SP(const std::string& filename, SystemConfigA& SysConfig)
 		SysConfig.PathDataOut = 1;
 		pathDataOutNeedsWrite = true;
 	}
-	if (toolPathTypeNeedsWrite || pathDataOutNeedsWrite) {
+	if (toolPathTypeNeedsWrite || pathDataOutNeedsWrite || cameraToMachineAngleNeedsWrite) {
 		try {
 			WriteConfigToFile_SP(filename, SysConfig);
 		}
@@ -2225,7 +2574,8 @@ void OptimizeGluePath(
 	const std::vector<cv::Point2d>& inputPath,
 	const ROIMask& roi,
 	GluePath& optimizedPath,
-	int shoeType)
+	int shoeType,
+	bool preserveSynchronizedEndpoints)
 {
 	try {
 		if (inputPath.empty()) return;
@@ -2234,7 +2584,11 @@ void OptimizeGluePath(
 		GluePathOptimizer optimizer(roi);
 
 		// 2. Run path optimization.
-		optimizer.OptimizePath(inputPath, optimizedPath, shoeType);
+		optimizer.OptimizePath(
+			inputPath,
+			optimizedPath,
+			shoeType,
+			preserveSynchronizedEndpoints);
 
 		// 3. Optional debug output
 #ifdef _DEBUG
@@ -2247,4 +2601,12 @@ void OptimizeGluePath(
 	catch (const std::exception& e) {
 		std::cerr << "OptimizeGluePath Error: " << e.what() << std::endl;
 	}
+}
+
+void ApplyLegacyBottomPoints(
+	const std::vector<cv::Point2d>& rightSource,
+	const std::vector<cv::Point2d>& leftSource,
+	GluePath& path)
+{
+	GluePathOptimizer::ApplyLegacyBottomPoints(rightSource, leftSource, path);
 }
