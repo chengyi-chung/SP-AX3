@@ -3171,7 +3171,34 @@ void WorkTab::OnBnClickedIdcWorkToolPath()
     // Debug 視窗以實際設備觀察方向顯示，顯示前將整張疊圖旋轉 180 度。
     //cv::flip(displayImg, displayImg, -1);
 
-    cv::imshow("Optimized Glue Path (Debug only)", displayImg);
+    // Fit the debug window to the Windows work area (taskbar excluded).
+    // Keep the complete image visible, use as much screen space as possible,
+    // and leave a small margin for the OpenCV title bar/window borders.
+    constexpr const char* kDebugToolPathWindow = "Optimized Glue Path (Debug only)";
+    RECT workArea = {};
+    if (!::SystemParametersInfo(SPI_GETWORKAREA, 0, &workArea, 0)) {
+        workArea.left = 0;
+        workArea.top = 0;
+        workArea.right = ::GetSystemMetrics(SM_CXSCREEN);
+        workArea.bottom = ::GetSystemMetrics(SM_CYSCREEN);
+    }
+
+    const int workWidth = (std::max)(1L, workArea.right - workArea.left);
+    const int workHeight = (std::max)(1L, workArea.bottom - workArea.top);
+    const int availableWidth = (std::max)(1, workWidth - 80);
+    const int availableHeight = (std::max)(1, workHeight - 100);
+    const double displayScale = (std::min)(
+        static_cast<double>(availableWidth) / displayImg.cols,
+        static_cast<double>(availableHeight) / displayImg.rows);
+    const int displayWidth = (std::max)(1, cvRound(displayImg.cols * displayScale));
+    const int displayHeight = (std::max)(1, cvRound(displayImg.rows * displayScale));
+    const int windowX = workArea.left + (workWidth - displayWidth) / 2;
+    const int windowY = workArea.top + (workHeight - displayHeight) / 2;
+
+    cv::namedWindow(kDebugToolPathWindow, cv::WINDOW_NORMAL | cv::WINDOW_KEEPRATIO);
+    cv::resizeWindow(kDebugToolPathWindow, displayWidth, displayHeight);
+    cv::moveWindow(kDebugToolPathWindow, windowX, windowY);
+    cv::imshow(kDebugToolPathWindow, displayImg);
     cv::waitKey(0);
 #endif
 
