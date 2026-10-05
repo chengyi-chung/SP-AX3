@@ -20,6 +20,7 @@
 #include <algorithm>
 
 #include "GluePathOptimizer.h"
+#include "ShoeInsetMask.h"
 
 //Add UAX.h
 #include "UAX.h"
@@ -379,27 +380,15 @@ void GetToolPath_CurvatureOptimized_Mask(
 		maskGray = cv::Mat(gray.size(), CV_8UC1, cv::Scalar(255));
 	}
 
-	// 2. Binarize with configured lower/upper bounds.
+	// 2. Match the binary preview: black shoe, white background.
 	int lowerBound = (std::max)(0, (std::min)(255, binaryLower));
 	int upperBound = (std::max)(0, (std::min)(255, binaryUpper));
 	if (lowerBound > upperBound) {
 		std::swap(lowerBound, upperBound);
 	}
 	cv::inRange(gray, cv::Scalar(lowerBound), cv::Scalar(upperBound), gray);
-	cv::bitwise_and(gray, maskGray, gray);
-
-	// 3. Erode inside ROI only. Pixels outside ROI are treated as foreground
-	// so shapes touching the ROI boundary are not eroded by the ROI edge.
-	int numPixelsToErode = static_cast<int>(std::lround(offsetPixel));
-	if (numPixelsToErode > 0) {
-		cv::Mat erodeInput = gray.clone();
-		erodeInput.setTo(255, maskGray == 0);
-
-		cv::Mat eroded;
-		cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
-		cv::erode(erodeInput, eroded, kernel, cv::Point(-1, -1), numPixelsToErode);
-		cv::bitwise_and(eroded, maskGray, gray);
-	}
+	// 3. Select the black shoe inside ROI, remove speckles, then inset its body.
+	gray = BuildShoeInsetMask(gray, maskGray, offsetPixel);
 
 	// 4. Extract outer contours.
 	std::vector<std::vector<cv::Point>> contours;
@@ -469,8 +458,8 @@ void GetToolPath_CurvatureOptimized_Mask(
  *
  * 前處理方式與 GetToolPath_CurvatureOptimized_Mask 相同：
  * 1. 將輸入影像轉為灰階並套用 ROI Mask。
- * 2. 使用 binaryLower、binaryUpper 進行二值化。
- * 3. 依 offsetPixel 在 ROI 內向內腐蝕。
+ * 2. 使用 binaryLower、binaryUpper 二值化，黑色為鞋型本體。
+ * 3. 僅在 ROI 內取最大黑色本體，排除噪點並填孔，再依 offsetPixel 內縮。
  * 4. 提取外輪廓，並選擇面積最大的有效輪廓，避免串接不相連輪廓。
  *    Mask 最外圈僅用來截取影像，不可作為 X1/X2 輪廓交點。
  * 5. 由 EntryPointX 在右側內縮輪廓求出入口 Y，將入口 Y 到 ROI Bottom
@@ -555,17 +544,7 @@ void GetToolPath_Optimized_Mask(
 		std::swap(lowerBound, upperBound);
 	}
 	cv::inRange(gray, cv::Scalar(lowerBound), cv::Scalar(upperBound), gray);
-	cv::bitwise_and(gray, maskGray, gray);
-
-	const int numPixelsToErode = static_cast<int>(std::lround(offsetPixel));
-	if (numPixelsToErode > 0) {
-		cv::Mat erodeInput = gray.clone();
-		erodeInput.setTo(255, maskGray == 0);
-		cv::Mat eroded;
-		const cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
-		cv::erode(erodeInput, eroded, kernel, cv::Point(-1, -1), numPixelsToErode);
-		cv::bitwise_and(eroded, maskGray, gray);
-	}
+	gray = BuildShoeInsetMask(gray, maskGray, offsetPixel);
 
 	std::vector<std::vector<cv::Point>> contours;
 	cv::findContours(gray, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_TC89_L1);
@@ -587,7 +566,7 @@ void GetToolPath_Optimized_Mask(
 
 	constexpr size_t kSampleCountPerSide = 25;
 	const std::vector<cv::Point>& contour = *largest;
-	auto isInsideSafeMask = [&safeIntersectionMask](double x, double y) {
+	auto isInsideSafeMask = [&safeIntersectionMask, kIntersectionBoundaryMargin](double x, double y) {
 		const int ix = cvRound(x);
 		const int iy = cvRound(y);
 		// Never accept findContours' artificial closing segment on the image edge.

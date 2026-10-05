@@ -16,6 +16,7 @@
 #include <system_error>
 #include <tuple>
 #include <vector>
+#include "ModbusPathCsv.h"
 #include "UAX\\UAXVision.cpp" // bring UAXVision implementation into this module
 //Add pylon header files to MFC project
 
@@ -3525,6 +3526,27 @@ void WorkTab::OnBnClickedIdcWorkGo()
 
     // 8. Modbus 連線檢查與自動重連邏輯
     const int stationID = 1;
+    SYSTEMTIME logTime;
+    GetLocalTime(&logTime);
+    char logDate[16], logTimestamp[40], logBatch[96];
+    sprintf_s(logDate, "%04u-%02u-%02u", logTime.wYear, logTime.wMonth, logTime.wDay);
+    sprintf_s(logTimestamp, "%s %02u:%02u:%02u.%03u", logDate,
+        logTime.wHour, logTime.wMinute, logTime.wSecond, logTime.wMilliseconds);
+    static LONG batchSequence = 0;
+    sprintf_s(logBatch, "%s-%lu-%ld", logTimestamp, GetCurrentProcessId(),
+        InterlockedIncrement(&batchSequence));
+    const std::string logFile = GetToolDebugExportPath(std::string("ModbusPath_") + logDate + ".csv");
+    const std::array<std::vector<uint16_t>, 3> logBuffers = { x1Regs, yRegs, x2Regs };
+    std::array<ModbusPathWriteResult, 3> writeResults;
+    auto logPhase = [&](const char* phase) {
+        return AppendModbusPathCsv(logFile, logBatch, logTimestamp, phase,
+            pParentWnd->m_SystemPara.IpAddress, pParentWnd->Port, stationID,
+            pointCount, logBuffers, writeResults);
+    };
+    if (!logPhase("PREPARED")) {
+        AfxMessageBox(_T("無法建立 Modbus 座標 CSV 紀錄，已取消傳送。請確認程式目錄可寫入。"), MB_ICONERROR);
+        return;
+    }
     if (!pParentWnd->m_modbusCtx) {
         bool ok = pParentWnd->InitModbusWithRetry(
             pParentWnd->m_SystemPara.IpAddress,
@@ -3534,6 +3556,9 @@ void WorkTab::OnBnClickedIdcWorkGo()
             1000  // 超時 (ms)
         );
         if (!ok) {
+            for (auto& result : writeResults) result.error = "Connection failed before write";
+            if (!logPhase("RESULT"))
+                AfxMessageBox(_T("Modbus CSV 結果寫入失敗；先前 PREPARED 紀錄不表示已送達。"), MB_ICONWARNING);
             AfxMessageBox(_T("Modbus TCP 連線失敗，請檢查網路設定。"));
             return;
         }
@@ -3546,25 +3571,31 @@ void WorkTab::OnBnClickedIdcWorkGo()
         std::lock_guard<std::mutex> lock(pParentWnd->m_modbusMutex);
 
         if (!pParentWnd->m_modbusCtx) {
+            for (auto& result : writeResults) result.error = "Disconnected before write";
             writeError = _T("Modbus TCP 連線已中斷，無法寫入 HMI。");
         }
         else {
             modbus_set_slave(pParentWnd->m_modbusCtx, stationID);
 
-            // 分別寫入 X1, Y, X2 三組路徑陣列到 PLC
-            // 注意：每組 (X1, Y, X2) 算一筆資料
-            if (modbus_write_registers(pParentWnd->m_modbusCtx, kAxisStartX1, kAxisCount, x1Regs.data()) == -1) {
-                writeError.Format(_T("寫入 X1 路徑失敗: %S"), modbus_strerror(errno));
-            }
-            else if (modbus_write_registers(pParentWnd->m_modbusCtx, kAxisStartY, kAxisCount, yRegs.data()) == -1) {
-                writeError.Format(_T("寫入 Y 路徑失敗: %S"), modbus_strerror(errno));
-            }
-            else if (modbus_write_registers(pParentWnd->m_modbusCtx, kAxisStartX2, kAxisCount, x2Regs.data()) == -1) {
-                writeError.Format(_T("寫入 X2 路徑失敗: %S"), modbus_strerror(errno));
+            const int starts[] = { kAxisStartX1, kAxisStartY, kAxisStartX2 };
+            const char* axes[] = { "X1", "Y", "X2" };
+            for (size_t axis = 0; axis < logBuffers.size(); ++axis) {
+                auto& result = writeResults[axis];
+                result.returned = modbus_write_registers(pParentWnd->m_modbusCtx,
+                    starts[axis], kAxisCount, logBuffers[axis].data());
+                if (result.returned != kAxisCount) {
+                    result.errorCode = result.returned == -1 ? errno : 0;
+                    result.error = result.returned == -1 ? modbus_strerror(result.errorCode) : "Short write";
+                    writeError.Format(_T("寫入 %S 路徑失敗: %S"), axes[axis], result.error.c_str());
+                    break;
+                }
             }
         }
 
     } // 離開 Scope 自動釋放 Lock
+
+    if (!logPhase("RESULT"))
+        AfxMessageBox(_T("Modbus CSV 結果寫入失敗；傳送可能已執行，請勿只依 PREPARED 紀錄判定成功。"), MB_ICONWARNING);
 
     if (!writeError.IsEmpty()) {
         AfxMessageBox(writeError, MB_ICONERROR);
