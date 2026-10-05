@@ -97,6 +97,7 @@ struct SystemConfigA  // For AX-3 PLC, SP Shoe Last Machine
     int BinaryLower;
     int Binary;
     int CameraToMachineAngle = 0; // Register 186: camera axes relative to machine axes, degrees
+    int IsMachineRotate = 1;      // 1=rotate coordinates, 0=do not rotate
     int SaveINI;                  // Register 159: write 1 to persist SystemConfig.ini
     int MaskX;                 // ROI Mask X (TopX)
     int MaskY;                 // ROI Mask Y (TopY)

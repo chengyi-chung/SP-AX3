@@ -1235,6 +1235,7 @@ bool WorkTab::IsSystemConfigEqual(const SystemConfigA& lhs, const SystemConfigA&
 		lhs.PathDataOut == rhs.PathDataOut &&
         lhs.Binary == rhs.Binary &&
         lhs.CameraToMachineAngle == rhs.CameraToMachineAngle &&
+        lhs.IsMachineRotate == rhs.IsMachineRotate &&
         lhs.SaveINI == rhs.SaveINI &&
         lhs.DispalyToolPath == rhs.DispalyToolPath &&
         lhs.DisplayROI == rhs.DisplayROI &&
@@ -1375,6 +1376,12 @@ void WorkTab::GenerateToolPathNewAlgorithm1(cv::Mat& image, const cv::Mat& mask,
 	ToolPath& output, const SystemConfigA& config, double entryPointXPixel)
 {
 	GenerateLegacyToolPath1(image, mask, offsetPixel, output, config, entryPointXPixel);
+	if (output.Path.empty()) {
+#ifdef _DEBUG
+		TRACE(_T("ToolPathType=1 did not find a valid synchronized contour; using legacy path generation.\n"));
+#endif
+		GenerateLegacyToolPath(image, mask, offsetPixel, output, config);
+	}
 }
 
 void WorkTab::GenerateToolPathNewAlgorithm2(cv::Mat& image, const cv::Mat& mask, double offsetPixel,
@@ -3393,6 +3400,25 @@ void WorkTab::OnBnClickedIdcWorkGo()
         return;
     }
 
+    // Always refresh the camera-to-machine angle immediately before rebuilding
+    // and transmitting Tool Data. This guarantees that a manual WORK_GO uses
+    // the current HMI value instead of the most recent timer-poll snapshot.
+    std::vector<uint16_t> angleReg;
+    if (!ReadHoldingRegistersBlock(
+            186,
+            1,
+            angleReg,
+            pParentWnd->m_SystemPara.StationID) ||
+        angleReg.empty()) {
+        AfxMessageBox(
+            _T("讀取 Modbus Address 186 失敗，為避免使用舊角度，已取消 Tool Data 傳送。"),
+            MB_ICONERROR);
+        return;
+    }
+    pParentWnd->m_SystemPara.CameraToMachineAngle = angleReg[0];
+    m_lastSyncedSystemPara.CameraToMachineAngle = angleReg[0];
+    pParentWnd->RefreshSystemParaTabDisplay();
+
     // 3. 每次送出前都依最新的 m_OptimizedGluePath 重建衍生路徑：
     //    m_OptimizedGluePath -> m_machineGluePath -> m_machineGluePath_mm
     //    -> m_HMIGluePath_temp -> m_HMIGluePath
@@ -4425,7 +4451,8 @@ void WorkTab::ConvertToMachineCoordinates(double effectiveReferenceX, double eff
 
     // Register 186 is a WORD angle in degrees. Rotate camera-relative coordinates
     // into the machine frame around the effective reference origin.
-    const double cameraToMachineAngleDeg = pParentWnd
+    const bool isMachineRotate = pParentWnd && pParentWnd->m_SystemPara.IsMachineRotate == 1;
+    const double cameraToMachineAngleDeg = isMachineRotate
         ? static_cast<double>(pParentWnd->m_SystemPara.CameraToMachineAngle)
         : 0.0;
     const double cameraToMachineAngleRad = cameraToMachineAngleDeg * CV_PI / 180.0;

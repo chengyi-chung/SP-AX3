@@ -1,0 +1,1256 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Symbolconfiguration xmlns="http://www.3s-software.com/schemas/Symbolconfiguration.xsd">
+  <Header>
+    <Version>3.5.14.0</Version>
+    <SymbolConfigObject version="4.3.0.0" runtimeid="3.5.18.30" libversion="4.3.0.0" compiler="3.5.18.50" lmm="3.5.18.50" profile="DIADesigner-AX 1.10+" settings="SupportOPCUA, XmlIncludeComments, LayoutCalculator=OptimizedClientSideLayoutCalculator" />
+    <ProjectInfo name="Press machine CCD" devicename="Device" appname="Application" />
+  </Header>
+  <TypeList>
+    <TypeSimple name="T_BOOL" size="1" swapsize="0" typeclass="Bool" iecname="BOOL" />
+    <TypeSimple name="T_DINT" size="4" swapsize="4" typeclass="DInt" iecname="DINT" />
+    <TypeSimple name="T_DWORD" size="4" swapsize="4" typeclass="DWord" iecname="DWORD" />
+    <TypeSimple name="T_INT" size="2" swapsize="2" typeclass="Int" iecname="INT" />
+    <TypeSimple name="T_LREAL" size="8" swapsize="8" typeclass="LReal" iecname="LREAL" />
+    <TypeSimple name="T_LWORD" size="8" swapsize="8" typeclass="LWord" iecname="LWORD" />
+    <TypeSimple name="T_STRING" size="81" swapsize="0" typeclass="String" iecname="STRING" />
+    <TypeSimple name="T_WORD" size="2" swapsize="2" typeclass="Word" iecname="WORD" />
+    <TypeArray name="T_ARRAY__0__18__OF_BOOL" size="19" nativesize="19" typeclass="Array" iecname="ARRAY [0..18] OF BOOL" basetype="T_BOOL">
+      <ArrayDim minrange="0" maxrange="18" />
+    </TypeArray>
+    <TypeArray name="T_ARRAY__0__199__OF_WORD" size="400" nativesize="400" typeclass="Array" iecname="ARRAY [0..199] OF WORD" basetype="T_WORD">
+      <ArrayDim minrange="0" maxrange="199" />
+    </TypeArray>
+    <TypeArray name="T_ARRAY__0__1__OF_LREAL" size="16" nativesize="16" typeclass="Array" iecname="ARRAY [0..1] OF LREAL" basetype="T_LREAL">
+      <ArrayDim minrange="0" maxrange="1" />
+    </TypeArray>
+    <TypeArray name="T_ARRAY__0__2__0__1__OF_LREAL" size="48" nativesize="48" typeclass="Array" iecname="ARRAY [0..2, 0..1] OF LREAL" basetype="T_LREAL">
+      <ArrayDim minrange="0" maxrange="2" />
+      <ArrayDim minrange="0" maxrange="1" />
+    </TypeArray>
+    <TypeArray name="T_ARRAY__0__23__OF_BOOL" size="24" nativesize="24" typeclass="Array" iecname="ARRAY [0..23] OF BOOL" basetype="T_BOOL">
+      <ArrayDim minrange="0" maxrange="23" />
+    </TypeArray>
+    <TypeArray name="T_ARRAY__0__26__OF_BOOL" size="27" nativesize="27" typeclass="Array" iecname="ARRAY [0..26] OF BOOL" basetype="T_BOOL">
+      <ArrayDim minrange="0" maxrange="26" />
+    </TypeArray>
+    <TypeArray name="T_ARRAY__0__29__0__2__OF_BOOL" size="90" nativesize="90" typeclass="Array" iecname="ARRAY [0..29, 0..2] OF BOOL" basetype="T_BOOL">
+      <ArrayDim minrange="0" maxrange="29" />
+      <ArrayDim minrange="0" maxrange="2" />
+    </TypeArray>
+    <TypeArray name="T_ARRAY__0__29__0__2__OF_LREAL" size="720" nativesize="720" typeclass="Array" iecname="ARRAY [0..29, 0..2] OF LREAL" basetype="T_LREAL">
+      <ArrayDim minrange="0" maxrange="29" />
+      <ArrayDim minrange="0" maxrange="2" />
+    </TypeArray>
+    <TypeArray name="T_ARRAY__14__103__OF_WORD" size="180" nativesize="180" typeclass="Array" iecname="ARRAY [14..103] OF WORD" basetype="T_WORD">
+      <ArrayDim minrange="14" maxrange="103" />
+    </TypeArray>
+    <TypeArray name="T_ARRAY__14__43__OF_BOOL" size="30" nativesize="30" typeclass="Array" iecname="ARRAY [14..43] OF BOOL" basetype="T_BOOL">
+      <ArrayDim minrange="14" maxrange="43" />
+    </TypeArray>
+    <TypeArray name="T_ARRAY__400__550__OF_WORD" size="302" nativesize="302" typeclass="Array" iecname="ARRAY [400..550] OF WORD" basetype="T_WORD">
+      <ArrayDim minrange="400" maxrange="550" />
+    </TypeArray>
+    <TypeArray name="T_ARRAY__74__103__OF_BOOL" size="30" nativesize="30" typeclass="Array" iecname="ARRAY [74..103] OF BOOL" basetype="T_BOOL">
+      <ArrayDim minrange="74" maxrange="103" />
+    </TypeArray>
+  </TypeList>
+  <NodeList>
+    <Node name="Application">
+      <Node name="GlobVar_Constant">
+        <Comment> Subject  : Servo - motor with visual feeding system (v2026)
+ Object   : Constant In Program GVL
+ Creator  : Jack.Huang
+ Date     : 2026/01/21
+ Platform : CODESYS /Dleta Designer-AX
+ CopyRight: USE Electronics Co., Ltd.</Comment>
+        <Node name="wLMaxX" type="T_WORD" access="ReadWrite">
+          <Comment> X軸左像素最大值</Comment>
+        </Node>
+        <Node name="wLMinX" type="T_WORD" access="ReadWrite">
+          <Comment> X軸左像素最小值</Comment>
+        </Node>
+        <Node name="wRMaxX" type="T_WORD" access="ReadWrite">
+          <Comment> X軸右像素最大值</Comment>
+        </Node>
+        <Node name="wRMinX" type="T_WORD" access="ReadWrite">
+          <Comment> X軸右像素最小值</Comment>
+        </Node>
+      </Node>
+      <Node name="GlobVar_DIO">
+        <Comment> Subject  : Servo - motor feeding system (v2025)
+ Object   : DI/O In Program GVL
+ Creator  : Jack.Huang
+ Date     : 2025/05/06
+ Platform : CODESYS /Dleta Designer-AX
+ CopyRight: USE Electronics Co., Ltd.</Comment>
+        <Node name="bX0" type="T_BOOL" access="ReadWrite">
+          <Comment>  DI點(模組64點已用52點,12點待命)
+手動模式SW</Comment>
+        </Node>
+        <Node name="bX1" type="T_BOOL" access="ReadWrite">
+          <Comment>全自動模式SW</Comment>
+        </Node>
+        <Node name="bX10" type="T_BOOL" access="ReadWrite">
+          <Comment> 腳踏剎車開關FB(B接點)</Comment>
+        </Node>
+        <Node name="bX11" type="T_BOOL" access="ReadWrite">
+          <Comment> 膝頂開關(手動送膠)PB</Comment>
+        </Node>
+        <Node name="bX12" type="T_BOOL" access="ReadWrite">
+          <Comment> 擦膠機構SW</Comment>
+        </Node>
+        <Node name="bX13" type="T_BOOL" access="ReadWrite">
+          <Comment> 緊急停止PB</Comment>
+        </Node>
+        <Node name="bX14" type="T_BOOL" access="ReadWrite">
+          <Comment> 氣壓開關</Comment>
+        </Node>
+        <Node name="bX15" type="T_BOOL" access="ReadWrite">
+          <Comment> 左中幫上升近接開關</Comment>
+        </Node>
+        <Node name="bX16" type="T_BOOL" access="ReadWrite">
+          <Comment> 左中幫下降近接開關</Comment>
+        </Node>
+        <Node name="bX17" type="T_BOOL" access="ReadWrite">
+          <Comment> 右中幫上升近接開關</Comment>
+        </Node>
+        <Node name="bX18" type="T_BOOL" access="ReadWrite">
+          <Comment> 右中幫下降近接開關</Comment>
+        </Node>
+        <Node name="bX19" type="T_BOOL" access="ReadWrite">
+          <Comment> 小碼撥桿</Comment>
+        </Node>
+        <Node name="bX2" type="T_BOOL" access="ReadWrite">
+          <Comment>第4.5組指壓塊不使用SW</Comment>
+        </Node>
+        <Node name="bX20" type="T_BOOL" access="ReadWrite">
+          <Comment> 左爪後移近接開關</Comment>
+        </Node>
+        <Node name="bX21" type="T_BOOL" access="ReadWrite">
+          <Comment> 大碼撥桿</Comment>
+        </Node>
+        <Node name="bX22" type="T_BOOL" access="ReadWrite">
+          <Comment> 右爪後移近接開關</Comment>
+        </Node>
+        <Node name="bX23" type="T_BOOL" access="ReadWrite">
+          <Comment> 左右腳切換近接開關</Comment>
+        </Node>
+        <Node name="bX24" type="T_BOOL" access="ReadWrite">
+          <Comment> 馬達啟動信號</Comment>
+        </Node>
+        <Node name="bX25" type="T_BOOL" access="ReadWrite">
+          <Comment> 馬達過載OL</Comment>
+        </Node>
+        <Node name="bX26" type="T_BOOL" access="ReadWrite">
+          <Comment> 撐台上升停止點近接開關</Comment>
+        </Node>
+        <Node name="bX27" type="T_BOOL" access="ReadWrite">
+          <Comment> 撐台內拉停止點近接開關</Comment>
+        </Node>
+        <Node name="bX28" type="T_BOOL" access="ReadWrite">
+          <Comment> 左重疊結幫近接開關</Comment>
+        </Node>
+        <Node name="bX29" type="T_BOOL" access="ReadWrite">
+          <Comment> 右重疊結幫近接開關</Comment>
+        </Node>
+        <Node name="bX3" type="T_BOOL" access="ReadWrite">
+          <Comment>第5組指壓塊不使用SW</Comment>
+        </Node>
+        <Node name="bX30" type="T_BOOL" access="ReadWrite">
+          <Comment> 撐台二次壓開關</Comment>
+        </Node>
+        <Node name="bX31" type="T_BOOL" access="ReadWrite">
+          <Comment> 左膠桿溫度AL2</Comment>
+        </Node>
+        <Node name="bX32" type="T_BOOL" access="ReadWrite">
+          <Comment> 右膠桿溫度AL2</Comment>
+        </Node>
+        <Node name="bX33" type="T_BOOL" access="ReadWrite">
+          <Comment> 快速校點確認訊號(不需要)</Comment>
+        </Node>
+        <Node name="bX34" type="T_BOOL" access="ReadWrite">
+          <Comment> 左爪子上升近接開關</Comment>
+        </Node>
+        <Node name="bX35" type="T_BOOL" access="ReadWrite">
+          <Comment> 右爪子上升近接開關</Comment>
+        </Node>
+        <Node name="bX36" type="T_BOOL" access="ReadWrite">
+          <Comment> 左爪上升SW/左膠嘴左移SW</Comment>
+        </Node>
+        <Node name="bX37" type="T_BOOL" access="ReadWrite">
+          <Comment> 左爪下降SW/左膠嘴右移SW</Comment>
+        </Node>
+        <Node name="bX38" type="T_BOOL" access="ReadWrite">
+          <Comment> 右爪上升SW/右膠嘴右移SW</Comment>
+        </Node>
+        <Node name="bX39" type="T_BOOL" access="ReadWrite">
+          <Comment> 右爪下降SW/右膠嘴左移SW</Comment>
+        </Node>
+        <Node name="bX4" type="T_BOOL" access="ReadWrite">
+          <Comment>膠臂手動推出SW</Comment>
+        </Node>
+        <Node name="bX40" type="T_BOOL" access="ReadWrite">
+          <Comment> 左爪後移SW/膠臂移至上一點SW</Comment>
+        </Node>
+        <Node name="bX41" type="T_BOOL" access="ReadWrite">
+          <Comment> 左爪前移SW/膠臂移至下一點SW</Comment>
+        </Node>
+        <Node name="bX42" type="T_BOOL" access="ReadWrite">
+          <Comment> 右爪後移SW/膠臂移至上一點SW</Comment>
+        </Node>
+        <Node name="bX43" type="T_BOOL" access="ReadWrite">
+          <Comment> 右爪前移SW/膠臂移至下一點SW/快速校點確認</Comment>
+        </Node>
+        <Node name="bX44" type="T_BOOL" access="ReadWrite">
+          <Comment> 爪子同動(前進)SW</Comment>
+        </Node>
+        <Node name="bX45" type="T_BOOL" access="ReadWrite">
+          <Comment> 爪子同動(後移)SW</Comment>
+        </Node>
+        <Node name="bX46" type="T_BOOL" access="ReadWrite">
+          <Comment> 左中幫上升SW</Comment>
+        </Node>
+        <Node name="bX47" type="T_BOOL" access="ReadWrite">
+          <Comment> 左中幫下降SW</Comment>
+        </Node>
+        <Node name="bX48" type="T_BOOL" access="ReadWrite">
+          <Comment> 右中幫上升SW</Comment>
+        </Node>
+        <Node name="bX49" type="T_BOOL" access="ReadWrite">
+          <Comment> 右中幫下降SW</Comment>
+        </Node>
+        <Node name="bX5" type="T_BOOL" access="ReadWrite">
+          <Comment>中幫模式SW</Comment>
+        </Node>
+        <Node name="bX50" type="T_BOOL" access="ReadWrite">
+          <Comment> 中幫同動(上升)SW</Comment>
+        </Node>
+        <Node name="bX51" type="T_BOOL" access="ReadWrite">
+          <Comment> 中幫同動(下降)SW</Comment>
+        </Node>
+        <Node name="bX52" type="T_BOOL" access="ReadWrite">
+          <Comment> 膠桿上升近接開關</Comment>
+        </Node>
+        <Node name="bX53" type="T_BOOL" access="ReadWrite">
+          <Comment> 膠量檢知微動開關</Comment>
+        </Node>
+        <Node name="bX54" type="T_BOOL" access="ReadWrite">
+          <Comment> 防夾光電開關</Comment>
+        </Node>
+        <Node name="bX55" type="T_BOOL" access="ReadWrite">
+          <Comment> 待命4</Comment>
+        </Node>
+        <Node name="bX56" type="T_BOOL" access="ReadWrite">
+          <Comment> 待命5</Comment>
+        </Node>
+        <Node name="bX57" type="T_BOOL" access="ReadWrite">
+          <Comment> 待命6</Comment>
+        </Node>
+        <Node name="bX58" type="T_BOOL" access="ReadWrite">
+          <Comment> 待命7</Comment>
+        </Node>
+        <Node name="bX59" type="T_BOOL" access="ReadWrite">
+          <Comment> 待命8</Comment>
+        </Node>
+        <Node name="bX6" type="T_BOOL" access="ReadWrite">
+          <Comment>後幫模式SW</Comment>
+        </Node>
+        <Node name="bX60" type="T_BOOL" access="ReadWrite">
+          <Comment> 待命9</Comment>
+        </Node>
+        <Node name="bX61" type="T_BOOL" access="ReadWrite">
+          <Comment> 待命10</Comment>
+        </Node>
+        <Node name="bX62" type="T_BOOL" access="ReadWrite">
+          <Comment> 待命11</Comment>
+        </Node>
+        <Node name="bX63" type="T_BOOL" access="ReadWrite">
+          <Comment> 待命12</Comment>
+        </Node>
+        <Node name="bX7" type="T_BOOL" access="ReadWrite">
+          <Comment>雙手按鈕(左)PB</Comment>
+        </Node>
+        <Node name="bX8" type="T_BOOL" access="ReadWrite">
+          <Comment>雙手按鈕(右)PB</Comment>
+        </Node>
+        <Node name="bX9" type="T_BOOL" access="ReadWrite">
+          <Comment>腳踏啟動開關FB</Comment>
+        </Node>
+        <Node name="bY0" type="T_BOOL" access="ReadWrite">
+          <Comment>  DO點(模組64點已用44點,20點待命)
+左爪前移</Comment>
+        </Node>
+        <Node name="bY1" type="T_BOOL" access="ReadWrite">
+          <Comment>左爪後移</Comment>
+        </Node>
+        <Node name="bY10" type="T_BOOL" access="ReadWrite">
+          <Comment>第4組指壓塊內移</Comment>
+        </Node>
+        <Node name="bY11" type="T_BOOL" access="ReadWrite">
+          <Comment>第5組指壓塊內移</Comment>
+        </Node>
+        <Node name="bY12" type="T_BOOL" access="ReadWrite">
+          <Comment> 指壓塊1次低壓</Comment>
+        </Node>
+        <Node name="bY13" type="T_BOOL" access="ReadWrite">
+          <Comment> 指壓塊2次高壓</Comment>
+        </Node>
+        <Node name="bY14" type="T_BOOL" access="ReadWrite">
+          <Comment> 指壓塊3次低壓</Comment>
+        </Node>
+        <Node name="bY15" type="T_BOOL" access="ReadWrite">
+          <Comment>掃刀</Comment>
+        </Node>
+        <Node name="bY16" type="T_BOOL" access="ReadWrite">
+          <Comment>撐台1次上升</Comment>
+        </Node>
+        <Node name="bY17" type="T_BOOL" access="ReadWrite">
+          <Comment>撐台2次上升</Comment>
+        </Node>
+        <Node name="bY18" type="T_BOOL" access="ReadWrite">
+          <Comment>撐台下降</Comment>
+        </Node>
+        <Node name="bY19" type="T_BOOL" access="ReadWrite">
+          <Comment>撐台下降洩壓</Comment>
+        </Node>
+        <Node name="bY2" type="T_BOOL" access="ReadWrite">
+          <Comment>右爪前移</Comment>
+        </Node>
+        <Node name="bY20" type="T_BOOL" access="ReadWrite">
+          <Comment>撐台1次高壓內拉</Comment>
+        </Node>
+        <Node name="bY21" type="T_BOOL" access="ReadWrite">
+          <Comment> 撐台2次低壓內拉</Comment>
+        </Node>
+        <Node name="bY22" type="T_BOOL" access="ReadWrite">
+          <Comment> 撐台2次內拉慢速(三次壓)</Comment>
+        </Node>
+        <Node name="bY23" type="T_BOOL" access="ReadWrite">
+          <Comment>撐台後退</Comment>
+        </Node>
+        <Node name="bY24" type="T_BOOL" access="ReadWrite">
+          <Comment>束緊器低壓</Comment>
+        </Node>
+        <Node name="bY25" type="T_BOOL" access="ReadWrite">
+          <Comment>束緊器高壓</Comment>
+        </Node>
+        <Node name="bY26" type="T_BOOL" access="ReadWrite">
+          <Comment> 左爪內拉</Comment>
+        </Node>
+        <Node name="bY27" type="T_BOOL" access="ReadWrite">
+          <Comment> 膠桿浮動/控制膠桿浮動</Comment>
+        </Node>
+        <Node name="bY28" type="T_BOOL" access="ReadWrite">
+          <Comment>膠桿下降</Comment>
+        </Node>
+        <Node name="bY29" type="T_BOOL" access="ReadWrite">
+          <Comment>定位桿</Comment>
+        </Node>
+        <Node name="bY3" type="T_BOOL" access="ReadWrite">
+          <Comment>右爪後移</Comment>
+        </Node>
+        <Node name="bY30" type="T_BOOL" access="ReadWrite">
+          <Comment>爪子夾緊</Comment>
+        </Node>
+        <Node name="bY31" type="T_BOOL" access="ReadWrite">
+          <Comment>左爪上升</Comment>
+        </Node>
+        <Node name="bY32" type="T_BOOL" access="ReadWrite">
+          <Comment>左爪下降</Comment>
+        </Node>
+        <Node name="bY33" type="T_BOOL" access="ReadWrite">
+          <Comment>右爪上升</Comment>
+        </Node>
+        <Node name="bY34" type="T_BOOL" access="ReadWrite">
+          <Comment>右爪下降</Comment>
+        </Node>
+        <Node name="bY35" type="T_BOOL" access="ReadWrite">
+          <Comment> 爪子升降慢速</Comment>
+        </Node>
+        <Node name="bY36" type="T_BOOL" access="ReadWrite">
+          <Comment>頂針</Comment>
+        </Node>
+        <Node name="bY37" type="T_BOOL" access="ReadWrite">
+          <Comment> 右爪內拉</Comment>
+        </Node>
+        <Node name="bY38" type="T_BOOL" access="ReadWrite">
+          <Comment>第4組指壓塊不使用</Comment>
+        </Node>
+        <Node name="bY39" type="T_BOOL" access="ReadWrite">
+          <Comment>第5組指壓塊不使用</Comment>
+        </Node>
+        <Node name="bY4" type="T_BOOL" access="ReadWrite">
+          <Comment>左中幫上升</Comment>
+        </Node>
+        <Node name="bY40" type="T_BOOL" access="ReadWrite">
+          <Comment> 左氣壓偏擺</Comment>
+        </Node>
+        <Node name="bY41" type="T_BOOL" access="ReadWrite">
+          <Comment> 右氣壓偏擺</Comment>
+        </Node>
+        <Node name="bY42" type="T_BOOL" access="ReadWrite">
+          <Comment> 送膠第一段速度(不需要)</Comment>
+        </Node>
+        <Node name="bY43" type="T_BOOL" access="ReadWrite">
+          <Comment> 送膠第二段速度(不需要)</Comment>
+        </Node>
+        <Node name="bY44" type="T_BOOL" access="ReadWrite">
+          <Comment> 三色燈(綠燈)</Comment>
+        </Node>
+        <Node name="bY45" type="T_BOOL" access="ReadWrite">
+          <Comment> 三色燈(黃燈)</Comment>
+        </Node>
+        <Node name="bY46" type="T_BOOL" access="ReadWrite">
+          <Comment> 三色燈(紅燈)</Comment>
+        </Node>
+        <Node name="bY47" type="T_BOOL" access="ReadWrite">
+          <Comment> 蜂鳴器</Comment>
+        </Node>
+        <Node name="bY48" type="T_BOOL" access="ReadWrite">
+          <Comment>待命5</Comment>
+        </Node>
+        <Node name="bY49" type="T_BOOL" access="ReadWrite">
+          <Comment>待命6</Comment>
+        </Node>
+        <Node name="bY5" type="T_BOOL" access="ReadWrite">
+          <Comment>左中幫下降</Comment>
+        </Node>
+        <Node name="bY50" type="T_BOOL" access="ReadWrite">
+          <Comment>待命7</Comment>
+        </Node>
+        <Node name="bY51" type="T_BOOL" access="ReadWrite">
+          <Comment>待命8</Comment>
+        </Node>
+        <Node name="bY52" type="T_BOOL" access="ReadWrite">
+          <Comment>待命9</Comment>
+        </Node>
+        <Node name="bY53" type="T_BOOL" access="ReadWrite">
+          <Comment>待命10</Comment>
+        </Node>
+        <Node name="bY54" type="T_BOOL" access="ReadWrite">
+          <Comment>待命11</Comment>
+        </Node>
+        <Node name="bY55" type="T_BOOL" access="ReadWrite">
+          <Comment>待命12</Comment>
+        </Node>
+        <Node name="bY56" type="T_BOOL" access="ReadWrite">
+          <Comment>待命13</Comment>
+        </Node>
+        <Node name="bY57" type="T_BOOL" access="ReadWrite">
+          <Comment>待命14</Comment>
+        </Node>
+        <Node name="bY58" type="T_BOOL" access="ReadWrite">
+          <Comment>待命15</Comment>
+        </Node>
+        <Node name="bY59" type="T_BOOL" access="ReadWrite">
+          <Comment>待命16</Comment>
+        </Node>
+        <Node name="bY6" type="T_BOOL" access="ReadWrite">
+          <Comment>右中幫上升</Comment>
+        </Node>
+        <Node name="bY60" type="T_BOOL" access="ReadWrite">
+          <Comment>待命17</Comment>
+        </Node>
+        <Node name="bY61" type="T_BOOL" access="ReadWrite">
+          <Comment>待命18</Comment>
+        </Node>
+        <Node name="bY62" type="T_BOOL" access="ReadWrite">
+          <Comment>待命19</Comment>
+        </Node>
+        <Node name="bY63" type="T_BOOL" access="ReadWrite">
+          <Comment>待命20</Comment>
+        </Node>
+        <Node name="bY7" type="T_BOOL" access="ReadWrite">
+          <Comment>右中幫下降</Comment>
+        </Node>
+        <Node name="bY8" type="T_BOOL" access="ReadWrite">
+          <Comment>第1組指壓塊內移</Comment>
+        </Node>
+        <Node name="bY9" type="T_BOOL" access="ReadWrite">
+          <Comment>第2.3組指壓塊內移</Comment>
+        </Node>
+      </Node>
+      <Node name="GlobVar_Recipe">
+        <Comment> Subject  : Servo - motor feeding system (v2025)
+ Object   : Recipe Relationship In Program GVL
+ Creator  : Jack.Huang
+ Date     : 2025/05/06
+ Platform : CODESYS /Dleta Designer-AX
+ CopyRight: USE Electronics Co., Ltd.</Comment>
+        <Node name="aLineRecipe" type="T_ARRAY__400__550__OF_WORD" access="ReadWrite">
+          <Comment> 人機線條緩衝區</Comment>
+        </Node>
+        <Node name="aMScaleBuffer" type="T_ARRAY__0__2__0__1__OF_LREAL" access="ReadWrite">
+          <Comment>級放主要陣列</Comment>
+        </Node>
+        <Node name="aRPointBuffer" type="T_ARRAY__0__199__OF_WORD" access="ReadWrite">
+          <Comment> 讀取人機配方陣列</Comment>
+        </Node>
+        <Node name="aRScaleBuffer" type="T_ARRAY__0__1__OF_LREAL" access="ReadWrite">
+          <Comment>級放陣列讀取緩衝區</Comment>
+        </Node>
+        <Node name="bHMIStart" type="T_BOOL" access="ReadWrite">
+          <Comment> 人機進入畫面判斷旗標</Comment>
+        </Node>
+        <Node name="byGauge" type="T_WORD" access="ReadWrite">
+          <Comment> 級放規格</Comment>
+        </Node>
+        <Node name="wDeg" type="T_WORD" access="ReadWrite">
+          <Comment> 旋轉角度</Comment>
+        </Node>
+      </Node>
+      <Node name="PRG_AllInit">
+        <Comment> Subject  : Servo - motor with visual feeding system (v2026)
+ Object   : Zoom Parameter Reset To Inital PRG
+ Creator  : Jack.Huang
+ Date     : 2026/01/21
+ Platform : CODESYS /Dleta Designer-AX
+ CopyRight: USE Electronics Co., Ltd.</Comment>
+        <Node name="bReInit" type="T_BOOL" access="ReadWrite">
+          <Comment>回復出廠值訊號</Comment>
+        </Node>
+        <Node name="wSub1" type="T_WORD" access="ReadWrite">
+          <Comment>次版號 </Comment>
+        </Node>
+        <Node name="wSub2" type="T_WORD" access="ReadWrite">
+          <Comment>子版號</Comment>
+        </Node>
+        <Node name="wVersion" type="T_WORD" access="ReadWrite">
+          <Comment>主版號</Comment>
+        </Node>
+      </Node>
+      <Node name="PRG_CCD">
+        <Node name="aCCD" type="T_ARRAY__14__103__OF_WORD" access="ReadWrite" />
+        <Node name="bCapture" type="T_BOOL" access="ReadWrite">
+          <Comment> 拍攝訊號</Comment>
+        </Node>
+      </Node>
+      <Node name="PRG_Change">
+        <Comment> Subject  : Servo - motor with visual feeding system (v2026)
+ Object   : Mirror image  PRG
+ Creator  : Jack.Huang
+ Date     : 2026/01/21
+ Platform : CODESYS /Dleta Designer-AX
+ CopyRight: USE Electronics Co., Ltd.</Comment>
+        <Node name="bCLJUUse" type="T_BOOL" access="ReadWrite">
+          <Comment> 左腰上拉選擇鏡像(半自動/自動)</Comment>
+        </Node>
+        <Node name="bCRJUUse" type="T_BOOL" access="ReadWrite">
+          <Comment> 右腰上拉選擇鏡像(半自動/自動)</Comment>
+        </Node>
+        <Node name="bLOffset" type="T_BOOL" access="ReadWrite">
+          <Comment> 左偏功能接點</Comment>
+        </Node>
+        <Node name="bROffset" type="T_BOOL" access="ReadWrite">
+          <Comment> 右偏功能接點</Comment>
+        </Node>
+        <Node name="wLOffset" type="T_WORD" access="ReadWrite">
+          <Comment> 左偏移位置(人機)</Comment>
+        </Node>
+        <Node name="wROffset" type="T_WORD" access="ReadWrite">
+          <Comment> 右偏移位置(人機)</Comment>
+        </Node>
+      </Node>
+      <Node name="PRG_IOMapping">
+        <Comment> Subject  : Servo - motor with visual feeding system (v2026)
+ Object   : All digital and analog signal processing PRG
+ Creator  : Jack.Huang
+ Date     : 2026/01/21
+ Platform : CODESYS /Dleta Designer-AX
+ CopyRight: USE Electronics Co., Ltd.</Comment>
+        <Node name="b1BT" type="T_BOOL" access="ReadWrite">
+          <Comment> 結束點位選擇開關1</Comment>
+        </Node>
+        <Node name="b1PressDo" type="T_BOOL" access="ReadWrite">
+          <Comment> 第一指壓塊允許發送訊號</Comment>
+        </Node>
+        <Node name="b1SPBlock" type="T_BOOL" access="ReadWrite">
+          <Comment> 第一組指壓塊內移(手動)</Comment>
+        </Node>
+        <Node name="b23PressDo" type="T_BOOL" access="ReadWrite">
+          <Comment> 第二三指壓塊允許發送訊號</Comment>
+        </Node>
+        <Node name="b23SPBlock" type="T_BOOL" access="ReadWrite">
+          <Comment> 第二三組指壓塊內移(手動)</Comment>
+        </Node>
+        <Node name="b2BT" type="T_BOOL" access="ReadWrite">
+          <Comment> 結束點位選擇開關2</Comment>
+        </Node>
+        <Node name="b3BT" type="T_BOOL" access="ReadWrite">
+          <Comment> 結束點位選擇開關3</Comment>
+        </Node>
+        <Node name="b4BT" type="T_BOOL" access="ReadWrite">
+          <Comment> 結束點位選擇開關4</Comment>
+        </Node>
+        <Node name="b4PressDo" type="T_BOOL" access="ReadWrite">
+          <Comment> 第四指壓塊允許發送訊號</Comment>
+        </Node>
+        <Node name="b4SPBlock" type="T_BOOL" access="ReadWrite">
+          <Comment> 第四組指壓塊內移(手動)</Comment>
+        </Node>
+        <Node name="b5BT" type="T_BOOL" access="ReadWrite">
+          <Comment> 結束點位選擇開關5</Comment>
+        </Node>
+        <Node name="b5PressDo" type="T_BOOL" access="ReadWrite">
+          <Comment> 第五指壓塊允許發送訊號</Comment>
+        </Node>
+        <Node name="b5SPBlock" type="T_BOOL" access="ReadWrite">
+          <Comment> 第五組指壓塊內移(手動)</Comment>
+        </Node>
+        <Node name="b6BT" type="T_BOOL" access="ReadWrite">
+          <Comment> 結束點位選擇開關6</Comment>
+        </Node>
+        <Node name="b7BT" type="T_BOOL" access="ReadWrite">
+          <Comment> 結束點位選擇開關7</Comment>
+        </Node>
+        <Node name="bAJaw" type="T_BOOL" access="ReadWrite">
+          <Comment> 夾爪前後選用訊號</Comment>
+        </Node>
+        <Node name="bAPress" type="T_BOOL" access="ReadWrite">
+          <Comment> 中幫上下選用訊號</Comment>
+        </Node>
+        <Node name="bAxisErr" type="T_BOOL" access="ReadWrite">
+          <Comment> 軸異常訊號</Comment>
+        </Node>
+        <Node name="bBGlue" type="T_BOOL" access="ReadWrite">
+          <Comment> 後根補膠功能開啟訊號</Comment>
+        </Node>
+        <Node name="bChangeFlag" type="T_BOOL" access="ReadWrite">
+          <Comment> 配方儲存避免誤判訊號</Comment>
+        </Node>
+        <Node name="bLaserUse" type="T_BOOL" access="ReadWrite">
+          <Comment> 雷射使用訊號</Comment>
+        </Node>
+        <Node name="bNoAirInGlue" type="T_BOOL" access="ReadWrite">
+          <Comment> 擦膠氣壓無開啟異常訊號</Comment>
+        </Node>
+        <Node name="bNoGlue" type="T_BOOL" access="ReadWrite">
+          <Comment> 開啟擦膠後膠量檢知訊號</Comment>
+        </Node>
+        <Node name="bOnePush" type="T_BOOL" access="ReadWrite">
+          <Comment> 一次按鈕</Comment>
+        </Node>
+        <Node name="bPressInit" type="T_BOOL" access="ReadWrite">
+          <Comment> 第一指指壓塊未回復訊號</Comment>
+        </Node>
+        <Node name="bPreX2JogB" type="T_BOOL" access="ReadWrite">
+          <Comment> X2軸點動閉訊號</Comment>
+        </Node>
+        <Node name="bPreX2JogF" type="T_BOOL" access="ReadWrite">
+          <Comment> X2軸點動開訊號</Comment>
+        </Node>
+        <Node name="bPreXJogB" type="T_BOOL" access="ReadWrite">
+          <Comment> X軸點動閉訊號</Comment>
+        </Node>
+        <Node name="bPreXJogF" type="T_BOOL" access="ReadWrite">
+          <Comment> X軸點動開訊號</Comment>
+        </Node>
+        <Node name="bRecipeR" type="T_BOOL" access="ReadWrite">
+          <Comment> 配方讀取時關閉類比回填</Comment>
+        </Node>
+        <Node name="bSAPlatform" type="T_BOOL" access="ReadWrite">
+          <Comment> 撐台慢速內拉(半自動/自動)</Comment>
+        </Node>
+        <Node name="bSFastF" type="T_BOOL" access="ReadWrite">
+          <Comment> 膠桿快速前進(手動)</Comment>
+        </Node>
+        <Node name="bSFolder" type="T_BOOL" access="ReadWrite">
+          <Comment> 夾爪夾緊接點(手動)</Comment>
+        </Node>
+        <Node name="bSFPlatform" type="T_BOOL" access="ReadWrite">
+          <Comment> 撐台快速內拉接點(手動)</Comment>
+        </Node>
+        <Node name="bSFPlatformD" type="T_BOOL" access="ReadWrite">
+          <Comment> 撐台快速下降接點(手動)</Comment>
+        </Node>
+        <Node name="bSFPlatformU" type="T_BOOL" access="ReadWrite">
+          <Comment> 撐台快速上升訊號(手動)</Comment>
+        </Node>
+        <Node name="bSGlueNB" type="T_BOOL" access="ReadWrite">
+          <Comment> 膠桿後退(手動)</Comment>
+        </Node>
+        <Node name="bSGlueNOff" type="T_BOOL" access="ReadWrite">
+          <Comment> 同動膠嘴閉(手動)</Comment>
+        </Node>
+        <Node name="bSGlueNOn" type="T_BOOL" access="ReadWrite">
+          <Comment> 同動膠嘴開(手動)</Comment>
+        </Node>
+        <Node name="bSGluePD" type="T_BOOL" access="ReadWrite">
+          <Comment> 膠桿下降訊號(手動)</Comment>
+        </Node>
+        <Node name="bSGluePos" type="T_BOOL" access="ReadWrite">
+          <Comment> 同動膠嘴閉至擦膠點</Comment>
+        </Node>
+        <Node name="bSingleSection" type="T_BOOL" access="ReadWrite">
+          <Comment> 單節模式(2/3步)</Comment>
+        </Node>
+        <Node name="bSJawD" type="T_BOOL" access="ReadWrite">
+          <Comment>夾爪下降(手動)</Comment>
+        </Node>
+        <Node name="bSJawPull" type="T_BOOL" access="ReadWrite">
+          <Comment> 夾爪內拉訊號(手動)</Comment>
+        </Node>
+        <Node name="bSJawU" type="T_BOOL" access="ReadWrite">
+          <Comment>夾爪上升(手動)</Comment>
+        </Node>
+        <Node name="bSLGlueNOn" type="T_BOOL" access="ReadWrite">
+          <Comment> 左膠嘴開(手動)</Comment>
+        </Node>
+        <Node name="bSPBlock2PHigh" type="T_BOOL" access="ReadWrite">
+          <Comment> 指壓塊2次高壓(手動)</Comment>
+        </Node>
+        <Node name="bSPBlock3PHigh" type="T_BOOL" access="ReadWrite">
+          <Comment> 指壓塊3次高壓(手動)</Comment>
+        </Node>
+        <Node name="bSPBlockPLow" type="T_BOOL" access="ReadWrite">
+          <Comment> 指壓塊低壓(手動)</Comment>
+        </Node>
+        <Node name="bSPlatformB" type="T_BOOL" access="ReadWrite">
+          <Comment> 撐台後退接點(手動)</Comment>
+        </Node>
+        <Node name="bSPPoleD" type="T_BOOL" access="ReadWrite">
+          <Comment> 定位桿下降接點(手動)</Comment>
+        </Node>
+        <Node name="bSPrePos" type="T_BOOL" access="ReadWrite">
+          <Comment> 同動膠嘴開至預備點</Comment>
+        </Node>
+        <Node name="bSRGlueNOn" type="T_BOOL" access="ReadWrite">
+          <Comment> 右膠嘴開(手動)</Comment>
+        </Node>
+        <Node name="bSSlowF" type="T_BOOL" access="ReadWrite">
+          <Comment> 膠桿慢速前進(手動)</Comment>
+        </Node>
+        <Node name="bSSPlatform" type="T_BOOL" access="ReadWrite">
+          <Comment> 撐台慢速內拉接點(手動)</Comment>
+        </Node>
+        <Node name="bSSPlatformD" type="T_BOOL" access="ReadWrite">
+          <Comment>撐台慢速下降接點(手動)</Comment>
+        </Node>
+        <Node name="bSSPlatformU" type="T_BOOL" access="ReadWrite">
+          <Comment>撐台慢速上升訊號(手動)</Comment>
+        </Node>
+        <Node name="bSSweeping" type="T_BOOL" access="ReadWrite">
+          <Comment> 掃刀接點(手動)</Comment>
+        </Node>
+        <Node name="bSThimble" type="T_BOOL" access="ReadWrite">
+          <Comment> 頂針控制接點(手動)</Comment>
+        </Node>
+        <Node name="bSTigHig" type="T_BOOL" access="ReadWrite">
+          <Comment> 束緊器高壓訊號(手動)</Comment>
+        </Node>
+        <Node name="bSTigLow" type="T_BOOL" access="ReadWrite">
+          <Comment> 束緊器低壓訊號(手動)</Comment>
+        </Node>
+        <Node name="bSweepLimit" type="T_BOOL" access="ReadWrite">
+          <Comment> 中幫模式掃刀限制功能</Comment>
+        </Node>
+        <Node name="bThirPlatF" type="T_BOOL" access="ReadWrite">
+          <Comment> 三次內拉訊號</Comment>
+        </Node>
+        <Node name="iLaserMax" type="T_INT" access="ReadWrite">
+          <Comment> 雷射最大值</Comment>
+        </Node>
+        <Node name="iLaserMin" type="T_INT" access="ReadWrite">
+          <Comment> 雷射原點</Comment>
+        </Node>
+        <Node name="iLaserP" type="T_INT" access="ReadWrite">
+          <Comment> 雷射當前位置</Comment>
+        </Node>
+        <Node name="iPressB" type="T_INT" access="ReadWrite">
+          <Comment> 後幫結束位置</Comment>
+        </Node>
+        <Node name="iPressM" type="T_INT" access="ReadWrite">
+          <Comment> 中幫開始位置</Comment>
+        </Node>
+        <Node name="lrJogYB" type="T_LREAL" access="ReadWrite">
+          <Comment> Y軸回退速度</Comment>
+        </Node>
+        <Node name="wAnLJawMax" type="T_WORD" access="ReadWrite">
+          <Comment> 左爪電阻尺最大值</Comment>
+        </Node>
+        <Node name="wAnLJawMin" type="T_WORD" access="ReadWrite">
+          <Comment> 左爪電阻尺最小值</Comment>
+        </Node>
+        <Node name="wAnLMax" type="T_WORD" access="ReadWrite">
+          <Comment> 左中幫電阻尺最大值</Comment>
+        </Node>
+        <Node name="wAnLMin" type="T_WORD" access="ReadWrite">
+          <Comment> 左中幫電阻尺最小值</Comment>
+        </Node>
+        <Node name="wAnRJawMax" type="T_WORD" access="ReadWrite">
+          <Comment> 右爪電阻尺最大值</Comment>
+        </Node>
+        <Node name="wAnRJawMin" type="T_WORD" access="ReadWrite">
+          <Comment> 右爪電阻尺最小值</Comment>
+        </Node>
+        <Node name="wAnRMax" type="T_WORD" access="ReadWrite">
+          <Comment> 右中幫電阻尺最大值</Comment>
+        </Node>
+        <Node name="wAnRMin" type="T_WORD" access="ReadWrite">
+          <Comment> 右中幫電阻尺最小值</Comment>
+        </Node>
+        <Node name="wAxisYfsetP0" type="T_WORD" access="ReadWrite">
+          <Comment> Y軸設定位置0</Comment>
+        </Node>
+        <Node name="wAxisYfsetP1" type="T_WORD" access="ReadWrite">
+          <Comment> Y軸設定位置1</Comment>
+        </Node>
+        <Node name="wAxisYfsetP2" type="T_WORD" access="ReadWrite">
+          <Comment> Y軸設定位置2</Comment>
+        </Node>
+        <Node name="wAxisYfsetP3" type="T_WORD" access="ReadWrite">
+          <Comment> Y軸設定位置3</Comment>
+        </Node>
+        <Node name="wGlueRun" type="T_WORD" access="ReadWrite">
+          <Comment> 出膠馬達時間</Comment>
+        </Node>
+        <Node name="wMaMode" type="T_WORD" access="ReadWrite">
+          <Comment> 0:手動/1:半自動/2:全自動</Comment>
+        </Node>
+        <Node name="wMaStat" type="T_WORD" access="ReadWrite">
+          <Comment> 0:正常/1:溫度未到達/2:機器急停/3:機器故障</Comment>
+        </Node>
+        <Node name="wRestartT" type="T_WORD" access="ReadWrite">
+          <Comment> 重啟時間</Comment>
+        </Node>
+      </Node>
+      <Node name="PRG_Main">
+        <Comment> Subject  : Servo - motor with visual feeding system (v2026)
+ Object   : Main process PRG
+ Creator  : Jack.Huang
+ Date     : 2026/01/22
+ Platform : CODESYS /Dleta Designer-AX
+ CopyRight: USE Electronics Co., Ltd.</Comment>
+        <Node name="b1PressOffUSE" type="T_BOOL" access="ReadWrite">
+          <Comment> 第一指壓塊關閉使用訊號</Comment>
+        </Node>
+        <Node name="bAPole2USE" type="T_BOOL" access="ReadWrite">
+          <Comment> 定位桿二次使用訊號</Comment>
+        </Node>
+        <Node name="bAPole3USE" type="T_BOOL" access="ReadWrite">
+          <Comment> 定位桿三次使用訊號</Comment>
+        </Node>
+        <Node name="bCReset" type="T_BOOL" access="ReadWrite">
+          <Comment> 重置工件完成計數訊號</Comment>
+        </Node>
+        <Node name="bCycle" type="T_BOOL" access="ReadWrite">
+          <Comment> 循環測試訊號</Comment>
+        </Node>
+        <Node name="bInsidePress" type="T_BOOL" access="ReadWrite">
+          <Comment> 窄內腰功能開啟訊號</Comment>
+        </Node>
+        <Node name="bJawUandPull" type="T_BOOL" access="ReadWrite">
+          <Comment> 夾爪內拉與上拉優先選擇開關</Comment>
+        </Node>
+        <Node name="bJawUSE" type="T_BOOL" access="ReadWrite">
+          <Comment> 夾爪選用選擇開關</Comment>
+        </Node>
+        <Node name="bPressUSE" type="T_BOOL" access="ReadWrite">
+          <Comment> 指壓塊使用功能訊號</Comment>
+        </Node>
+        <Node name="bRstlwcom" type="T_BOOL" access="ReadWrite">
+          <Comment> 重置出機完成計數</Comment>
+        </Node>
+        <Node name="bSPlatformD" type="T_BOOL" access="ReadWrite">
+          <Comment> 掃刀出,撐台延時計時功能</Comment>
+        </Node>
+        <Node name="lwCom" type="T_LWORD" access="ReadWrite">
+          <Comment> 出機後總加工次數</Comment>
+        </Node>
+        <Node name="lwComPress" type="T_LWORD" access="ReadWrite">
+          <Comment> 機台加工次數</Comment>
+        </Node>
+        <Node name="w1APBlockT" type="T_WORD" access="ReadWrite">
+          <Comment> 第一組指壓塊時間(自動)</Comment>
+        </Node>
+        <Node name="w1PBlockT" type="T_WORD" access="ReadWrite">
+          <Comment> 第一組指壓塊時間(半自動)</Comment>
+        </Node>
+        <Node name="w1PressOffT" type="T_WORD" access="ReadWrite">
+          <Comment>第一指壓塊關閉時間</Comment>
+        </Node>
+        <Node name="w23APBlockT" type="T_WORD" access="ReadWrite">
+          <Comment> 第二三組指壓塊時間(自動)</Comment>
+        </Node>
+        <Node name="w23PBlockT" type="T_WORD" access="ReadWrite">
+          <Comment> 第二三組指壓塊時間(半自動)</Comment>
+        </Node>
+        <Node name="w3PressT" type="T_WORD" access="ReadWrite">
+          <Comment> 三次壓計時時間</Comment>
+        </Node>
+        <Node name="w4APBlockT" type="T_WORD" access="ReadWrite">
+          <Comment> 第四組指壓塊時間(自動)</Comment>
+        </Node>
+        <Node name="w4PBlockT" type="T_WORD" access="ReadWrite">
+          <Comment> 第四組指壓塊時間(半自動)</Comment>
+        </Node>
+        <Node name="w5APBlockT" type="T_WORD" access="ReadWrite">
+          <Comment> 第五組指壓塊時間(自動)</Comment>
+        </Node>
+        <Node name="w5PBlockT" type="T_WORD" access="ReadWrite">
+          <Comment> 第五組指壓塊時間(半自動)</Comment>
+        </Node>
+        <Node name="wFolderT" type="T_WORD" access="ReadWrite">
+          <Comment> 夾爪放開時間</Comment>
+        </Node>
+        <Node name="wJawLF" type="T_WORD" access="ReadWrite">
+          <Comment> 左夾爪前移時間</Comment>
+        </Node>
+        <Node name="wJawPull" type="T_WORD" access="ReadWrite">
+          <Comment> 夾爪內拉時間</Comment>
+        </Node>
+        <Node name="wJawRF" type="T_WORD" access="ReadWrite">
+          <Comment> 右夾爪前移時間</Comment>
+        </Node>
+        <Node name="wJawUT" type="T_WORD" access="ReadWrite">
+          <Comment> 夾爪上升時間</Comment>
+        </Node>
+        <Node name="wJawUU" type="T_WORD" access="ReadWrite">
+          <Comment> 夾爪上拉延遲計時器</Comment>
+        </Node>
+        <Node name="wLJawUUse" type="T_WORD" access="ReadWrite">
+          <Comment> 左腰上拉時間</Comment>
+        </Node>
+        <Node name="wMotionReset" type="T_WORD" access="ReadWrite">
+          <Comment> 膠桿回待機點時間</Comment>
+        </Node>
+        <Node name="wPBlock2PH" type="T_WORD" access="ReadWrite">
+          <Comment> 指壓塊2次高壓時間</Comment>
+        </Node>
+        <Node name="wPBlockPLow" type="T_WORD" access="ReadWrite">
+          <Comment> 指壓塊低壓時間</Comment>
+        </Node>
+        <Node name="wPlatformB" type="T_WORD" access="ReadWrite">
+          <Comment> 撐台後退時間</Comment>
+        </Node>
+        <Node name="wPoleDT" type="T_WORD" access="ReadWrite">
+          <Comment> 定位桿二次定位下沉時間</Comment>
+        </Node>
+        <Node name="wPoleR3" type="T_WORD" access="ReadWrite">
+          <Comment> 定位桿三次下降回復延遲時間</Comment>
+        </Node>
+        <Node name="wPressT" type="T_WORD" access="ReadWrite">
+          <Comment> 指壓塊壓著時間</Comment>
+        </Node>
+        <Node name="wRJawUUse" type="T_WORD" access="ReadWrite">
+          <Comment> 右腰上拉時間</Comment>
+        </Node>
+        <Node name="wSPlatformD" type="T_WORD" access="ReadWrite">
+          <Comment> 掃刀出,撐台延時時間</Comment>
+        </Node>
+        <Node name="wSPlatformU" type="T_WORD" access="ReadWrite">
+          <Comment> 撐台慢速上升時間</Comment>
+        </Node>
+        <Node name="wSTig" type="T_WORD" access="ReadWrite">
+          <Comment> 束緊器延時束緊時間</Comment>
+        </Node>
+        <Node name="wSTigOff" type="T_WORD" access="ReadWrite">
+          <Comment> 束緊器放開時間</Comment>
+        </Node>
+        <Node name="wTimeStart" type="T_WORD" access="ReadWrite">
+          <Comment> 計時時間</Comment>
+        </Node>
+      </Node>
+      <Node name="PRG_MotionControl">
+        <Comment> Subject  : Servo - motor with visual feeding system (v2026)
+ Object   : Continuous Interpolation motion control PRG
+ Creator  : Jack.Huang
+ Date     : 2026/01/29
+ Platform : CODESYS /Dleta Designer-AX
+ CopyRight: USE Electronics Co., Ltd.</Comment>
+        <Node name="aBufferPoint" type="T_ARRAY__0__29__0__2__OF_BOOL" access="ReadWrite">
+          <Comment> New點位到位旗標</Comment>
+        </Node>
+        <Node name="bGlueUSE" type="T_BOOL" access="ReadWrite">
+          <Comment> 擦膠使用訊號</Comment>
+        </Node>
+        <Node name="bPCounter" type="T_BOOL" access="ReadWrite">
+          <Comment> 鞋子點位計數訊號</Comment>
+        </Node>
+        <Node name="bXUse" type="T_BOOL" access="ReadWrite">
+          <Comment> X軸使用訊號</Comment>
+        </Node>
+        <Node name="iGluePos" type="T_INT" access="ReadWrite">
+          <Comment> Y軸出膠位置</Comment>
+        </Node>
+        <Node name="iGluePosX" type="T_INT" access="ReadWrite">
+          <Comment> X軸出膠位置</Comment>
+        </Node>
+        <Node name="iGluePosX2" type="T_INT" access="ReadWrite">
+          <Comment> X2軸出膠位置</Comment>
+        </Node>
+        <Node name="iOutGluePos" type="T_INT" access="ReadWrite">
+          <Comment> 提早斷膠位置</Comment>
+        </Node>
+        <Node name="iPrePos" type="T_INT" access="ReadWrite">
+          <Comment> Y軸預備點</Comment>
+        </Node>
+        <Node name="iPrePosX" type="T_INT" access="ReadWrite">
+          <Comment> X軸預備點</Comment>
+        </Node>
+        <Node name="iPrePosX2" type="T_INT" access="ReadWrite">
+          <Comment> X2軸預備點</Comment>
+        </Node>
+        <Node name="iYGluePos1" type="T_INT" access="ReadWrite">
+          <Comment> 第一段擦膠位置</Comment>
+        </Node>
+        <Node name="iYGluePos2" type="T_INT" access="ReadWrite">
+          <Comment> 第二段擦膠位置</Comment>
+        </Node>
+        <Node name="lrGule" type="T_LREAL" access="ReadWrite">
+          <Comment> 送膠速度</Comment>
+        </Node>
+        <Node name="lrIntV0" type="T_LREAL" access="ReadWrite">
+          <Comment> 彎曲處運動速度</Comment>
+        </Node>
+        <Node name="lrIntV1" type="T_LREAL" access="ReadWrite">
+          <Comment> 前段運動速度</Comment>
+        </Node>
+        <Node name="lrIntV2" type="T_LREAL" access="ReadWrite">
+          <Comment> 中段運動速度</Comment>
+        </Node>
+        <Node name="lrIntV3" type="T_LREAL" access="ReadWrite">
+          <Comment> 後段運動速度</Comment>
+        </Node>
+        <Node name="lrPreV" type="T_LREAL" access="ReadWrite">
+          <Comment> 回預備點速度</Comment>
+        </Node>
+        <Node name="wGluePos" type="T_WORD" access="ReadWrite">
+          <Comment> 中後/後幫擦膠點停留時間</Comment>
+        </Node>
+        <Node name="wGluePosX5" type="T_WORD" access="ReadWrite">
+          <Comment> 中幫擦膠點停留時間</Comment>
+        </Node>
+      </Node>
+      <Node name="PRG_MotionConvert">
+        <Comment> Subject  : Servo - motor with visual feeding system (v2026)
+ Object   : Position Conversion PRG
+ Creator  : Jack.Huang
+ Date     : 2026/01/29
+ Platform : CODESYS /Dleta Designer-AX
+ CopyRight: USE Electronics Co., Ltd.</Comment>
+        <Node name="wAxisX2factP" type="T_DINT" access="ReadWrite">
+          <Comment> X2軸當下位置(mm)</Comment>
+        </Node>
+        <Node name="wAxisXfactP" type="T_DINT" access="ReadWrite">
+          <Comment> X軸當下位置(mm)</Comment>
+        </Node>
+        <Node name="wAxisYfactP" type="T_DINT" access="ReadWrite">
+          <Comment> Y軸當下位置(mm)</Comment>
+        </Node>
+      </Node>
+      <Node name="PRG_MotionInit">
+        <Comment> Subject  : Servo - motor with visual feeding system (v2026)
+ Object   : Initialization control PRG
+ Creator  : Jack.Huang
+ Date     : 2026/01/29
+ Platform : CODESYS /Dleta Designer-AX
+ CopyRight: USE Electronics Co., Ltd.</Comment>
+        <Node name="bGetHPos" type="T_BOOL" access="ReadWrite">
+          <Comment> 獲取Y軸原點座標</Comment>
+        </Node>
+        <Node name="bSetHPos" type="T_BOOL" access="ReadWrite">
+          <Comment> 設定Y軸原點訊號</Comment>
+        </Node>
+        <Node name="bStartHome" type="T_BOOL" access="ReadWrite">
+          <Comment> 回原點訊號</Comment>
+        </Node>
+        <Node name="strSerialNumber" type="T_STRING" access="ReadWrite">
+          <Comment> 產品序號</Comment>
+        </Node>
+      </Node>
+      <Node name="PRG_MultiPMove">
+        <Comment> Subject  : Servo - motor with visual feeding system (v2026)
+ Object   : Single point and multi-point offset PRG
+ Creator  : Jack.Huang
+ Date     : 2026/01/26
+ Platform : CODESYS /Dleta Designer-AX
+ CopyRight: USE Electronics Co., Ltd.</Comment>
+        <Node name="aLChose" type="T_ARRAY__14__43__OF_BOOL" access="ReadWrite">
+          <Comment> 多點偏移左半邊選擇點位陣列</Comment>
+        </Node>
+        <Node name="aRChose" type="T_ARRAY__74__103__OF_BOOL" access="ReadWrite">
+          <Comment> 多點偏移右半邊選擇點位陣列</Comment>
+        </Node>
+        <Node name="bLAdd" type="T_BOOL" access="ReadWrite">
+          <Comment> 多點偏移左半邊遞增接點</Comment>
+        </Node>
+        <Node name="bLAllChose" type="T_BOOL" access="ReadWrite">
+          <Comment> 左半邊全部勾選訊號</Comment>
+        </Node>
+        <Node name="bLRotate" type="T_BOOL" access="ReadWrite">
+          <Comment> 順時針旋轉訊號</Comment>
+        </Node>
+        <Node name="bLSub" type="T_BOOL" access="ReadWrite">
+          <Comment> 多點偏移左半邊遞減接點</Comment>
+        </Node>
+        <Node name="bRAdd" type="T_BOOL" access="ReadWrite">
+          <Comment> 多點偏移右半邊遞增接點</Comment>
+        </Node>
+        <Node name="bRAllChose" type="T_BOOL" access="ReadWrite">
+          <Comment> 右半邊全部勾選訊號</Comment>
+        </Node>
+        <Node name="bRRotate" type="T_BOOL" access="ReadWrite">
+          <Comment> 逆時針旋轉訊號</Comment>
+        </Node>
+        <Node name="bRSub" type="T_BOOL" access="ReadWrite">
+          <Comment> 多點偏移右半邊遞減接點</Comment>
+        </Node>
+      </Node>
+      <Node name="PRG_QuickCorr">
+        <Comment> Subject  : Servo - motor with visual feeding system (v2026)
+ Object   : Quickly calibrate points PRG
+ Creator  : Jack.Huang
+ Date     : 2026/01/29
+ Platform : CODESYS /Dleta Designer-AX
+ CopyRight: USE Electronics Co., Ltd.</Comment>
+        <Node name="bQuickCorr" type="T_BOOL" access="ReadWrite">
+          <Comment> 快速校點模式</Comment>
+        </Node>
+        <Node name="bWQuiP" type="T_BOOL" access="ReadWrite">
+          <Comment> 快速校正點位寫入/移至下一點</Comment>
+        </Node>
+      </Node>
+      <Node name="PRG_Read">
+        <Comment> Subject  : Servo - motor with visual feeding system (v2026)
+ Object   : Read Axis Status PRG
+ Creator  : Jack.Huang
+ Date     : 2026/01/29
+ Platform : CODESYS /Dleta Designer-AX
+ CopyRight: USE Electronics Co., Ltd.</Comment>
+        <Node name="bCErr" type="T_BOOL" access="ReadWrite">
+          <Comment> C軸異常訊號</Comment>
+        </Node>
+        <Node name="bX2Err" type="T_BOOL" access="ReadWrite">
+          <Comment> X2軸異常訊號</Comment>
+        </Node>
+        <Node name="bXErr" type="T_BOOL" access="ReadWrite">
+          <Comment> X軸異常訊號</Comment>
+        </Node>
+        <Node name="bYErr" type="T_BOOL" access="ReadWrite">
+          <Comment> Y軸異常訊號</Comment>
+        </Node>
+        <Node name="dwAALID" type="T_DWORD" access="ReadWrite">
+          <Comment> A軸異常訊息</Comment>
+        </Node>
+        <Node name="dwCALID" type="T_DWORD" access="ReadWrite">
+          <Comment> C軸異常訊息</Comment>
+        </Node>
+        <Node name="dwXALID" type="T_DWORD" access="ReadWrite">
+          <Comment> X軸異常訊息</Comment>
+        </Node>
+        <Node name="dwYALID" type="T_DWORD" access="ReadWrite">
+          <Comment> Y軸異常訊息</Comment>
+        </Node>
+      </Node>
+      <Node name="PRG_Recipe">
+        <Comment> Subject  : Servo - motor with visual feeding system (v2026)
+ Object   : Data processing PRG
+ Creator  : Jack.Huang
+ Date     : 2026/01/26
+ Platform : CODESYS /Dleta Designer-AX
+ CopyRight: USE Electronics Co., Ltd.</Comment>
+        <Node name="aPToInter" type="T_ARRAY__0__29__0__2__OF_LREAL" access="ReadWrite">
+          <Comment> 運動點位陣列</Comment>
+        </Node>
+        <Node name="bClear" type="T_BOOL" access="ReadWrite">
+          <Comment> 配方清除訊號</Comment>
+        </Node>
+        <Node name="bPointRecipeR" type="T_BOOL" access="ReadWrite">
+          <Comment> 點位配方讀取輸出訊號</Comment>
+        </Node>
+        <Node name="bScaleW" type="T_BOOL" access="ReadWrite">
+          <Comment> 級放配方寫入輸出訊號</Comment>
+        </Node>
+        <Node name="bZeroArray" type="T_BOOL" access="ReadWrite">
+          <Comment> 判斷陣列是否有資料旗標</Comment>
+        </Node>
+      </Node>
+      <Node name="PRG_Stop">
+        <Comment> Subject  : Servo - motor with visual feeding system (v2026)
+ Object   : Stop &amp; Reset control PRG
+ Creator  : Jack.Huang
+ Date     : 2026/01/29
+ Platform : CODESYS /Dleta Designer-AX
+ CopyRight: USE Electronics Co., Ltd.</Comment>
+        <Node name="bReset" type="T_BOOL" access="ReadWrite">
+          <Comment> 重置異常訊號</Comment>
+        </Node>
+      </Node>
+      <Node name="PRG_Zoom">
+        <Comment> Subject  : Servo - motor with visual feeding system (v2026)
+ Object   : Zoom In/Out PRG
+ Creator  : Jack.Huang
+ Date     : 2026/01/26
+ Platform : CODESYS /Dleta Designer-AX
+ CopyRight: USE Electronics Co., Ltd.</Comment>
+        <Node name="aZoomEU" type="T_ARRAY__0__26__OF_BOOL" access="ReadWrite">
+          <Comment> 歐規級放觸發訊號(人機)</Comment>
+        </Node>
+        <Node name="aZoomTW" type="T_ARRAY__0__18__OF_BOOL" access="ReadWrite">
+          <Comment> 中/日規級放觸發訊號(人機)</Comment>
+        </Node>
+        <Node name="aZoomUS" type="T_ARRAY__0__23__OF_BOOL" access="ReadWrite">
+          <Comment> 美規級放觸發訊號(人機)</Comment>
+        </Node>
+        <Node name="lrEUNowX" type="T_LREAL" access="ReadWrite">
+          <Comment> 歐規當前X軸級放數值</Comment>
+        </Node>
+        <Node name="lrEUNowY" type="T_LREAL" access="ReadWrite">
+          <Comment> 歐規當前Y軸級放數值</Comment>
+        </Node>
+        <Node name="lrStanLev" type="T_LREAL" access="ReadWrite">
+          <Comment> 標準楦頭等級</Comment>
+        </Node>
+        <Node name="lrStanLevTran" type="T_LREAL" access="ReadWrite">
+          <Comment> 經轉換後的標準楦頭等級</Comment>
+        </Node>
+        <Node name="lrTWNowX" type="T_LREAL" access="ReadWrite">
+          <Comment> 中日規當前X軸級放數值</Comment>
+        </Node>
+        <Node name="lrTWNowY" type="T_LREAL" access="ReadWrite">
+          <Comment> 中日規當前Y軸級放數值</Comment>
+        </Node>
+        <Node name="lrUSNowX" type="T_LREAL" access="ReadWrite">
+          <Comment> 美規當前X軸級放數值</Comment>
+        </Node>
+        <Node name="lrUSNowY" type="T_LREAL" access="ReadWrite">
+          <Comment> 美規當前Y軸級放數值</Comment>
+        </Node>
+        <Node name="lrXScale" type="T_LREAL" access="ReadWrite">
+          <Comment> X軸級放距離</Comment>
+        </Node>
+        <Node name="lrYScale" type="T_LREAL" access="ReadWrite">
+          <Comment> Y軸級放距離</Comment>
+        </Node>
+        <Node name="strLevelHMI" type="T_STRING" access="ReadWrite">
+          <Comment> 級放等級映射至人機</Comment>
+        </Node>
+        <Node name="wEUMX0" type="T_LREAL" access="ReadWrite" />
+        <Node name="wEUMX1" type="T_LREAL" access="ReadWrite" />
+        <Node name="wEUMX2" type="T_LREAL" access="ReadWrite" />
+        <Node name="wEUMY0" type="T_LREAL" access="ReadWrite" />
+        <Node name="wEUMY1" type="T_LREAL" access="ReadWrite" />
+        <Node name="wEUMY2" type="T_LREAL" access="ReadWrite" />
+        <Node name="wLevel" type="T_WORD" access="ReadWrite">
+          <Comment> 級放等級</Comment>
+        </Node>
+        <Node name="wLevelHMI" type="T_WORD" access="ReadWrite">
+          <Comment> 人機顯示級放等級</Comment>
+        </Node>
+        <Node name="wTWMX0" type="T_LREAL" access="ReadWrite" />
+        <Node name="wTWMX1" type="T_LREAL" access="ReadWrite" />
+        <Node name="wTWMX2" type="T_LREAL" access="ReadWrite" />
+        <Node name="wTWMY0" type="T_LREAL" access="ReadWrite" />
+        <Node name="wTWMY1" type="T_LREAL" access="ReadWrite" />
+        <Node name="wTWMY2" type="T_LREAL" access="ReadWrite" />
+        <Node name="wUSMX0" type="T_LREAL" access="ReadWrite" />
+        <Node name="wUSMX1" type="T_LREAL" access="ReadWrite" />
+        <Node name="wUSMX2" type="T_LREAL" access="ReadWrite" />
+        <Node name="wUSMY0" type="T_LREAL" access="ReadWrite" />
+        <Node name="wUSMY1" type="T_LREAL" access="ReadWrite" />
+        <Node name="wUSMY2" type="T_LREAL" access="ReadWrite" />
+      </Node>
+    </Node>
+  </NodeList>
+</Symbolconfiguration>

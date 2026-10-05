@@ -738,14 +738,22 @@ void GetToolPath_Optimized_Mask(
 		return;
 	}
 	const cv::Rect maskBounds = cv::boundingRect(maskPoints);
-	const double bottomY = static_cast<double>(maskBounds.y + maskBounds.height - 1);
+	double bottomY = static_cast<double>(maskBounds.y + maskBounds.height - 1);
 	if (bottomY <= entryY) {
 		return;
 	}
 	double bottomLeftX = 0.0;
 	double bottomRightX = 0.0;
 	if (!findRoiBottomIntersections(bottomY, bottomLeftX, bottomRightX)) {
-		return;
+		// The detected object does not always extend to the configured ROI bottom.
+		// In that case, use the last scan line that has two valid contour sides so
+		// ToolPathType 1 can still produce its synchronized 25-point path.
+		bottomY = rows.back().y;
+		bottomLeftX = rows.back().leftX;
+		bottomRightX = rows.back().rightX;
+		if (bottomY <= entryY) {
+			return;
+		}
 	}
 
 	std::vector<cv::Point2d> leftPoints;
@@ -759,9 +767,15 @@ void GetToolPath_Optimized_Mask(
 		double leftX = 0.0;
 		double rightX = 0.0;
 		const bool isLastPoint = (sampleIndex + 1 == kSampleCountPerSide);
-		const bool foundIntersections = isLastPoint
-			? findRoiBottomIntersections(targetY, leftX, rightX)
-			: findSideIntersections(targetY, leftX, rightX);
+		bool foundIntersections = false;
+		if (isLastPoint) {
+			leftX = bottomLeftX;
+			rightX = bottomRightX;
+			foundIntersections = rightX > leftX + 1e-6;
+		}
+		else {
+			foundIntersections = findSideIntersections(targetY, leftX, rightX);
+		}
 		if (!foundIntersections) {
 			toolpath.Path.clear();
 			return;
@@ -2150,6 +2164,7 @@ void WriteConfigToFile_SP(const std::string& filename, const SystemConfigA& SysC
 	file << "BinaryLower=" << SysConfig.BinaryLower << "\n";
 	file << "Binary=" << SysConfig.Binary << "\n";
 	file << "CameraToMachineAngle=" << SysConfig.CameraToMachineAngle << "\n";
+	file << "IsMachineRotate=" << SysConfig.IsMachineRotate << "\n";
 	file << "SaveINI=" << SysConfig.SaveINI << "\n";
 
 	file << "[Tool]\n";
@@ -2196,6 +2211,7 @@ void InitialConfigA(const std::string& filename, SystemConfigA& SysConfig)
 	SysConfig.PathDataOut = 1;
 	SysConfig.Binary = 0;
 	SysConfig.CameraToMachineAngle = 0;
+	SysConfig.IsMachineRotate = 1;
 	SysConfig.SaveINI = 0;
 	SysConfig.RefCenterX = 695.0f;
 	SysConfig.RefCenterY = 194.0f;
@@ -2375,9 +2391,11 @@ int ReadSystemConfig_SP(const std::string& filename, SystemConfigA& SysConfig)
 	SysConfig.ToolPathType = 0; // Default when the key is missing or empty.
 	SysConfig.PathDataOut = 1; // Default when the key is missing or invalid.
 	SysConfig.CameraToMachineAngle = 0; // Default when the key is missing or invalid.
+	SysConfig.IsMachineRotate = 1; // Preserve coordinate rotation when the key is missing.
 	bool toolPathTypeNeedsWrite = true;
 	bool pathDataOutNeedsWrite = true;
 	bool cameraToMachineAngleNeedsWrite = true;
+	bool isMachineRotateNeedsWrite = true;
 
 	std::string line;
 
@@ -2428,6 +2446,10 @@ int ReadSystemConfig_SP(const std::string& filename, SystemConfigA& SysConfig)
 				SysConfig.CameraToMachineAngle = val.empty() ? 0 : std::stoi(val);
 				cameraToMachineAngleNeedsWrite = val.empty();
 			}
+			else if (key == "IsMachineRotate") {
+				SysConfig.IsMachineRotate = val.empty() ? 1 : std::stoi(val);
+				isMachineRotateNeedsWrite = val.empty();
+			}
 			else if (key == "SaveINI")           SysConfig.SaveINI = std::stoi(val);
 
 			else if (key == "CreateToolPath")    SysConfig.CreateToolPath = std::stoi(val);
@@ -2459,7 +2481,11 @@ int ReadSystemConfig_SP(const std::string& filename, SystemConfigA& SysConfig)
 		SysConfig.PathDataOut = 1;
 		pathDataOutNeedsWrite = true;
 	}
-	if (toolPathTypeNeedsWrite || pathDataOutNeedsWrite || cameraToMachineAngleNeedsWrite) {
+	if (SysConfig.IsMachineRotate != 0 && SysConfig.IsMachineRotate != 1) {
+		SysConfig.IsMachineRotate = 1;
+		isMachineRotateNeedsWrite = true;
+	}
+	if (toolPathTypeNeedsWrite || pathDataOutNeedsWrite || cameraToMachineAngleNeedsWrite || isMachineRotateNeedsWrite) {
 		try {
 			WriteConfigToFile_SP(filename, SysConfig);
 		}
